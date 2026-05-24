@@ -219,6 +219,47 @@ _graph_explorer: Agent | None = None
 _memory_writer: Agent | None = None
 
 
+def _build_mongo_read_toolset() -> McpToolset:
+    """Create a read-only MongoDB MCP toolset."""
+    return McpToolset(
+        connection_params=StdioConnectionParams(
+            server_params=StdioServerParameters(
+                command="npx",
+                args=["-y", "mongodb-mcp-server"],
+                env={
+                    "MDB_MCP_CONNECTION_STRING": settings.mongodb_uri,
+                    "MDB_MCP_READ_ONLY": "true",
+                },
+            ),
+        ),
+        tool_filter=["find", "aggregate", "count"],
+    )
+
+
+def _build_mongo_write_toolset() -> McpToolset:
+    """Create a read-write MongoDB MCP toolset."""
+    return McpToolset(
+        connection_params=StdioConnectionParams(
+            server_params=StdioServerParameters(
+                command="npx",
+                args=["-y", "mongodb-mcp-server"],
+                env={
+                    "MDB_MCP_CONNECTION_STRING": settings.mongodb_uri,
+                    "MDB_MCP_READ_ONLY": "false",
+                },
+            ),
+        ),
+        tool_filter=[
+            "find",
+            "aggregate",
+            "count",
+            "insertOne",
+            "updateOne",
+            "updateMany",
+        ],
+    )
+
+
 def _get_semantic_retriever() -> Agent:
     global _semantic_retriever
     if _semantic_retriever is None:
@@ -228,7 +269,7 @@ def _get_semantic_retriever() -> Agent:
             description="Perceives relevant organizational knowledge through hybrid search. "
             "Call with a query to find semantically and textually related memory nodes.",
             instruction=SEMANTIC_RETRIEVER_INSTRUCTION,
-            tools=[],  # Attached at startup via initialize_agents
+            tools=[_build_mongo_read_toolset(), embed_query],
             output_key="retrieval_results",
             after_tool_callback=log_tool_usage,
         )
@@ -245,7 +286,7 @@ def _get_graph_explorer() -> Agent:
             "understand what connects to a specific node — its neighbors, "
             "dependents, related knowledge, and organizational context.",
             instruction=GRAPH_EXPLORER_INSTRUCTION,
-            tools=[],  # Attached at startup via initialize_agents
+            tools=[_build_mongo_read_toolset()],
             output_key="graph_results",
             after_tool_callback=log_tool_usage,
         )
@@ -262,7 +303,7 @@ def _get_memory_writer() -> Agent:
             "relationships, and persists to the knowledge graph. Call with the "
             "observation and any related context from prior retrieval.",
             instruction=MEMORY_WRITER_INSTRUCTION,
-            tools=[],  # Attached at startup via initialize_agents
+            tools=[_build_mongo_write_toolset(), canonize_node_tool],
             output_key="write_result",
             output_schema=MemoryNodeOutput,
             after_tool_callback=log_tool_usage,

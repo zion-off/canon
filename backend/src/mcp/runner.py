@@ -79,7 +79,7 @@ async def run_agent(
             "app:session_id": session_id,
             "app:run_id": run_id,
             "app:max_graph_depth": tenant.get("settings", {}).get("maxGraphDepth", 2),
-            "app:embedding_model": tenant.get("embeddingModel", "text-embedding-004"),
+            "app:embedding_model": tenant.get("embeddingModel", settings.embedding_model),
         },
     )
 

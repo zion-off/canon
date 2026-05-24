@@ -47,7 +47,7 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("CANON_FAST_MODEL", "fast_model"),
     )
     embedding_model: str = Field(
-        default="text-embedding-004",
+        default="gemini-embedding-2",
         validation_alias=AliasChoices("CANON_EMBEDDING_MODEL", "embedding_model"),
     )
 

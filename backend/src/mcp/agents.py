@@ -51,7 +51,7 @@ using hybrid search.
 
 ## Query Strategy
 
-1. Call `embed_query` with the query text to obtain a 768-dim vector.
+1. Call `generate_query_embedding` with the query text to obtain a 768-dim vector.
 2. Extract keywords from the input (service names, pattern names, technical terms).
 3. Construct a $rankFusion aggregate pipeline combining:
    - $vectorSearch on the embedding field using the vector from step 1 \

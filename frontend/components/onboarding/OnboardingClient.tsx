@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, useRef, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createTeam, joinTeam } from "@/lib/actions/teams";
 import { Button } from "@/components/ui/Button";
@@ -32,14 +32,18 @@ export function OnboardingClient() {
           </div>
 
           <div className="bg-[#0f0f1a] border border-white/[0.08] rounded-xl overflow-hidden">
-            <div className="flex border-b border-white/[0.08]">
+            <div role="tablist" className="flex border-b border-white/[0.08]">
               <TabButton
+                id="tab-create"
+                panelId="panel-create"
                 active={activeTab === "create"}
                 onClick={() => setActiveTab("create")}
               >
                 Create a team
               </TabButton>
               <TabButton
+                id="tab-join"
+                panelId="panel-join"
                 active={activeTab === "join"}
                 onClick={() => setActiveTab("join")}
               >
@@ -47,7 +51,12 @@ export function OnboardingClient() {
               </TabButton>
             </div>
 
-            <div className="p-8">
+            <div
+              role="tabpanel"
+              id={activeTab === "create" ? "panel-create" : "panel-join"}
+              aria-labelledby={activeTab === "create" ? "tab-create" : "tab-join"}
+              className="p-8"
+            >
               {activeTab === "create" ? <CreateTeamForm /> : <JoinTeamForm />}
             </div>
           </div>
@@ -58,10 +67,14 @@ export function OnboardingClient() {
 }
 
 function TabButton({
+  id,
+  panelId,
   active,
   onClick,
   children,
 }: {
+  id: string;
+  panelId: string;
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
@@ -69,6 +82,10 @@ function TabButton({
   return (
     <button
       type="button"
+      role="tab"
+      id={id}
+      aria-selected={active}
+      aria-controls={panelId}
       onClick={onClick}
       className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
         active
@@ -141,7 +158,10 @@ function CreateTeamForm() {
       </div>
 
       {error && (
-        <p className="text-sm text-[#EF4444] bg-[#EF4444]/10 rounded-md px-3 py-2">
+        <p
+          role="alert"
+          className="text-sm text-[#EF4444] bg-[#EF4444]/10 rounded-md px-3 py-2"
+        >
           {error}
         </p>
       )}
@@ -159,6 +179,15 @@ function JoinTeamForm() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (redirectTimer.current) {
+        clearTimeout(redirectTimer.current);
+      }
+    };
+  }, []);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -174,7 +203,7 @@ function JoinTeamForm() {
     try {
       const result = await joinTeam(trimmed);
       setSuccessMessage(`Joined ${result.teamName}!`);
-      setTimeout(() => router.push("/dashboard"), 1000);
+      redirectTimer.current = setTimeout(() => router.push("/dashboard"), 1000);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to join team.";
@@ -215,7 +244,10 @@ function JoinTeamForm() {
       </div>
 
       {error && (
-        <p className="text-sm text-[#EF4444] bg-[#EF4444]/10 rounded-md px-3 py-2">
+        <p
+          role="alert"
+          className="text-sm text-[#EF4444] bg-[#EF4444]/10 rounded-md px-3 py-2"
+        >
           {error}
         </p>
       )}

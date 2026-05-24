@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING
 
 import google.genai as genai
 from bson import ObjectId
+from google.adk.agents.context_cache_config import ContextCacheConfig
+from google.adk.apps import App
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai.types import Content, Part
@@ -80,12 +82,19 @@ async def run_agent(
         },
     )
 
-    plugin = ReasoningFeedPlugin(event_feed)
+    canon_app = App(
+        name="canon",
+        root_agent=orchestrator,
+        plugins=[ReasoningFeedPlugin(event_feed)],
+        context_cache_config=ContextCacheConfig(
+            min_tokens=2048,
+            ttl_seconds=1800,
+        ),
+    )
+
     runner = Runner(
-        agent=orchestrator,
-        app_name="canon",
+        app=canon_app,
         session_service=session_service,
-        plugins=[plugin],
     )
 
     content = Content(

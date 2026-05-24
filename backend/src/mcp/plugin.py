@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 class ReasoningFeedPlugin(BasePlugin):
     """Intercepts agent lifecycle events and emits them to the Reasoning Feed.
 
-    Registered as a Runner plugin — runs BEFORE any agent-level callbacks.
+    Registered on the App — runs BEFORE any agent-level callbacks.
     Captures: tool invocations, agent delegations.
     Sequence numbers are assigned by AgentEventFeed.broadcast (not here).
     """

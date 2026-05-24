@@ -243,7 +243,7 @@ Latest response: {response[:1000]}
 
 Write only the updated summary — no preamble, no explanation. Ruthlessly compress."""
 
-    client = genai.Client()
+    client = genai.Client(api_key=settings.gemini_api_key)
     result = await client.aio.models.generate_content(
         model=f"models/{settings.fast_model}",
         contents=prompt,

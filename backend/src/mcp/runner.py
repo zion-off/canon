@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-import google.genai as genai
 from bson import ObjectId
 from google.adk.agents.context_cache_config import ContextCacheConfig
 from google.adk.apps import App
@@ -14,6 +13,7 @@ from google.genai.types import Content, Part
 from src.config import settings
 from src.mcp.agents import build_orchestrator
 from src.mcp.plugin import ReasoningFeedPlugin
+from src.mcp.utils import get_genai_client, summarize_args
 from src.models.schemas import AgentEvent
 
 if TYPE_CHECKING:
@@ -154,7 +154,7 @@ async def run_agent(
                     event=AgentEvent(
                         type="tool_call_started",
                         author=event.author,
-                        content=f"{fc.name}: {_summarize_function_args(fc.args)}",
+                        content=f"{fc.name}: {summarize_args(fc.args)}",
                         is_final=False,
                     ),
                 )
@@ -211,17 +211,6 @@ def _build_message(request: str, session_summary: str | None) -> str:
     return f"Request:\n{request}"
 
 
-def _summarize_function_args(args: dict | None) -> str:
-    """Summarize function call args for the event feed."""
-    if not args:
-        return ""
-    if "query" in args:
-        return str(args["query"])[:100]
-    if "document" in args and isinstance(args["document"], dict) and "name" in args["document"]:
-        return f"writing: {args['document']['name']}"
-    return ", ".join(f"{k}={str(v)[:50]}" for k, v in list(args.items())[:3])
-
-
 async def _generate_session_summary(
     previous_summary: str | None,
     request: str,
@@ -243,7 +232,7 @@ Latest response: {response[:1000]}
 
 Write only the updated summary — no preamble, no explanation. Ruthlessly compress."""
 
-    client = genai.Client(api_key=settings.gemini_api_key)
+    client = get_genai_client()
     result = await client.aio.models.generate_content(
         model=f"models/{settings.fast_model}",
         contents=prompt,

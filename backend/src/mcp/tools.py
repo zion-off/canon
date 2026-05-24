@@ -7,9 +7,9 @@ generate embeddings, and emit reasoning checkpoints.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 from bson import ObjectId
-from google import genai
 from google.adk.tools import FunctionTool
 from google.adk.tools.tool_context import ToolContext
 from google.genai import types
@@ -17,11 +17,11 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import DuplicateKeyError
 
 from src.config import settings
+from src.mcp.utils import get_genai_client
 
 # ─── Lazy Singletons ─────────────────────────────────────────────────────────
 
 _mongo_client: AsyncIOMotorClient | None = None
-_genai_client: genai.Client | None = None
 
 
 def _get_mongo_client() -> AsyncIOMotorClient:
@@ -32,18 +32,10 @@ def _get_mongo_client() -> AsyncIOMotorClient:
     return _mongo_client
 
 
-def _get_genai_client() -> genai.Client:
-    """Return a lazily-initialized Gemini API client singleton."""
-    global _genai_client  # noqa: PLW0603
-    if _genai_client is None:
-        _genai_client = genai.Client(api_key=settings.gemini_api_key)
-    return _genai_client
-
-
 # ─── Embedding Utilities ─────────────────────────────────────────────────────
 
 
-def build_embedding_text(document: dict) -> str:
+def build_embedding_text(document: dict[str, Any]) -> str:
     """Build a retrieval-optimized semantic representation of a memory node.
 
     Combines the node's name, status, description, content, and tags into
@@ -89,7 +81,7 @@ async def generate_document_embedding(text: str) -> list[float]:
     Returns:
         A list of 768 floats representing the embedding vector.
     """
-    client = _get_genai_client()
+    client = get_genai_client()
     response = await client.aio.models.embed_content(
         model=settings.embedding_model,
         contents=text,
@@ -101,7 +93,7 @@ async def generate_document_embedding(text: str) -> list[float]:
     return response.embeddings[0].values
 
 
-async def generate_query_embedding(text: str) -> dict:
+async def embed_query(text: str) -> dict[str, list[float]]:
     """Generate a 768-dimensional embedding for query-time vector search.
 
     Uses the Gemini embedding API with RETRIEVAL_QUERY task type,
@@ -113,27 +105,32 @@ async def generate_query_embedding(text: str) -> dict:
     Returns:
         A dictionary with key 'embedding' containing the 768-float vector.
     """
-    client = _get_genai_client()
-    response = await client.aio.models.embed_content(
-        model=settings.embedding_model,
-        contents=text,
-        config=types.EmbedContentConfig(
-            task_type="RETRIEVAL_QUERY",
-            output_dimensionality=768,
-        ),
-    )
-    return {"embedding": response.embeddings[0].values}
+    client = get_genai_client()
+    try:
+        response = await client.aio.models.embed_content(
+            model=settings.embedding_model,
+            contents=text,
+            config=types.EmbedContentConfig(
+                task_type="RETRIEVAL_QUERY",
+                output_dimensionality=768,
+            ),
+        )
+        if not response.embeddings:
+            return {"error": "Embedding API returned empty response."}
+        return {"embedding": response.embeddings[0].values}
+    except Exception as exc:
+        return {"error": f"Embedding generation failed: {exc}"}
 
 
 # ─── Core Agent Tools ────────────────────────────────────────────────────────
 
 
 async def canonize_node(
-    document: dict,
+    document: dict[str, Any],
     rationale: str,
     related_existing_ids: list[str],
     tool_context: ToolContext,
-) -> dict:
+) -> dict[str, str]:
     """Persist a structured memory node to the Canon knowledge graph.
 
     Creates a new node in the memory_nodes collection with full validation,
@@ -253,7 +250,7 @@ async def canonize_node(
     }
 
 
-async def emit_checkpoint(message: str, tool_context: ToolContext) -> dict:
+async def emit_checkpoint(message: str, tool_context: ToolContext) -> dict[str, str]:
     """Emit a reasoning checkpoint visible to the user.
 
     Checkpoints allow agents to communicate intermediate reasoning steps
@@ -277,5 +274,5 @@ async def emit_checkpoint(message: str, tool_context: ToolContext) -> dict:
 # ─── Tool Instances ──────────────────────────────────────────────────────────
 
 canonize_node_tool = FunctionTool(func=canonize_node)
-embed_query = FunctionTool(func=generate_query_embedding)
+embed_query_tool = FunctionTool(func=embed_query)
 emit_checkpoint_tool = FunctionTool(func=emit_checkpoint)

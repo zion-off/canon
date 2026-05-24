@@ -14,28 +14,13 @@ from google.adk.plugins.base_plugin import BasePlugin
 from google.adk.tools.base_tool import BaseTool
 from google.genai import types
 
+from src.mcp.utils import summarize_args, summarize_result
 from src.models.schemas import AgentEvent
 
 if TYPE_CHECKING:
     from google.adk.tools.tool_context import ToolContext
 
     from src.services.event_feed import AgentEventFeed
-
-
-def _summarize_args(args: dict[str, Any]) -> str:
-    """Produce a human-readable summary of tool arguments for the feed."""
-    if "query" in args:
-        return str(args["query"])[:100]
-    if "document" in args and isinstance(args["document"], dict) and "name" in args["document"]:
-        return f"writing: {args['document']['name']}"
-    return ", ".join(f"{k}={str(v)[:50]}" for k, v in list(args.items())[:3])
-
-
-def _summarize_result(tool_name: str, args: dict[str, Any], result: dict) -> str:
-    """Produce a concise summary of a completed tool invocation."""
-    arg_hint = _summarize_args(args)
-    status = result.get("status", "ok")
-    return f"{tool_name}({arg_hint}) -> {status}"
 
 
 class ReasoningFeedPlugin(BasePlugin):
@@ -91,7 +76,7 @@ class ReasoningFeedPlugin(BasePlugin):
             event=AgentEvent(
                 type="tool_call_started",
                 author=tool_context.agent_name,
-                content=f"{tool.name}: {_summarize_args(tool_args)}",
+                content=f"{tool.name}: {summarize_args(tool_args)}",
             ),
         )
         return None
@@ -109,7 +94,7 @@ class ReasoningFeedPlugin(BasePlugin):
         session_id = tool_context.state.get("app:session_id")
         run_id = tool_context.state.get("app:run_id")
 
-        summary = _summarize_result(tool.name, tool_args, result)
+        summary = summarize_result(tool.name, tool_args, result)
         await self._event_feed.broadcast(
             tenant_id=tenant_id,
             session_id=session_id,

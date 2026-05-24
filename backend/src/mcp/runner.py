@@ -13,7 +13,7 @@ from google.genai.types import Content, Part
 from src.config import settings
 from src.mcp.agents import build_orchestrator
 from src.mcp.plugin import ReasoningFeedPlugin
-from src.mcp.utils import get_genai_client, summarize_args
+from src.mcp.utils import get_genai_client
 from src.models.schemas import AgentEvent
 
 if TYPE_CHECKING:
@@ -106,6 +106,7 @@ async def run_agent(
     # Emit run_started
     await event_feed.broadcast(
         tenant_id=tenant_id,
+        user_id=user_id,
         session_id=session_id,
         run_id=run_id,
         event=AgentEvent(
@@ -116,19 +117,21 @@ async def run_agent(
         ),
     )
 
-    # Run orchestrator and capture events
+    # Run orchestrator — the ReasoningFeedPlugin handles lifecycle events
+    # (tool_call_started, tool_call_completed, subagent_invoked) automatically.
+    # This loop only detects reasoning checkpoints and the final response.
     final_response = None
     async for event in runner.run_async(
         user_id=tenant_id,
         session_id=session.id,
         new_message=content,
     ):
-        # Detect explicit reasoning checkpoints from function calls
         if hasattr(event, "function_calls") and event.function_calls:
             for fc in event.function_calls:
                 if fc.name == "emit_checkpoint":
                     await event_feed.broadcast(
                         tenant_id=tenant_id,
+                        user_id=user_id,
                         session_id=session_id,
                         run_id=run_id,
                         event=AgentEvent(
@@ -139,26 +142,6 @@ async def run_agent(
                         ),
                     )
 
-        # Detect subagent invocations and tool calls for the reasoning feed
-        if (
-            hasattr(event, "author")
-            and event.author != "canon_orchestrator"
-            and hasattr(event, "function_calls")
-            and event.function_calls
-        ):
-            for fc in event.function_calls:
-                await event_feed.broadcast(
-                    tenant_id=tenant_id,
-                    session_id=session_id,
-                    run_id=run_id,
-                    event=AgentEvent(
-                        type="tool_call_started",
-                        author=event.author,
-                        content=f"{fc.name}: {summarize_args(fc.args)}",
-                        is_final=False,
-                    ),
-                )
-
         if event.is_final_response() and event.content and event.content.parts:
             final_response = event.content.parts[0].text
 
@@ -166,6 +149,7 @@ async def run_agent(
     if final_response:
         await event_feed.broadcast(
             tenant_id=tenant_id,
+            user_id=user_id,
             session_id=session_id,
             run_id=run_id,
             event=AgentEvent(
@@ -179,6 +163,7 @@ async def run_agent(
     # Emit run_completed
     await event_feed.broadcast(
         tenant_id=tenant_id,
+        user_id=user_id,
         session_id=session_id,
         run_id=run_id,
         event=AgentEvent(
@@ -200,6 +185,8 @@ async def run_agent(
             {"sessionId": session_id},
             {"$set": {"summary": updated_summary}},
         )
+
+    event_feed.cleanup_run(run_id)
 
     return final_response or "No response generated."
 

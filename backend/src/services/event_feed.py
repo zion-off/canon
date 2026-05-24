@@ -28,6 +28,7 @@ class AgentEventFeed:
     async def broadcast(
         self,
         tenant_id: str,
+        user_id: str,
         session_id: str,
         run_id: str,
         event: AgentEvent,
@@ -50,6 +51,7 @@ class AgentEventFeed:
         # Persist for replay
         await self._event_repo.insert(
             tenant_id=tenant_id,
+            user_id=user_id,
             session_id=session_id,
             run_id=run_id,
             event=event_dict,
@@ -77,6 +79,10 @@ class AgentEventFeed:
             self._subscribers[key].remove(queue)
             if not self._subscribers[key]:
                 del self._subscribers[key]
+
+    def cleanup_run(self, run_id: str) -> None:
+        """Remove sequence tracking for a completed run."""
+        self._sequences.pop(run_id, None)
 
     async def replay(
         self,

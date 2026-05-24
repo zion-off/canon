@@ -47,6 +47,7 @@ class ReasoningFeedPlugin(BasePlugin):
         if agent_name != "canon_orchestrator":
             await self._event_feed.broadcast(
                 tenant_id=tenant_id,
+                user_id=callback_context.state.get("app:user_id"),
                 session_id=session_id,
                 run_id=run_id,
                 event=AgentEvent(
@@ -71,6 +72,7 @@ class ReasoningFeedPlugin(BasePlugin):
 
         await self._event_feed.broadcast(
             tenant_id=tenant_id,
+            user_id=tool_context.state.get("app:user_id"),
             session_id=session_id,
             run_id=run_id,
             event=AgentEvent(
@@ -97,6 +99,7 @@ class ReasoningFeedPlugin(BasePlugin):
         summary = summarize_result(tool.name, tool_args, result)
         await self._event_feed.broadcast(
             tenant_id=tenant_id,
+            user_id=tool_context.state.get("app:user_id"),
             session_id=session_id,
             run_id=run_id,
             event=AgentEvent(

@@ -17,6 +17,7 @@ class AgentEventRepository:
     async def insert(
         self,
         tenant_id: str,
+        user_id: str,
         session_id: str,
         run_id: str,
         event: dict[str, Any],
@@ -24,6 +25,7 @@ class AgentEventRepository:
         """Insert a single agent event into the agent_events collection."""
         doc = {
             "tenantId": ObjectId(tenant_id),
+            "userId": user_id,
             "sessionId": session_id,
             "runId": run_id,
             **event,

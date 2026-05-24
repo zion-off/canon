@@ -159,7 +159,7 @@ class SessionResponse(BaseModel):
     run_count: int = Field(alias="runCount")
     created_at: str = Field(alias="createdAt")
     updated_at: str = Field(alias="updatedAt")
-    last_run_at: str = Field(alias="lastRunAt")
+    last_run_at: str | None = Field(default=None, alias="lastRunAt")
 
 
 class SessionListResponse(BaseModel):

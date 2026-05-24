@@ -202,7 +202,7 @@ async def canonize_node(
 
     # Insert into MongoDB
     client = _get_mongo_client()
-    db = client["canon"]
+    db = client[settings.database_name]
     collection = db["memory_nodes"]
 
     try:

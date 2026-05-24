@@ -35,7 +35,7 @@ def _doc_to_session(doc: dict[str, Any]) -> SessionResponse:
         run_count=doc.get("runCount", 0),
         created_at=str(doc.get("createdAt", "")),
         updated_at=str(doc.get("updatedAt", "")),
-        last_run_at=str(doc.get("lastRunAt", "")),
+        last_run_at=doc["lastRunAt"].isoformat() if doc.get("lastRunAt") else None,
     )
 
 

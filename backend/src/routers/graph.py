@@ -30,6 +30,7 @@ async def get_graph(
 
     for node in nodes:
         nid = str(node["_id"])
+        related_ids = node.get("relatedEntityIds", [])
         graph_nodes.append(GraphNode(
             id=nid,
             name=node["name"],
@@ -46,8 +47,9 @@ async def get_graph(
             created_at=(
                 node["createdAt"].isoformat() if node.get("createdAt") else ""
             ),
+            connections=len(related_ids),
         ))
-        for rel_id in node.get("relatedEntityIds", []):
+        for rel_id in related_ids:
             rid = str(rel_id)
             if rid in node_ids and nid < rid:
                 graph_links.append(GraphLink(source=nid, target=rid, type="related"))

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 import type { AgentEvent } from "@/lib/schemas/sessions";
 
 export function useEventStream(
@@ -10,43 +10,53 @@ export function useEventStream(
 ) {
   const onEventRef = useRef(onEvent);
   const lastSequenceRef = useRef<number>(0);
+  const sourceRef = useRef<EventSource | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const unmountedRef = useRef(false);
 
   useEffect(() => {
     onEventRef.current = onEvent;
   }, [onEvent]);
 
-  const connect = useCallback(() => {
-    if (!enabled) return undefined;
+  useEffect(() => {
+    unmountedRef.current = false;
 
-    const url = `/api/stream/${sessionId}?after=${lastSequenceRef.current}`;
-    const eventSource = new EventSource(url);
+    function connect() {
+      if (!enabled || unmountedRef.current) return;
 
-    eventSource.onmessage = (msg) => {
-      try {
-        const event = JSON.parse(msg.data) as AgentEvent;
-        if (event.sequence !== null && event.sequence > lastSequenceRef.current) {
-          lastSequenceRef.current = event.sequence;
+      const url = `/api/stream/${sessionId}?after=${lastSequenceRef.current}`;
+      const es = new EventSource(url);
+      sourceRef.current = es;
+
+      es.onmessage = (msg) => {
+        try {
+          const event = JSON.parse(msg.data) as AgentEvent;
+          if (event.sequence !== null && event.sequence > lastSequenceRef.current) {
+            lastSequenceRef.current = event.sequence;
+          }
+          onEventRef.current(event);
+        } catch {
+          // Ignore malformed messages
         }
-        onEventRef.current(event);
-      } catch {
-        // Ignore malformed messages
+      };
+
+      es.onerror = () => {
+        es.close();
+        if (unmountedRef.current) return;
+        timerRef.current = setTimeout(connect, 2000);
+      };
+    }
+
+    connect();
+
+    return () => {
+      unmountedRef.current = true;
+      sourceRef.current?.close();
+      sourceRef.current = null;
+      if (timerRef.current !== null) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
       }
     };
-
-    eventSource.onerror = () => {
-      eventSource.close();
-      setTimeout(() => {
-        connect();
-      }, 2000);
-    };
-
-    return eventSource;
   }, [sessionId, enabled]);
-
-  useEffect(() => {
-    const eventSource = connect();
-    return () => {
-      eventSource?.close();
-    };
-  }, [connect]);
 }

@@ -1,11 +1,11 @@
 "use client";
 
-import type { AgentEvent } from "@/lib/schemas/sessions";
+import type { IdentifiedEvent } from "./EventFeed";
 import { EventItem } from "./EventItem";
 
 interface RunGroupProps {
   runIndex: number;
-  events: AgentEvent[];
+  events: IdentifiedEvent[];
   timestamp: string | null;
 }
 
@@ -37,8 +37,8 @@ export function RunGroup({ runIndex, events, timestamp }: RunGroupProps) {
       </div>
 
       <div className="space-y-2 border-l border-white/[0.06] pl-4">
-        {events.map((event, idx) => (
-          <EventItem key={`${event.sequence ?? idx}-${event.type}`} event={event} />
+        {events.map((event) => (
+          <EventItem key={event.stableId} event={event} />
         ))}
       </div>
     </div>

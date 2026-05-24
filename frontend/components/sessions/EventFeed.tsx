@@ -11,15 +11,19 @@ interface EventFeedProps {
   isLive: boolean;
 }
 
+export interface IdentifiedEvent extends AgentEvent {
+  stableId: number;
+}
+
 interface RunBucket {
   runIndex: number;
-  events: AgentEvent[];
+  events: IdentifiedEvent[];
   timestamp: string | null;
 }
 
-function groupEventsIntoRuns(events: AgentEvent[]): RunBucket[] {
+function groupEventsIntoRuns(events: IdentifiedEvent[]): RunBucket[] {
   const runs: RunBucket[] = [];
-  let currentRun: AgentEvent[] = [];
+  let currentRun: IdentifiedEvent[] = [];
   let runCounter = 0;
   let currentTimestamp: string | null = null;
 
@@ -55,13 +59,21 @@ function groupEventsIntoRuns(events: AgentEvent[]): RunBucket[] {
   return runs;
 }
 
+let nextStableId = 0;
+
+function assignStableId(event: AgentEvent): IdentifiedEvent {
+  return { ...event, stableId: nextStableId++ };
+}
+
 export function EventFeed({ sessionId, initialEvents, isLive }: EventFeedProps) {
-  const [events, setEvents] = useState<AgentEvent[]>(initialEvents);
+  const [events, setEvents] = useState<IdentifiedEvent[]>(() =>
+    initialEvents.map(assignStableId),
+  );
   const feedEndRef = useRef<HTMLDivElement>(null);
   const [live, setLive] = useState(isLive);
 
   const handleNewEvent = useCallback((event: AgentEvent) => {
-    setEvents((prev) => [...prev, event]);
+    setEvents((prev) => [...prev, assignStableId(event)]);
     if (event.type === "run_completed" && event.isFinal) {
       setLive(false);
     }

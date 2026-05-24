@@ -1,10 +1,23 @@
 [project]
-name = "canoon"
+name = "canon-mcp"
 version = "0.1.0"
-description = "organizational continuity agent"
+description = "Canon — organizational continuity agent for coding workflows"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+    "mcp[cli]>=1.9.0",
+    "fastmcp>=2.0.0",
+    "google-adk>=1.5.0",
+    "google-genai>=1.14.0",
+    "motor>=3.7.0",
+    "pydantic[email]>=2.11.0",
+    "bcrypt>=4.3.0",
+    "pyjwt>=2.10.0",
+    "httpx>=0.28.0",
+    "sse-starlette>=2.2.0",
+]
 
 [dependency-groups]
 dev = [
@@ -13,11 +26,11 @@ dev = [
 
 [tool.ruff]
 line-length = 88
-target-version = "py311"
+target-version = "py314"
 
 [tool.ruff.lint]
-select = ["E", "F", "I"]
-ignore = ["E501"]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["E501", "B008"]
 
 [tool.ruff.format]
 quote-style = "double"

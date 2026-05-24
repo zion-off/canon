@@ -8,7 +8,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from src.config import settings
-from src.models.schemas import UserPayload
+from src.models.schemas import JwtPayload
 from src.services.event_feed import AgentEventFeed
 from src.services.tenant_resolver import TenantContext, TenantResolver
 
@@ -27,10 +27,10 @@ async def get_event_feed(request: Request) -> AgentEventFeed:
 
 async def jwt_auth(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
-) -> UserPayload:
+) -> JwtPayload:
     """JWT auth dependency for frontend routes.
 
-    Decodes the JWT and returns a validated UserPayload model.
+    Decodes the JWT and returns a validated JwtPayload model.
     Raises 401 on invalid or expired tokens.
     """
     try:
@@ -39,7 +39,7 @@ async def jwt_auth(
             settings.jwt_secret,
             algorithms=[settings.jwt_algorithm],
         )
-        return UserPayload.model_validate(payload)
+        return JwtPayload.model_validate(payload)
     except pyjwt.InvalidTokenError as exc:
         raise HTTPException(
             status_code=401,

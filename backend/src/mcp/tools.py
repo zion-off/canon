@@ -277,5 +277,5 @@ async def emit_checkpoint(message: str, tool_context: ToolContext) -> dict:
 # ─── Tool Instances ──────────────────────────────────────────────────────────
 
 canonize_node_tool = FunctionTool(func=canonize_node)
-embed_query = FunctionTool(func=generate_query_embedding, name="embed_query")
+embed_query_tool = FunctionTool(func=generate_query_embedding, name="embed_query")
 emit_checkpoint_tool = FunctionTool(func=emit_checkpoint)

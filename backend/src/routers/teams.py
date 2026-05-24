@@ -20,10 +20,10 @@ from src.models.schemas import (
     CreateTokenResponse,
     JoinTeamRequest,
     JoinTeamResponse,
+    JWTPayload,
     TeamResponse,
     TokenItemResponse,
     TokenListResponse,
-    UserPayload,
 )
 from src.services.jwt import issue_jwt
 
@@ -43,7 +43,7 @@ def _slugify(name: str) -> str:
 @router.post("/create", response_model=CreateTeamResponse)
 async def create_team(
     body: CreateTeamRequest,
-    user: UserPayload = Depends(jwt_auth),
+    user: JWTPayload = Depends(jwt_auth),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CreateTeamResponse:
     """Create a new team (tenant), assign caller as owner, issue default API token."""
@@ -90,7 +90,7 @@ async def create_team(
 @router.post("/join", response_model=JoinTeamResponse)
 async def join_team(
     body: JoinTeamRequest,
-    user: UserPayload = Depends(jwt_auth),
+    user: JWTPayload = Depends(jwt_auth),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> JoinTeamResponse:
     """Join an existing team via invite code."""
@@ -128,7 +128,7 @@ async def join_team(
 
 @router.post("/invite", response_model=CreateInviteResponse)
 async def create_invite(
-    user: UserPayload = Depends(jwt_auth),
+    user: JWTPayload = Depends(jwt_auth),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CreateInviteResponse:
     """Create an invite code (owner only)."""
@@ -155,7 +155,7 @@ async def create_invite(
 
 @router.get("/tokens", response_model=TokenListResponse)
 async def list_tokens(
-    user: UserPayload = Depends(jwt_auth),
+    user: JWTPayload = Depends(jwt_auth),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> TokenListResponse:
     """List all API tokens for the user's team."""
@@ -183,7 +183,7 @@ async def list_tokens(
 @router.post("/tokens", response_model=CreateTokenResponse)
 async def create_token(
     body: CreateTokenRequest,
-    user: UserPayload = Depends(jwt_auth),
+    user: JWTPayload = Depends(jwt_auth),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CreateTokenResponse:
     """Create a new API token (owner only)."""

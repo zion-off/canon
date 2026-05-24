@@ -213,4 +213,4 @@ class AgentEvent(BaseModel):
     content: str | None = None
     sequence: int | None = None
     timestamp: str | None = None
-    is_final: bool = Field(default=False, alias="isFinal")
+    is_final: bool = Field(default=False, serialization_alias="isFinal")

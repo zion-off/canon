@@ -49,9 +49,7 @@ function CollapsibleEvent({
           )}
         </div>
         {timestamp && (
-          <span className="text-xs text-canon-muted">
-            {formatTimestamp(timestamp)}
-          </span>
+          <span className="text-xs text-canon-muted">{formatTimestamp(timestamp)}</span>
         )}
       </div>
       {expanded && content && (
@@ -61,9 +59,7 @@ function CollapsibleEvent({
               {content}
             </pre>
           ) : (
-            <p className="whitespace-pre-wrap text-sm text-canon-text-dim">
-              {content}
-            </p>
+            <p className="whitespace-pre-wrap text-sm text-canon-text-dim">{content}</p>
           )}
         </div>
       )}
@@ -82,9 +78,7 @@ export function EventItem({ event }: EventItemProps) {
     case EVENT_TYPE.SUBAGENT_INVOKED:
       return (
         <div className="py-1 pl-4">
-          <span className="text-xs text-canon-muted">
-            ▶ {event.content ?? "Subagent"} started
-          </span>
+          <span className="text-xs text-canon-muted">▶ {event.content ?? "Subagent"} started</span>
         </div>
       );
 
@@ -116,15 +110,11 @@ export function EventItem({ event }: EventItemProps) {
               Reasoning
             </span>
             {event.timestamp && (
-              <span className="text-xs text-canon-muted">
-                {formatTimestamp(event.timestamp)}
-              </span>
+              <span className="text-xs text-canon-muted">{formatTimestamp(event.timestamp)}</span>
             )}
           </div>
           {event.content && (
-            <p className="mt-2 whitespace-pre-wrap text-sm text-canon-text">
-              {event.content}
-            </p>
+            <p className="mt-2 whitespace-pre-wrap text-sm text-canon-text">{event.content}</p>
           )}
         </div>
       );
@@ -137,9 +127,7 @@ export function EventItem({ event }: EventItemProps) {
               Final Response
             </span>
             {event.timestamp && (
-              <span className="text-xs text-canon-muted">
-                {formatTimestamp(event.timestamp)}
-              </span>
+              <span className="text-xs text-canon-muted">{formatTimestamp(event.timestamp)}</span>
             )}
           </div>
           {event.content && (

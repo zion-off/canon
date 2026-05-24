@@ -28,22 +28,16 @@ export function NodeDetailPanel({
     ? allNodes.find((n) => n.id === node.supersededBy)
     : null;
 
-  const supersedesNode = node.supersedes
-    ? allNodes.find((n) => n.id === node.supersedes)
-    : null;
+  const supersedesNode = node.supersedes ? allNodes.find((n) => n.id === node.supersedes) : null;
 
   return (
     <aside className="flex h-full w-full flex-col overflow-y-auto border-l border-canon-border bg-canon-surface">
       {/* Header */}
       <div className="flex items-start justify-between border-b border-canon-border p-4">
         <div className="min-w-0 flex-1">
-          <h2 className="truncate font-syne text-lg font-semibold text-canon-text">
-            {node.name}
-          </h2>
+          <h2 className="truncate font-syne text-lg font-semibold text-canon-text">{node.name}</h2>
           <div className="mt-1.5">
-            <Badge variant={node.status as BadgeVariant}>
-              {node.status.replace("_", " ")}
-            </Badge>
+            <Badge variant={node.status as BadgeVariant}>{node.status.replace("_", " ")}</Badge>
           </div>
         </div>
         <button
@@ -159,15 +153,11 @@ export function NodeDetailPanel({
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div>
               <span className="text-canon-muted">Created</span>
-              <p className="mt-0.5 text-canon-text">
-                {formatShortDate(node.createdAt)}
-              </p>
+              <p className="mt-0.5 text-canon-text">{formatShortDate(node.createdAt)}</p>
             </div>
             <div>
               <span className="text-canon-muted">Updated</span>
-              <p className="mt-0.5 text-canon-text">
-                {formatShortDate(node.updatedAt)}
-              </p>
+              <p className="mt-0.5 text-canon-text">{formatShortDate(node.updatedAt)}</p>
             </div>
           </div>
         </div>

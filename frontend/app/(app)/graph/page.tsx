@@ -16,9 +16,7 @@ export default async function GraphPage() {
   return (
     <div className="flex h-full flex-col">
       <header className="shrink-0 border-b border-canon-border px-6 py-4">
-        <h1 className="font-syne text-2xl font-semibold text-canon-text">
-          Organizational Memory
-        </h1>
+        <h1 className="font-syne text-2xl font-semibold text-canon-text">Organizational Memory</h1>
         <p className="mt-1 text-sm text-canon-text-dim">
           {nodeCount} nodes · {linkCount} relationships
         </p>

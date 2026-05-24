@@ -16,9 +16,7 @@ export function OnboardingClient() {
   return (
     <div className="min-h-screen bg-canon-bg">
       <header className="border-b border-canon-border px-6 py-4">
-        <span className="text-xl font-syne font-bold text-canon-text">
-          Canon
-        </span>
+        <span className="text-xl font-syne font-bold text-canon-text">Canon</span>
       </header>
 
       <main className="flex items-center justify-center px-4 py-16">
@@ -108,7 +106,7 @@ const createTeamInitialState: CreateTeamState = { error: null, token: null };
 
 async function createTeamAction(
   _prevState: CreateTeamState,
-  formData: FormData
+  formData: FormData,
 ): Promise<CreateTeamState> {
   const name = (formData.get("team-name") as string)?.trim();
 
@@ -120,18 +118,14 @@ async function createTeamAction(
     const result = await createTeam(name);
     return { error: null, token: result.rawApiToken };
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Failed to create team.";
+    const message = err instanceof Error ? err.message : "Failed to create team.";
     return { error: message, token: null };
   }
 }
 
 function CreateTeamForm() {
   const router = useRouter();
-  const [state, formAction, isPending] = useActionState(
-    createTeamAction,
-    createTeamInitialState
-  );
+  const [state, formAction, isPending] = useActionState(createTeamAction, createTeamInitialState);
 
   if (state.token) {
     return (
@@ -147,10 +141,7 @@ function CreateTeamForm() {
   return (
     <form action={formAction} className="space-y-5">
       <div>
-        <label
-          htmlFor="team-name"
-          className="block text-sm font-medium text-canon-text mb-1.5"
-        >
+        <label htmlFor="team-name" className="block text-sm font-medium text-canon-text mb-1.5">
           Team name
         </label>
         <Input
@@ -163,10 +154,7 @@ function CreateTeamForm() {
       </div>
 
       {state.error && (
-        <p
-          role="alert"
-          className="text-sm text-canon-red bg-canon-red/10 rounded-md px-3 py-2"
-        >
+        <p role="alert" className="text-sm text-canon-red bg-canon-red/10 rounded-md px-3 py-2">
           {state.error}
         </p>
       )}
@@ -187,7 +175,7 @@ const joinTeamInitialState: JoinTeamState = { error: null, teamName: null };
 
 async function joinTeamAction(
   _prevState: JoinTeamState,
-  formData: FormData
+  formData: FormData,
 ): Promise<JoinTeamState> {
   const code = (formData.get("invite-code") as string)?.trim().toUpperCase();
 
@@ -199,18 +187,14 @@ async function joinTeamAction(
     const result = await joinTeam(code);
     return { error: null, teamName: result.team.name };
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Failed to join team.";
+    const message = err instanceof Error ? err.message : "Failed to join team.";
     return { error: message, teamName: null };
   }
 }
 
 function JoinTeamForm() {
   const router = useRouter();
-  const [state, formAction, isPending] = useActionState(
-    joinTeamAction,
-    joinTeamInitialState
-  );
+  const [state, formAction, isPending] = useActionState(joinTeamAction, joinTeamInitialState);
   const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -227,9 +211,7 @@ function JoinTeamForm() {
   if (state.teamName) {
     return (
       <div className="text-center py-4">
-        <p className="text-lg font-medium text-canon-text">
-          Joined {state.teamName}!
-        </p>
+        <p className="text-lg font-medium text-canon-text">Joined {state.teamName}!</p>
         <p className="text-sm text-canon-text-dim mt-2">Redirecting to dashboard…</p>
       </div>
     );
@@ -238,10 +220,7 @@ function JoinTeamForm() {
   return (
     <form action={formAction} className="space-y-5">
       <div>
-        <label
-          htmlFor="invite-code"
-          className="block text-sm font-medium text-canon-text mb-1.5"
-        >
+        <label htmlFor="invite-code" className="block text-sm font-medium text-canon-text mb-1.5">
           Invite code
         </label>
         <Input
@@ -256,10 +235,7 @@ function JoinTeamForm() {
       </div>
 
       {state.error && (
-        <p
-          role="alert"
-          className="text-sm text-canon-red bg-canon-red/10 rounded-md px-3 py-2"
-        >
+        <p role="alert" className="text-sm text-canon-red bg-canon-red/10 rounded-md px-3 py-2">
           {state.error}
         </p>
       )}

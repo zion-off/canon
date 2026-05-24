@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
 
 @theme inline {
@@ -6,22 +6,23 @@
   --color-canon-surface: #0f0f1a;
   --color-canon-surface-2: #161625;
   --color-canon-border: rgba(255, 255, 255, 0.08);
-  --color-canon-blue: #3B82F6;
-  --color-canon-amber: #F59E0B;
-  --color-canon-green: #10B981;
-  --color-canon-red: #EF4444;
-  --color-canon-muted: #64748B;
-  --color-canon-text: #E2E8F0;
-  --color-canon-text-dim: #94A3B8;
-  --font-syne: 'Syne', sans-serif;
+  --color-canon-blue: #3b82f6;
+  --color-canon-amber: #f59e0b;
+  --color-canon-green: #10b981;
+  --color-canon-red: #ef4444;
+  --color-canon-muted: #64748b;
+  --color-canon-text: #e2e8f0;
+  --color-canon-text-dim: #94a3b8;
+  --font-syne: "Syne", sans-serif;
 }
 
 * {
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   background: #080810;
-  color: #E2E8F0;
+  color: #e2e8f0;
   min-height: 100vh;
 }

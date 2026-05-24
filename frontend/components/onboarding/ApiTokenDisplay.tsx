@@ -6,8 +6,7 @@ interface ApiTokenDisplayProps {
   token: string;
 }
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "https://YOUR_BACKEND_URL";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://YOUR_BACKEND_URL";
 
 export function ApiTokenDisplay({ token }: ApiTokenDisplayProps) {
   const mcpUrl = `${API_BASE_URL}/mcp`;
@@ -22,7 +21,7 @@ export function ApiTokenDisplay({ token }: ApiTokenDisplayProps) {
       },
     },
     null,
-    2
+    2,
   );
 
   const claudeConfig = JSON.stringify(
@@ -35,7 +34,7 @@ export function ApiTokenDisplay({ token }: ApiTokenDisplayProps) {
       },
     },
     null,
-    2
+    2,
   );
 
   return (
@@ -52,9 +51,7 @@ export function ApiTokenDisplay({ token }: ApiTokenDisplayProps) {
         </p>
         <div className="relative">
           <pre className="bg-canon-surface-2 border border-canon-border rounded-lg p-4 overflow-x-auto">
-            <code className="text-sm font-mono text-canon-text break-all">
-              {token}
-            </code>
+            <code className="text-sm font-mono text-canon-text break-all">{token}</code>
           </pre>
           <CopyButton text={token} className="absolute top-2 right-2" />
         </div>
@@ -98,7 +95,7 @@ export function ApiTokenDisplay({ token }: ApiTokenDisplayProps) {
                 },
               },
               null,
-              2
+              2,
             )}`}
           </code>
         </pre>

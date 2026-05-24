@@ -21,14 +21,9 @@ function isSessionLive(events: { type: string }[]): boolean {
   return lastRunStartedIndex > lastRunCompletedIndex;
 }
 
-export default async function SessionDetailPage({
-  params,
-}: SessionDetailPageProps) {
+export default async function SessionDetailPage({ params }: SessionDetailPageProps) {
   const { sessionId } = await params;
-  const [session, events] = await Promise.all([
-    getSession(sessionId),
-    getSessionEvents(sessionId),
-  ]);
+  const [session, events] = await Promise.all([getSession(sessionId), getSessionEvents(sessionId)]);
 
   const isLive = isSessionLive(events);
 
@@ -42,19 +37,11 @@ export default async function SessionDetailPage({
       </Link>
 
       <header>
-        <h1 className="font-syne text-2xl font-bold text-canon-text">
-          {session.title}
-        </h1>
-        {session.summary && (
-          <p className="mt-1 text-sm text-canon-text-dim">{session.summary}</p>
-        )}
+        <h1 className="font-syne text-2xl font-bold text-canon-text">{session.title}</h1>
+        {session.summary && <p className="mt-1 text-sm text-canon-text-dim">{session.summary}</p>}
       </header>
 
-      <EventFeed
-        sessionId={sessionId}
-        initialEvents={events}
-        isLive={isLive}
-      />
+      <EventFeed sessionId={sessionId} initialEvents={events} isLive={isLive} />
     </div>
   );
 }

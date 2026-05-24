@@ -15,7 +15,9 @@ import {
 import { API_URL, API_V1_TEAMS } from "@/lib/constants";
 import { getAuthHeaders, handleErrorResponse, setAuthCookie } from "@/lib/api-utils";
 
-export async function createTeam(name: string): Promise<{ rawApiToken: string; team: CreateTeamResponse["team"] }> {
+export async function createTeam(
+  name: string,
+): Promise<{ rawApiToken: string; team: CreateTeamResponse["team"] }> {
   const headers = await getAuthHeaders(true);
   const res = await fetch(`${API_URL}/${API_V1_TEAMS}/create`, {
     method: "POST",

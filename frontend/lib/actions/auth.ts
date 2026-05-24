@@ -2,7 +2,12 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { AuthResponseSchema, MeResponseSchema, type AuthResponse, type MeResponse } from "@/lib/schemas/auth";
+import {
+  AuthResponseSchema,
+  MeResponseSchema,
+  type AuthResponse,
+  type MeResponse,
+} from "@/lib/schemas/auth";
 import { API_URL, COOKIE_NAME, API_V1_AUTH, ROUTE_LOGIN } from "@/lib/constants";
 import { handleErrorResponse, logout, setAuthCookie } from "@/lib/api-utils";
 
@@ -25,7 +30,11 @@ export async function login(email: string, password: string): Promise<AuthRespon
   return data.user;
 }
 
-export async function register(email: string, name: string, password: string): Promise<AuthResponse["user"]> {
+export async function register(
+  email: string,
+  name: string,
+  password: string,
+): Promise<AuthResponse["user"]> {
   const res = await fetch(`${API_URL}/${API_V1_AUTH}/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

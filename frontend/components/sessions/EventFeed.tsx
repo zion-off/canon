@@ -72,12 +72,15 @@ export function EventFeed({ sessionId, initialEvents, isLive }: EventFeedProps) 
   const feedEndRef = useRef<HTMLDivElement>(null);
   const [live, setLive] = useState(isLive);
 
-  const handleNewEvent = useCallback((event: AgentEvent) => {
-    setEvents((prev) => [...prev, assignId(event)]);
-    if (event.type === EVENT_TYPE.RUN_COMPLETED) {
-      setLive(false);
-    }
-  }, [assignId]);
+  const handleNewEvent = useCallback(
+    (event: AgentEvent) => {
+      setEvents((prev) => [...prev, assignId(event)]);
+      if (event.type === EVENT_TYPE.RUN_COMPLETED) {
+        setLive(false);
+      }
+    },
+    [assignId],
+  );
 
   useEventStream(sessionId, handleNewEvent, live);
 
@@ -91,8 +94,7 @@ export function EventFeed({ sessionId, initialEvents, isLive }: EventFeedProps) 
     return (
       <div className="rounded-lg border border-canon-border bg-canon-surface px-6 py-12 text-center">
         <p className="text-canon-text-dim">
-          No events recorded yet. Events will appear here when the session
-          receives activity.
+          No events recorded yet. Events will appear here when the session receives activity.
         </p>
       </div>
     );

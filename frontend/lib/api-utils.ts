@@ -8,9 +8,7 @@ async function logout(): Promise<void> {
   cookieStore.delete(COOKIE_NAME);
 }
 
-async function getAuthHeaders(
-  includeContentType = false,
-): Promise<Record<string, string>> {
+async function getAuthHeaders(includeContentType = false): Promise<Record<string, string>> {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) {
@@ -31,10 +29,7 @@ async function handleErrorResponse(res: Response): Promise<never> {
     throw new Error("Session expired");
   }
   const err = await res.json().catch(() => null);
-  throw new Error(
-    (err as { detail?: string } | null)?.detail ??
-      `Request failed: ${res.status}`,
-  );
+  throw new Error((err as { detail?: string } | null)?.detail ?? `Request failed: ${res.status}`);
 }
 
 async function setAuthCookie(token: string): Promise<void> {

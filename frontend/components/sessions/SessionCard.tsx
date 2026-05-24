@@ -38,12 +38,8 @@ export function SessionCard({ session }: SessionCardProps) {
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span
-              className={`inline-block h-2 w-2 rounded-full ${statusColor(session.status)}`}
-            />
-            <span className="font-medium text-canon-text">
-              {session.title}
-            </span>
+            <span className={`inline-block h-2 w-2 rounded-full ${statusColor(session.status)}`} />
+            <span className="font-medium text-canon-text">{session.title}</span>
           </div>
           <span className="text-sm text-canon-text-dim">
             {formatRelativeTime(session.lastRunAt ?? session.updatedAt)}

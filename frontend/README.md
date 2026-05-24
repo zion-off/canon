@@ -21,9 +21,9 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Environment Variables
 
-| Variable | Purpose |
-|---|---|
-| `API_URL` | Backend REST API URL (server-side only) |
+| Variable              | Purpose                                          |
+| --------------------- | ------------------------------------------------ |
+| `API_URL`             | Backend REST API URL (server-side only)          |
 | `NEXT_PUBLIC_API_URL` | Backend URL for MCP config display (client-side) |
 
 ## Architecture
@@ -31,4 +31,4 @@ Open [http://localhost:3000](http://localhost:3000).
 - **Server Actions** (`lib/actions/`) — all backend communication, Zod-validated
 - **Route Handler** (`api/stream/[sessionId]`) — Edge Runtime SSE proxy
 - **Middleware** (`middleware.ts`) — JWT cookie auth + onboarding redirect
-- **Styled** with Tailwind v4 `@theme` variables (canon-* namespace)
+- **Styled** with Tailwind v4 `@theme` variables (canon-\* namespace)

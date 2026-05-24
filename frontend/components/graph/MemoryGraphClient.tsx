@@ -48,8 +48,7 @@ function renderNode(
   globalScale: number,
   isHighlighted: boolean,
 ): void {
-  const isRecent =
-    Date.now() - new Date(node.updatedAt).getTime() < 7 * 86400000;
+  const isRecent = Date.now() - new Date(node.updatedAt).getTime() < 7 * 86400000;
   const radius = Math.sqrt((node.connections ?? 0) + 1) * 4;
   const x = node.x ?? 0;
   const y = node.y ?? 0;
@@ -102,8 +101,7 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
   useEffect(() => {
     const measure = () => {
       if (graphContainerRef.current) {
-        const { width: w, height: h } =
-          graphContainerRef.current.getBoundingClientRect();
+        const { width: w, height: h } = graphContainerRef.current.getBoundingClientRect();
         if (w > 0 && h > 0) {
           setDimensions({ width: w, height: h });
         }
@@ -143,13 +141,9 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
     const nodeIds = new Set(nodes.map((n) => n.id));
     const links = graphData.links.filter((l) => {
       const src =
-        typeof l.source === "object"
-          ? (l.source as GraphNodeFG).id
-          : (l.source as string);
+        typeof l.source === "object" ? (l.source as GraphNodeFG).id : (l.source as string);
       const tgt =
-        typeof l.target === "object"
-          ? (l.target as GraphNodeFG).id
-          : (l.target as string);
+        typeof l.target === "object" ? (l.target as GraphNodeFG).id : (l.target as string);
       return nodeIds.has(src) && nodeIds.has(tgt);
     });
 
@@ -223,9 +217,7 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
 
   const linkColor = useCallback((link: LinkObject) => {
     const gLink = link as GraphLinkFG;
-    return gLink.type === "supersedes"
-      ? "rgba(156, 163, 175, 0.4)"
-      : "rgba(100, 116, 139, 0.25)";
+    return gLink.type === "supersedes" ? "rgba(156, 163, 175, 0.4)" : "rgba(100, 116, 139, 0.25)";
   }, []);
 
   const linkDirectionalArrowLength = useCallback((link: LinkObject) => {
@@ -269,7 +261,7 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
             linkColor={linkColor}
             linkDirectionalArrowLength={linkDirectionalArrowLength}
             linkDirectionalArrowRelPos={1}
-            linkLineDash={(link) => (link as GraphLinkFG).type === "supersedes" ? [4, 2] : null}
+            linkLineDash={(link) => ((link as GraphLinkFG).type === "supersedes" ? [4, 2] : null)}
             linkWidth={linkWidth}
             nodeLabel=""
             width={width}
@@ -289,9 +281,7 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
                 top: tooltipPos.y - 8,
               }}
             >
-              <p className="text-sm font-medium text-canon-text">
-                {hoveredNode.name}
-              </p>
+              <p className="text-sm font-medium text-canon-text">{hoveredNode.name}</p>
               <p className="mt-0.5 text-xs text-canon-text-dim">
                 {hoveredNode.status} · {hoveredNode.connections} connections
               </p>

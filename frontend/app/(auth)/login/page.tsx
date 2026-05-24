@@ -15,10 +15,7 @@ interface LoginState {
 
 const initialState: LoginState = { error: null, success: false };
 
-async function loginAction(
-  _prevState: LoginState,
-  formData: FormData,
-): Promise<LoginState> {
+async function loginAction(_prevState: LoginState, formData: FormData): Promise<LoginState> {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
@@ -30,18 +27,14 @@ async function loginAction(
     await login(email, password);
     return { error: null, success: true };
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "An unexpected error occurred.";
+    const message = err instanceof Error ? err.message : "An unexpected error occurred.";
     return { error: message, success: false };
   }
 }
 
 export default function LoginPage() {
   const router = useRouter();
-  const [state, formAction, isPending] = useActionState(
-    loginAction,
-    initialState,
-  );
+  const [state, formAction, isPending] = useActionState(loginAction, initialState);
 
   useEffect(() => {
     if (state.success) {
@@ -52,21 +45,14 @@ export default function LoginPage() {
   return (
     <div className="w-full max-w-md px-4">
       <div className="text-center mb-8">
-        <h1 className="text-4xl font-syne font-bold text-canon-text mb-2">
-          Canon
-        </h1>
-        <p className="text-canon-text-dim text-sm">
-          Organizational memory for engineering teams
-        </p>
+        <h1 className="text-4xl font-syne font-bold text-canon-text mb-2">Canon</h1>
+        <p className="text-canon-text-dim text-sm">Organizational memory for engineering teams</p>
       </div>
 
       <div className="bg-canon-surface border border-canon-border rounded-xl p-8">
         <form action={formAction} className="space-y-5">
           <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-canon-text mb-1.5"
-            >
+            <label htmlFor="email" className="block text-sm font-medium text-canon-text mb-1.5">
               Email
             </label>
             <Input
@@ -80,10 +66,7 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-canon-text mb-1.5"
-            >
+            <label htmlFor="password" className="block text-sm font-medium text-canon-text mb-1.5">
               Password
             </label>
             <Input
@@ -97,10 +80,7 @@ export default function LoginPage() {
           </div>
 
           {state.error && (
-            <p
-              role="alert"
-              className="text-sm text-canon-red bg-canon-red/10 rounded-md px-3 py-2"
-            >
+            <p role="alert" className="text-sm text-canon-red bg-canon-red/10 rounded-md px-3 py-2">
               {state.error}
             </p>
           )}

@@ -1,6 +1,11 @@
 "use server";
 
-import { SessionResponseSchema, AgentEventSchema, type SessionResponse, type AgentEvent } from "@/lib/schemas/sessions";
+import {
+  SessionResponseSchema,
+  AgentEventSchema,
+  type SessionResponse,
+  type AgentEvent,
+} from "@/lib/schemas/sessions";
 import { z } from "zod";
 import { API_URL, API_V1_SESSIONS } from "@/lib/constants";
 import { getAuthHeaders, handleErrorResponse } from "@/lib/api-utils";

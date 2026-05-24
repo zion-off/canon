@@ -14,15 +14,11 @@ export function RunGroup({ runIndex, events, timestamp }: RunGroupProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-3 pb-1 pt-4">
-        <span className="text-sm font-medium text-canon-text">
-          Run {runIndex}
-        </span>
+        <span className="text-sm font-medium text-canon-text">Run {runIndex}</span>
         {timestamp && (
           <>
             <span className="text-canon-muted">·</span>
-            <span className="text-xs text-canon-muted">
-              {formatDateTime(timestamp)}
-            </span>
+            <span className="text-xs text-canon-muted">{formatDateTime(timestamp)}</span>
           </>
         )}
       </div>

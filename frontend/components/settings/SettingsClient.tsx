@@ -24,18 +24,14 @@ const inviteInitialState: InviteState = {
   expiresAt: null,
 };
 
-async function inviteAction(
-  _prevState: InviteState,
-  _formData: FormData,
-): Promise<InviteState> {
+async function inviteAction(_prevState: InviteState, _formData: FormData): Promise<InviteState> {
   void _prevState;
   void _formData;
   try {
     const result = await createInvite();
     return { error: null, code: result.code, expiresAt: result.expiresAt };
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Failed to create invite.";
+    const message = err instanceof Error ? err.message : "Failed to create invite.";
     return { error: message, code: null, expiresAt: null };
   }
 }
@@ -52,10 +48,7 @@ const tokenInitialState: TokenState = {
   label: null,
 };
 
-async function tokenAction(
-  _prevState: TokenState,
-  formData: FormData,
-): Promise<TokenState> {
+async function tokenAction(_prevState: TokenState, formData: FormData): Promise<TokenState> {
   void _prevState;
   const label = (formData.get("token-label") as string)?.trim() || "API token";
 
@@ -63,8 +56,7 @@ async function tokenAction(
     const result = await createToken(label);
     return { error: null, token: result.token, label: result.label };
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Failed to create token.";
+    const message = err instanceof Error ? err.message : "Failed to create token.";
     return { error: message, token: null, label: null };
   }
 }
@@ -73,9 +65,7 @@ export function SettingsClient({ initialTokens }: SettingsClientProps) {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="font-syne text-3xl font-bold text-canon-text">
-          Settings
-        </h1>
+        <h1 className="font-syne text-3xl font-bold text-canon-text">Settings</h1>
         <p className="mt-1 text-sm text-canon-text-dim">
           Manage your team&apos;s invites and API tokens
         </p>
@@ -90,26 +80,18 @@ export function SettingsClient({ initialTokens }: SettingsClientProps) {
 }
 
 function InviteSection() {
-  const [state, formAction, isPending] = useActionState(
-    inviteAction,
-    inviteInitialState,
-  );
+  const [state, formAction, isPending] = useActionState(inviteAction, inviteInitialState);
 
   return (
     <section className="rounded-lg border border-canon-border bg-canon-surface p-6">
-      <h2 className="font-syne text-lg font-semibold text-canon-text mb-1">
-        Invite Members
-      </h2>
+      <h2 className="font-syne text-lg font-semibold text-canon-text mb-1">Invite Members</h2>
       <p className="text-sm text-canon-text-dim mb-4">
         Generate an invite code for your teammates to join.
       </p>
 
       <form action={formAction} className="space-y-4">
         {state.error && (
-          <p
-            role="alert"
-            className="text-sm text-canon-red bg-canon-red/10 rounded-md px-3 py-2"
-          >
+          <p role="alert" className="text-sm text-canon-red bg-canon-red/10 rounded-md px-3 py-2">
             {state.error}
           </p>
         )}
@@ -126,16 +108,11 @@ function InviteSection() {
                     {state.code}
                   </code>
                 </pre>
-                <CopyButton
-                  text={state.code}
-                  className="absolute top-2 right-2"
-                />
+                <CopyButton text={state.code} className="absolute top-2 right-2" />
               </div>
             </div>
             {state.expiresAt && (
-              <p className="text-xs text-canon-muted">
-                Expires {formatShortDate(state.expiresAt)}
-              </p>
+              <p className="text-xs text-canon-muted">Expires {formatShortDate(state.expiresAt)}</p>
             )}
           </div>
         ) : (
@@ -148,32 +125,20 @@ function InviteSection() {
   );
 }
 
-function TokenSection({
-  initialTokens,
-}: {
-  initialTokens: ApiToken[];
-}) {
-  const [state, formAction, isPending] = useActionState(
-    tokenAction,
-    tokenInitialState,
-  );
+function TokenSection({ initialTokens }: { initialTokens: ApiToken[] }) {
+  const [state, formAction, isPending] = useActionState(tokenAction, tokenInitialState);
   const [tokens, setTokens] = useState(initialTokens);
 
   return (
     <section className="rounded-lg border border-canon-border bg-canon-surface p-6">
-      <h2 className="font-syne text-lg font-semibold text-canon-text mb-1">
-        API Tokens
-      </h2>
+      <h2 className="font-syne text-lg font-semibold text-canon-text mb-1">API Tokens</h2>
       <p className="text-sm text-canon-text-dim mb-4">
         Create tokens for your coding harness to connect to Canon.
       </p>
 
       <form action={formAction} className="space-y-4">
         {state.error && (
-          <p
-            role="alert"
-            className="text-sm text-canon-red bg-canon-red/10 rounded-md px-3 py-2"
-          >
+          <p role="alert" className="text-sm text-canon-red bg-canon-red/10 rounded-md px-3 py-2">
             {state.error}
           </p>
         )}
@@ -188,19 +153,24 @@ function TokenSection({
             </p>
             <div className="relative">
               <pre className="rounded-lg border border-canon-border bg-canon-bg p-3 overflow-x-auto">
-                <code className="text-sm font-mono text-canon-text break-all">
-                  {state.token}
-                </code>
+                <code className="text-sm font-mono text-canon-text break-all">{state.token}</code>
               </pre>
-              <CopyButton
-                text={state.token}
-                className="absolute top-2 right-2"
-              />
+              <CopyButton text={state.token} className="absolute top-2 right-2" />
             </div>
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => setTokens((prev) => [...prev, { id: "", label: state.label ?? "API token", createdAt: new Date().toISOString(), lastUsedAt: null }])}
+              onClick={() =>
+                setTokens((prev) => [
+                  ...prev,
+                  {
+                    id: "",
+                    label: state.label ?? "API token",
+                    createdAt: new Date().toISOString(),
+                    lastUsedAt: null,
+                  },
+                ])
+              }
             >
               Done
             </Button>
@@ -222,9 +192,7 @@ function TokenSection({
 
       {tokens.length > 0 && (
         <div className="mt-6 border-t border-canon-border pt-4">
-          <h3 className="text-sm font-medium text-canon-text mb-3">
-            Existing tokens
-          </h3>
+          <h3 className="text-sm font-medium text-canon-text mb-3">Existing tokens</h3>
           <ul className="space-y-2">
             {tokens.map((t) => (
               <li

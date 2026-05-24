@@ -3,7 +3,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AuthResponseSchema, MeResponseSchema, type AuthResponse, type MeResponse } from "@/lib/schemas/auth";
-import { API_URL, handleErrorResponse, logout, setAuthCookie } from "@/lib/api-utils";
+import { API_URL } from "@/lib/constants";
+import { handleErrorResponse, logout, setAuthCookie } from "@/lib/api-utils";
 
 export async function login(email: string, password: string): Promise<AuthResponse["user"]> {
   const res = await fetch(`${API_URL}/api/v1/auth/login`, {
@@ -47,7 +48,7 @@ export { logout };
 
 export async function handleLogout() {
   await logout();
-  redirect("/login");
+  redirect(ROUTE_LOGIN);
 }
 
 export async function getCurrentUser(): Promise<MeResponse | null> {
@@ -71,4 +72,6 @@ export async function getCurrentUser(): Promise<MeResponse | null> {
   }
 
   return MeResponseSchema.parse(await res.json());
+}
+seSchema.parse(await res.json());
 }

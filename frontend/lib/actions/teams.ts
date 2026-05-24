@@ -12,11 +12,12 @@ import {
   type ListTokensResponse,
   type CreateTokenResponse,
 } from "@/lib/schemas/teams";
-import { API_URL, getAuthHeaders, handleErrorResponse, setAuthCookie } from "@/lib/api-utils";
+import { API_URL, API_V1_TEAMS } from "@/lib/constants";
+import { getAuthHeaders, handleErrorResponse, setAuthCookie } from "@/lib/api-utils";
 
 export async function createTeam(name: string): Promise<{ rawApiToken: string; team: CreateTeamResponse["team"] }> {
   const headers = await getAuthHeaders(true);
-  const res = await fetch(`${API_URL}/api/v1/teams/create`, {
+  const res = await fetch(`${API_URL}${API_V1_TEAMS}/create`, {
     method: "POST",
     headers,
     body: JSON.stringify({ name }),
@@ -52,7 +53,7 @@ export async function joinTeam(code: string): Promise<{ team: JoinTeamResponse["
 
 export async function createInvite(): Promise<InviteResponse> {
   const headers = await getAuthHeaders(true);
-  const res = await fetch(`${API_URL}/api/v1/teams/invite`, {
+  const res = await fetch(`${API_URL}${API_V1_TEAMS}/invite`, {
     method: "POST",
     headers,
   });

@@ -2,21 +2,12 @@
 
 import type { IdentifiedEvent } from "./EventFeed";
 import { EventItem } from "./EventItem";
+import { formatDateTime } from "@/lib/date-utils";
 
 interface RunGroupProps {
   runIndex: number;
   events: IdentifiedEvent[];
   timestamp: string | null;
-}
-
-function formatRunTime(iso: string | null): string {
-  if (!iso) return "";
-  return new Date(iso).toLocaleString([], {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 export function RunGroup({ runIndex, events, timestamp }: RunGroupProps) {
@@ -30,7 +21,7 @@ export function RunGroup({ runIndex, events, timestamp }: RunGroupProps) {
           <>
             <span className="text-canon-muted">·</span>
             <span className="text-xs text-canon-muted">
-              {formatRunTime(timestamp)}
+              {formatDateTime(timestamp)}
             </span>
           </>
         )}

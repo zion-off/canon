@@ -1,9 +1,9 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-export const runtime = "edge";
+import { API_URL, COOKIE_NAME } from "@/lib/constants";
 
-const API_URL = process.env.API_URL ?? "http://localhost:8000";
+export const runtime = "edge";
 
 export async function GET(
   request: NextRequest,

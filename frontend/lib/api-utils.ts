@@ -1,27 +1,18 @@
 "use server";
 
 import { cookies } from "next/headers";
-
-const API_URL = process.env.API_URL ?? "http://localhost:8000";
-
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: true,
-  sameSite: "lax" as const,
-  path: "/",
-  maxAge: 60 * 60 * 24 * 7,
-};
+import { COOKIE_NAME, COOKIE_OPTIONS } from "./constants";
 
 async function logout(): Promise<void> {
   const cookieStore = await cookies();
-  cookieStore.delete("canon_token");
+  cookieStore.delete(COOKIE_NAME);
 }
 
 async function getAuthHeaders(
   includeContentType = false,
 ): Promise<Record<string, string>> {
   const cookieStore = await cookies();
-  const token = cookieStore.get("canon_token")?.value;
+  const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) {
     throw new Error("Not authenticated");
   }
@@ -48,7 +39,7 @@ async function handleErrorResponse(res: Response): Promise<never> {
 
 async function setAuthCookie(token: string): Promise<void> {
   const cookieStore = await cookies();
-  cookieStore.set("canon_token", token, COOKIE_OPTIONS);
+  cookieStore.set(COOKIE_NAME, token, COOKIE_OPTIONS);
 }
 
-export { API_URL, COOKIE_OPTIONS, getAuthHeaders, handleErrorResponse, logout, setAuthCookie };
+export { getAuthHeaders, handleErrorResponse, logout, setAuthCookie };

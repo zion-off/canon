@@ -3,6 +3,7 @@
 import type { GraphNode } from "@/lib/schemas/graph";
 import { Badge } from "@/components/ui/Badge";
 import type { BadgeVariant } from "@/components/ui/Badge";
+import { formatShortDate } from "@/lib/date-utils";
 
 interface NodeDetailPanelProps {
   node: GraphNode;
@@ -10,14 +11,6 @@ interface NodeDetailPanelProps {
   connectedNodeIds: string[];
   onClose: () => void;
   onSelectNode: (nodeId: string) => void;
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
 }
 
 export function NodeDetailPanel({
@@ -167,13 +160,13 @@ export function NodeDetailPanel({
             <div>
               <span className="text-canon-muted">Created</span>
               <p className="mt-0.5 text-canon-text">
-                {formatDate(node.createdAt)}
+                {formatShortDate(node.createdAt)}
               </p>
             </div>
             <div>
               <span className="text-canon-muted">Updated</span>
               <p className="mt-0.5 text-canon-text">
-                {formatDate(node.updatedAt)}
+                {formatShortDate(node.updatedAt)}
               </p>
             </div>
           </div>

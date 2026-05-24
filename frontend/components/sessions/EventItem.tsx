@@ -2,23 +2,11 @@
 
 import { useState } from "react";
 import type { AgentEvent } from "@/lib/schemas/sessions";
+import { isJsonContent } from "@/lib/text-utils";
+import { formatTimestamp } from "@/lib/date-utils";
 
 interface EventItemProps {
   event: AgentEvent;
-}
-
-function isJsonContent(content: string): boolean {
-  const trimmed = content.trim();
-  return trimmed.startsWith("{") || trimmed.startsWith("[");
-}
-
-function formatTimestamp(iso: string | null): string {
-  if (!iso) return "";
-  return new Date(iso).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
 }
 
 function RunSeparator({ label }: { label: string }) {

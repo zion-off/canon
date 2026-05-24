@@ -6,17 +6,10 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { CopyButton } from "@/components/ui/CopyButton";
 import type { ApiToken } from "@/lib/schemas/teams";
+import { formatShortDate } from "@/lib/date-utils";
 
 interface SettingsClientProps {
   initialTokens: ApiToken[];
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
 }
 
 interface InviteState {
@@ -141,7 +134,7 @@ function InviteSection() {
             </div>
             {state.expiresAt && (
               <p className="text-xs text-canon-muted">
-                Expires {formatDate(state.expiresAt)}
+                Expires {formatShortDate(state.expiresAt)}
               </p>
             )}
           </div>
@@ -241,8 +234,8 @@ function TokenSection({
                 <div>
                   <p className="text-sm text-canon-text">{t.label}</p>
                   <p className="text-xs text-canon-muted">
-                    Created {formatDate(t.createdAt)}
-                    {t.lastUsedAt && ` · Last used ${formatDate(t.lastUsedAt)}`}
+                    Created {formatShortDate(t.createdAt)}
+                    {t.lastUsedAt && ` · Last used ${formatShortDate(t.lastUsedAt)}`}
                   </p>
                 </div>
               </li>

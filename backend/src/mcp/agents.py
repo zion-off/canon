@@ -198,7 +198,7 @@ class MemoryNodeOutput(BaseModel):
 
 
 async def log_tool_usage(
-    tool: Any, args: dict[str, Any], tool_context: Any, result: dict
+    tool: Any, _args: dict[str, Any], tool_context: Any, result: dict
 ) -> dict | None:
     """Log tool calls across the agent hierarchy for observability."""
     state = tool_context.state

@@ -16,11 +16,9 @@ from google.genai import types
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import DuplicateKeyError
 
-from src.config import get_settings
+from src.config import settings
 
 # ─── Model Configuration ─────────────────────────────────────────────────────
-
-settings = get_settings()
 
 REASONING_MODEL: str = settings.reasoning_model
 FAST_MODEL: str = settings.fast_model

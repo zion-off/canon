@@ -16,13 +16,7 @@ from google.genai import types
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import DuplicateKeyError
 
-from src.config import get_settings, settings
-
-# ─── Model Configuration ─────────────────────────────────────────────────────
-
-REASONING_MODEL: str = settings.reasoning_model
-FAST_MODEL: str = settings.fast_model
-EMBEDDING_MODEL: str = settings.embedding_model
+from src.config import settings
 
 # ─── Lazy Singletons ─────────────────────────────────────────────────────────
 
@@ -34,7 +28,7 @@ def _get_mongo_client() -> AsyncIOMotorClient:
     """Return a lazily-initialized MongoDB client singleton."""
     global _mongo_client  # noqa: PLW0603
     if _mongo_client is None:
-        _mongo_client = AsyncIOMotorClient(get_settings().mongodb_uri)
+        _mongo_client = AsyncIOMotorClient(settings.mongodb_uri)
     return _mongo_client
 
 
@@ -42,7 +36,7 @@ def _get_genai_client() -> genai.Client:
     """Return a lazily-initialized Gemini API client singleton."""
     global _genai_client  # noqa: PLW0603
     if _genai_client is None:
-        _genai_client = genai.Client(api_key=get_settings().gemini_api_key)
+        _genai_client = genai.Client(api_key=settings.gemini_api_key)
     return _genai_client
 
 
@@ -97,7 +91,7 @@ async def generate_document_embedding(text: str) -> list[float]:
     """
     client = _get_genai_client()
     response = await client.aio.models.embed_content(
-        model=EMBEDDING_MODEL,
+        model=settings.embedding_model,
         contents=text,
         config=types.EmbedContentConfig(
             task_type="RETRIEVAL_DOCUMENT",
@@ -121,7 +115,7 @@ async def generate_query_embedding(text: str) -> dict:
     """
     client = _get_genai_client()
     response = await client.aio.models.embed_content(
-        model=EMBEDDING_MODEL,
+        model=settings.embedding_model,
         contents=text,
         config=types.EmbedContentConfig(
             task_type="RETRIEVAL_QUERY",

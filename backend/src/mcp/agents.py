@@ -198,13 +198,17 @@ class MemoryNodeOutput(BaseModel):
 
 
 async def log_tool_usage(
-    tool: Any, _args: dict[str, Any], tool_context: Any, result: dict
+    callback_context: Any, tool_name: str, result: dict
 ) -> dict | None:
-    """Log tool calls across the agent hierarchy for observability."""
-    state = tool_context.state
+    """Log tool calls across the agent hierarchy for observability.
+
+    Follows the ADK after_tool_callback signature:
+    (callback_context, tool_name, result) -> dict | None
+    """
+    state = callback_context.state
     log_entry = {
-        "tool": tool.name if hasattr(tool, "name") else str(tool),
-        "agent": tool_context.agent_name,
+        "tool": tool_name,
+        "agent": callback_context.agent_name,
         "timestamp": datetime.now(UTC).isoformat(),
         "success": "error" not in (result if isinstance(result, dict) else {}),
     }

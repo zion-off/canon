@@ -20,7 +20,7 @@ from src.mcp.tools import (
     FAST_MODEL,
     REASONING_MODEL,
     canonize_node_tool,
-    embed_query_tool,
+    embed_query,
     emit_checkpoint_tool,
 )
 
@@ -285,7 +285,7 @@ async def initialize_agents():
         tool_filter=["find", "aggregate", "count"],
     )
     _exit_stacks.append(read_exit)
-    semantic_retriever.tools = read_tools + [embed_query]
+    semantic_retriever.tools = read_tools + [embed_query_tool]
     graph_explorer.tools = read_tools
 
     mw_tools, mw_exit = await McpToolset.from_server(

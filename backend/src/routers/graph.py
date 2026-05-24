@@ -5,14 +5,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from src.dependencies import get_db, jwt_auth
-from src.models.schemas import GraphLink, GraphNode, GraphResponse, JwtPayload
+from src.models.schemas import GraphLink, GraphNode, GraphResponse, JWTPayload
 
 router = APIRouter(tags=["graph"])
 
 
 @router.get("/graph", response_model=GraphResponse)
 async def get_graph(
-    user: JwtPayload = Depends(jwt_auth),
+    user: JWTPayload = Depends(jwt_auth),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> GraphResponse:
     """Full memory graph for visualization. Tenant from JWT."""

@@ -24,7 +24,7 @@ export async function GET(
     `/api/v1/sessions/${sessionId}/stream`,
     API_URL
   );
-  upstreamUrl.searchParams.set("after", after);
+  upstreamUrl.searchParams.set("last_event_id", after);
 
   const upstream = await fetch(upstreamUrl.toString(), {
     headers: { Authorization: `Bearer ${token}` },

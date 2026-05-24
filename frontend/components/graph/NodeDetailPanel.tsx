@@ -2,6 +2,7 @@
 
 import type { GraphNode } from "@/lib/schemas/graph";
 import { Badge } from "@/components/ui/Badge";
+import type { BadgeVariant } from "@/components/ui/Badge";
 
 interface NodeDetailPanelProps {
   node: GraphNode;
@@ -47,7 +48,7 @@ export function NodeDetailPanel({
             {node.name}
           </h2>
           <div className="mt-1.5">
-            <Badge variant={node.status}>
+            <Badge variant={node.status as BadgeVariant}>
               {node.status.replace("_", " ")}
             </Badge>
           </div>

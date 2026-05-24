@@ -262,11 +262,13 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
             graphData={filteredData}
             nodeCanvasObject={nodeCanvasObject}
             nodeCanvasObjectMode={() => "replace"}
+            nodeRelSize={4}
             onNodeClick={handleNodeClick}
             onNodeHover={handleNodeHover}
             linkColor={linkColor}
             linkDirectionalArrowLength={linkDirectionalArrowLength}
             linkDirectionalArrowRelPos={1}
+            linkLineDash={(link) => (link as GraphLinkFG).type === "supersedes" ? [4, 2] : null}
             linkWidth={linkWidth}
             nodeLabel=""
             width={width}

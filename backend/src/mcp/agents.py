@@ -6,6 +6,9 @@ graph_explorer, memory_writer) with their instructions and tool bindings.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from typing import Any
+
 from google.adk.agents import Agent
 from google.adk.tools import AgentTool, google_search
 from google.adk.tools.mcp_tool import McpToolset
@@ -196,6 +199,23 @@ class MemoryNodeOutput(BaseModel):
     relationships_formed: int = Field(description="Number of bidirectional edges created")
 
 
+def log_tool_usage(
+    tool: Any, args: dict[str, Any], tool_context: Any, tool_response: dict
+) -> dict | None:
+    """Log tool calls across the agent hierarchy for observability."""
+    state = tool_context.state
+    log_entry = {
+        "tool": tool.name,
+        "agent": tool_context.agent_name,
+        "timestamp": datetime.now(UTC).isoformat(),
+        "success": "error" not in (tool_response if isinstance(tool_response, dict) else {}),
+    }
+    logs = state.get("temp:tool_logs", [])
+    logs.append(log_entry)
+    state["temp:tool_logs"] = logs
+    return None
+
+
 semantic_retriever = Agent(
     name="semantic_retriever",
     model=FAST_MODEL,
@@ -204,6 +224,7 @@ semantic_retriever = Agent(
     instruction=SEMANTIC_RETRIEVER_INSTRUCTION,
     tools=[],  # Attached at startup via initialize_agents
     output_key="retrieval_results",
+    after_tool_callback=log_tool_usage,
 )
 
 graph_explorer = Agent(
@@ -215,6 +236,7 @@ graph_explorer = Agent(
     instruction=GRAPH_EXPLORER_INSTRUCTION,
     tools=[],  # Attached at startup via initialize_agents
     output_key="graph_results",
+    after_tool_callback=log_tool_usage,
 )
 
 memory_writer = Agent(
@@ -227,6 +249,7 @@ memory_writer = Agent(
     tools=[],  # Attached at startup via initialize_agents
     output_key="write_result",
     output_schema=MemoryNodeOutput,
+    after_tool_callback=log_tool_usage,
 )
 
 

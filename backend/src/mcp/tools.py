@@ -15,13 +15,7 @@ from google.adk.tools.tool_context import ToolContext
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import DuplicateKeyError
 
-from src.config import get_settings
-
-# ─── Model Configuration ─────────────────────────────────────────────────────
-
-REASONING_MODEL: str = get_settings().reasoning_model
-FAST_MODEL: str = get_settings().fast_model
-EMBEDDING_MODEL: str = get_settings().embedding_model
+from src.config import settings
 
 # ─── Lazy MongoDB Client ─────────────────────────────────────────────────────
 
@@ -32,7 +26,7 @@ def _get_mongo_client() -> AsyncIOMotorClient:
     """Return a lazily-initialized MongoDB client singleton."""
     global _mongo_client  # noqa: PLW0603
     if _mongo_client is None:
-        _mongo_client = AsyncIOMotorClient(get_settings().mongodb_uri)
+        _mongo_client = AsyncIOMotorClient(settings.mongodb_uri)
     return _mongo_client
 
 
@@ -87,10 +81,10 @@ async def generate_document_embedding(text: str) -> list[float]:
     """
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/{EMBEDDING_MODEL}:embedContent",
-            params={"key": get_settings().gemini_api_key},
+            f"https://generativelanguage.googleapis.com/v1beta/models/{settings.embedding_model}:embedContent",
+            params={"key": settings.gemini_api_key},
             json={
-                "model": f"models/{EMBEDDING_MODEL}",
+                "model": f"models/{settings.embedding_model}",
                 "content": {"parts": [{"text": text}]},
                 "taskType": "RETRIEVAL_DOCUMENT",
                 "outputDimensionality": 768,
@@ -112,11 +106,11 @@ async def generate_query_embedding(text: str) -> dict:
     Returns:
         A dictionary with key 'embedding' containing the 768-float vector.
     """
-    model = EMBEDDING_MODEL
+    model = settings.embedding_model
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
             f"https://generativelanguage.googleapis.com/v1beta/models/{model}:embedContent",
-            params={"key": get_settings().gemini_api_key},
+            params={"key": settings.gemini_api_key},
             json={
                 "model": f"models/{model}",
                 "content": {"parts": [{"text": text}]},
@@ -277,5 +271,5 @@ async def emit_checkpoint(message: str, tool_context: ToolContext) -> dict:
 # ─── Tool Instances ──────────────────────────────────────────────────────────
 
 canonize_node_tool = FunctionTool(func=canonize_node)
-embed_query = FunctionTool(func=generate_query_embedding, name="embed_query")
+embed_query = FunctionTool(func=generate_query_embedding)
 emit_checkpoint_tool = FunctionTool(func=emit_checkpoint)

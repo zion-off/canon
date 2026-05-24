@@ -62,5 +62,12 @@ def get_settings() -> Settings:
     return Settings()
 
 
+class _SettingsProxy:
+    """Lazy proxy that defers Settings instantiation until first attribute access."""
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(get_settings(), name)
+
+
 # Module-level convenience alias for simple attribute access.
-settings: Settings = get_settings()
+settings: Settings = _SettingsProxy()  # type: ignore[assignment]

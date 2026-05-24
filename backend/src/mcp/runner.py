@@ -11,9 +11,9 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai.types import Content, Part
 
+from src.config import settings
 from src.mcp.agents import build_orchestrator
 from src.mcp.plugin import ReasoningFeedPlugin
-from src.mcp.tools import FAST_MODEL
 from src.models.schemas import AgentEvent
 
 if TYPE_CHECKING:
@@ -245,7 +245,7 @@ Write only the updated summary — no preamble, no explanation. Ruthlessly compr
 
     client = genai.Client()
     result = await client.aio.models.generate_content(
-        model=f"models/{FAST_MODEL}",
+        model=f"models/{settings.fast_model}",
         contents=prompt,
     )
     return result.text.strip()

@@ -15,10 +15,8 @@ from google.adk.tools.mcp_tool import McpToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
 from pydantic import BaseModel, Field
 
-from src.config import get_settings
+from src.config import get_settings, settings
 from src.mcp.tools import (
-    FAST_MODEL,
-    REASONING_MODEL,
     canonize_node_tool,
     embed_query,
     emit_checkpoint_tool,
@@ -215,53 +213,72 @@ def log_tool_usage(
     return None
 
 
-semantic_retriever = Agent(
-    name="semantic_retriever",
-    model=FAST_MODEL,
-    description="Perceives relevant organizational knowledge through hybrid search. "
-    "Call with a query to find semantically and textually related memory nodes.",
-    instruction=SEMANTIC_RETRIEVER_INSTRUCTION,
-    tools=[],  # Attached at startup via initialize_agents
-    output_key="retrieval_results",
-    after_tool_callback=log_tool_usage,
-)
+_semantic_retriever: Agent | None = None
+_graph_explorer: Agent | None = None
+_memory_writer: Agent | None = None
 
-graph_explorer = Agent(
-    name="graph_explorer",
-    model=FAST_MODEL,
-    description="Traces relationships in the knowledge graph. Call when you need to "
-    "understand what connects to a specific node — its neighbors, "
-    "dependents, related knowledge, and organizational context.",
-    instruction=GRAPH_EXPLORER_INSTRUCTION,
-    tools=[],  # Attached at startup via initialize_agents
-    output_key="graph_results",
-    after_tool_callback=log_tool_usage,
-)
 
-memory_writer = Agent(
-    name="memory_writer",
-    model=REASONING_MODEL,
-    description="Crystallizes observations into structured memory nodes, resolves "
-    "relationships, and persists to the knowledge graph. Call with the "
-    "observation and any related context from prior retrieval.",
-    instruction=MEMORY_WRITER_INSTRUCTION,
-    tools=[],  # Attached at startup via initialize_agents
-    output_key="write_result",
-    output_schema=MemoryNodeOutput,
-    after_tool_callback=log_tool_usage,
-)
+def _get_semantic_retriever() -> Agent:
+    global _semantic_retriever
+    if _semantic_retriever is None:
+        _semantic_retriever = Agent(
+            name="semantic_retriever",
+            model=settings.fast_model,
+            description="Perceives relevant organizational knowledge through hybrid search. "
+            "Call with a query to find semantically and textually related memory nodes.",
+            instruction=SEMANTIC_RETRIEVER_INSTRUCTION,
+            tools=[],  # Attached at startup via initialize_agents
+            output_key="retrieval_results",
+            after_tool_callback=log_tool_usage,
+        )
+    return _semantic_retriever
+
+
+def _get_graph_explorer() -> Agent:
+    global _graph_explorer
+    if _graph_explorer is None:
+        _graph_explorer = Agent(
+            name="graph_explorer",
+            model=settings.fast_model,
+            description="Traces relationships in the knowledge graph. Call when you need to "
+            "understand what connects to a specific node — its neighbors, "
+            "dependents, related knowledge, and organizational context.",
+            instruction=GRAPH_EXPLORER_INSTRUCTION,
+            tools=[],  # Attached at startup via initialize_agents
+            output_key="graph_results",
+            after_tool_callback=log_tool_usage,
+        )
+    return _graph_explorer
+
+
+def _get_memory_writer() -> Agent:
+    global _memory_writer
+    if _memory_writer is None:
+        _memory_writer = Agent(
+            name="memory_writer",
+            model=settings.reasoning_model,
+            description="Crystallizes observations into structured memory nodes, resolves "
+            "relationships, and persists to the knowledge graph. Call with the "
+            "observation and any related context from prior retrieval.",
+            instruction=MEMORY_WRITER_INSTRUCTION,
+            tools=[],  # Attached at startup via initialize_agents
+            output_key="write_result",
+            output_schema=MemoryNodeOutput,
+            after_tool_callback=log_tool_usage,
+        )
+    return _memory_writer
 
 
 def build_orchestrator() -> Agent:
     """Construct the orchestrator agent for a single request."""
     return Agent(
         name="canon_orchestrator",
-        model=REASONING_MODEL,
+        model=settings.reasoning_model,
         instruction=ORCHESTRATOR_INSTRUCTION,
         tools=[
-            AgentTool(semantic_retriever),
-            AgentTool(graph_explorer),
-            AgentTool(memory_writer),
+            AgentTool(_get_semantic_retriever()),
+            AgentTool(_get_graph_explorer()),
+            AgentTool(_get_memory_writer()),
             google_search,
             emit_checkpoint_tool,
         ],
@@ -285,8 +302,8 @@ async def initialize_agents():
         tool_filter=["find", "aggregate", "count"],
     )
     _exit_stacks.append(read_exit)
-    semantic_retriever.tools = read_tools + [embed_query]
-    graph_explorer.tools = read_tools
+    _get_semantic_retriever().tools = read_tools + [embed_query]
+    _get_graph_explorer().tools = read_tools
 
     mw_tools, mw_exit = await McpToolset.from_server(
         connection_params=StdioConnectionParams(
@@ -300,4 +317,4 @@ async def initialize_agents():
         tool_filter=["find", "aggregate", "count"],
     )
     _exit_stacks.append(mw_exit)
-    memory_writer.tools = mw_tools + [canonize_node_tool]
+    _get_memory_writer().tools = mw_tools + [canonize_node_tool]

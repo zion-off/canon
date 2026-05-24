@@ -17,7 +17,7 @@ import { getAuthHeaders, handleErrorResponse, setAuthCookie } from "@/lib/api-ut
 
 export async function createTeam(name: string): Promise<{ rawApiToken: string; team: CreateTeamResponse["team"] }> {
   const headers = await getAuthHeaders(true);
-  const res = await fetch(`${API_URL}${API_V1_TEAMS}/create`, {
+  const res = await fetch(`${API_URL}/${API_V1_TEAMS}/create`, {
     method: "POST",
     headers,
     body: JSON.stringify({ name }),
@@ -35,7 +35,7 @@ export async function createTeam(name: string): Promise<{ rawApiToken: string; t
 
 export async function joinTeam(code: string): Promise<{ team: JoinTeamResponse["team"] }> {
   const headers = await getAuthHeaders(true);
-  const res = await fetch(`${API_URL}/api/v1/teams/join`, {
+  const res = await fetch(`${API_URL}/${API_V1_TEAMS}/join`, {
     method: "POST",
     headers,
     body: JSON.stringify({ code }),
@@ -53,7 +53,7 @@ export async function joinTeam(code: string): Promise<{ team: JoinTeamResponse["
 
 export async function createInvite(): Promise<InviteResponse> {
   const headers = await getAuthHeaders(true);
-  const res = await fetch(`${API_URL}${API_V1_TEAMS}/invite`, {
+  const res = await fetch(`${API_URL}/${API_V1_TEAMS}/invite`, {
     method: "POST",
     headers,
   });
@@ -67,7 +67,7 @@ export async function createInvite(): Promise<InviteResponse> {
 
 export async function listTokens(): Promise<ListTokensResponse> {
   const headers = await getAuthHeaders();
-  const res = await fetch(`${API_URL}/api/v1/teams/tokens`, { headers });
+  const res = await fetch(`${API_URL}/${API_V1_TEAMS}/tokens`, { headers });
 
   if (!res.ok) {
     await handleErrorResponse(res);
@@ -78,7 +78,7 @@ export async function listTokens(): Promise<ListTokensResponse> {
 
 export async function createToken(label: string): Promise<CreateTokenResponse> {
   const headers = await getAuthHeaders(true);
-  const res = await fetch(`${API_URL}/api/v1/teams/tokens`, {
+  const res = await fetch(`${API_URL}/${API_V1_TEAMS}/tokens`, {
     method: "POST",
     headers,
     body: JSON.stringify({ label }),

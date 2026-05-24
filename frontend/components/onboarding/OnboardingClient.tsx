@@ -3,6 +3,7 @@
 import { useActionState, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createTeam, joinTeam } from "@/lib/actions/teams";
+import { ROUTE_DASHBOARD } from "@/lib/constants";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { ApiTokenDisplay } from "./ApiTokenDisplay";
@@ -136,7 +137,7 @@ function CreateTeamForm() {
     return (
       <div className="space-y-6">
         <ApiTokenDisplay token={state.token} />
-        <Button onClick={() => router.push("/dashboard")} className="w-full">
+        <Button onClick={() => router.push(ROUTE_DASHBOARD)} className="w-full">
           Go to Dashboard
         </Button>
       </div>
@@ -214,7 +215,7 @@ function JoinTeamForm() {
 
   useEffect(() => {
     if (state.teamName) {
-      redirectTimer.current = setTimeout(() => router.push("/dashboard"), 1000);
+      redirectTimer.current = setTimeout(() => router.push(ROUTE_DASHBOARD), 1000);
     }
     return () => {
       if (redirectTimer.current) {

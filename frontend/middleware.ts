@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-
-const PUBLIC_PATHS = new Set(["/", "/login", "/register"]);
+import { COOKIE_NAME, PUBLIC_PATHS, ROUTE_LOGIN, ROUTE_ONBOARDING } from "@/lib/constants";
 
 interface JwtPayload {
   sub: string;
@@ -26,24 +25,24 @@ function decodeJwtPayload(token: string): JwtPayload | null {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (PUBLIC_PATHS.has(pathname)) {
+  if (PUBLIC_PATHS.includes(pathname)) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get("canon_token")?.value;
+  const token = request.cookies.get(COOKIE_NAME)?.value;
 
   if (!token) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL(ROUTE_LOGIN, request.url));
   }
 
   const payload = decodeJwtPayload(token);
 
   if (!payload || payload.exp * 1000 < Date.now()) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL(ROUTE_LOGIN, request.url));
   }
 
-  if (payload.tenantId === null && pathname !== "/onboarding") {
-    return NextResponse.redirect(new URL("/onboarding", request.url));
+  if (payload.tenantId === null && pathname !== ROUTE_ONBOARDING) {
+    return NextResponse.redirect(new URL(ROUTE_ONBOARDING, request.url));
   }
 
   return NextResponse.next();

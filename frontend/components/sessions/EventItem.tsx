@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { AgentEvent } from "@/lib/schemas/sessions";
 import { isJsonContent } from "@/lib/text-utils";
 import { formatTimestamp } from "@/lib/date-utils";
+import { EVENT_TYPE } from "@/lib/constants";
 
 interface EventItemProps {
   event: AgentEvent;
@@ -72,13 +73,13 @@ function CollapsibleEvent({
 
 export function EventItem({ event }: EventItemProps) {
   switch (event.type) {
-    case "run_started":
+    case EVENT_TYPE.RUN_STARTED:
       return <RunSeparator label="Run started" />;
 
-    case "run_completed":
+    case EVENT_TYPE.RUN_COMPLETED:
       return <RunSeparator label="Run completed" />;
 
-    case "subagent_invoked":
+    case EVENT_TYPE.SUBAGENT_INVOKED:
       return (
         <div className="py-1 pl-4">
           <span className="text-xs text-canon-muted">
@@ -128,7 +129,7 @@ export function EventItem({ event }: EventItemProps) {
         </div>
       );
 
-    case "final_response":
+    case EVENT_TYPE.FINAL_RESPONSE:
       return (
         <div className="rounded-md border-l-4 border-l-canon-blue bg-[#0d0d22] px-5 py-4">
           <div className="flex items-center justify-between">

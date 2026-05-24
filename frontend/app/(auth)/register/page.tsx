@@ -6,6 +6,7 @@ import Link from "next/link";
 import { register } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { ROUTE_LOGIN, ROUTE_ONBOARDING } from "@/lib/constants";
 
 interface RegisterState {
   error: string | null;
@@ -16,7 +17,7 @@ const initialState: RegisterState = { error: null, success: false };
 
 async function registerAction(
   _prevState: RegisterState,
-  formData: FormData
+  formData: FormData,
 ): Promise<RegisterState> {
   const name = formData.get("name") as string;
   const email = formData.get("email") as string;
@@ -44,12 +45,12 @@ export default function RegisterPage() {
   const router = useRouter();
   const [state, formAction, isPending] = useActionState(
     registerAction,
-    initialState
+    initialState,
   );
 
   useEffect(() => {
     if (state.success) {
-      router.push("/onboarding");
+      router.push(ROUTE_ONBOARDING);
     }
   }, [state.success, router]);
 
@@ -137,7 +138,7 @@ export default function RegisterPage() {
       <p className="text-center text-sm text-canon-text-dim mt-6">
         Already have an account?{" "}
         <Link
-          href="/login"
+          href={ROUTE_LOGIN}
           className="text-canon-blue hover:text-canon-blue/80 transition-colors"
         >
           Sign in

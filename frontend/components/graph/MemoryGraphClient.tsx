@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { NodeObject, LinkObject } from "react-force-graph-2d";
 import type { GraphNode, GraphLink } from "@/lib/schemas/graph";
+import { STATUS } from "@/lib/constants";
 import { GraphFilters } from "./GraphFilters";
 import { NodeDetailPanel } from "./NodeDetailPanel";
 
@@ -27,14 +28,14 @@ interface MemoryGraphClientProps {
 function statusColor(status: string, supersededBy: string | null): string {
   if (supersededBy) return "#9CA3AF";
   switch (status) {
-    case "active":
+    case STATUS.ACTIVE:
       return "#3B82F6";
-    case "in_progress":
+    case STATUS.IN_PROGRESS:
       return "#F59E0B";
-    case "deprecated":
+    case STATUS.DEPRECATED:
       return "#9CA3AF";
-    case "resolved":
-    case "completed":
+    case STATUS.RESOLVED:
+    case STATUS.COMPLETED:
       return "#10B981";
     default:
       return "#64748B";

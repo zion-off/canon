@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { Button } from "@/components/ui/Button";
+import { ROUTE_DASHBOARD } from "@/lib/constants";
 
 export default function ErrorPage({
   error,

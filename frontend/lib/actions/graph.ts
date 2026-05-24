@@ -6,7 +6,7 @@ import { getAuthHeaders, handleErrorResponse } from "@/lib/api-utils";
 
 export async function getGraph(): Promise<GraphResponse> {
   const headers = await getAuthHeaders();
-  const res = await fetch(`${API_URL}${API_V1_GRAPH}`, { headers });
+  const res = await fetch(`${API_URL}/${API_V1_GRAPH}`, { headers });
 
   if (!res.ok) {
     await handleErrorResponse(res);

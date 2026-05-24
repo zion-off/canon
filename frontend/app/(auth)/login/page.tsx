@@ -6,6 +6,7 @@ import Link from "next/link";
 import { login } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { ROUTE_DASHBOARD, ROUTE_REGISTER } from "@/lib/constants";
 
 interface LoginState {
   error: string | null;
@@ -16,7 +17,7 @@ const initialState: LoginState = { error: null, success: false };
 
 async function loginAction(
   _prevState: LoginState,
-  formData: FormData
+  formData: FormData,
 ): Promise<LoginState> {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
@@ -39,12 +40,12 @@ export default function LoginPage() {
   const router = useRouter();
   const [state, formAction, isPending] = useActionState(
     loginAction,
-    initialState
+    initialState,
   );
 
   useEffect(() => {
     if (state.success) {
-      router.push("/dashboard");
+      router.push(ROUTE_DASHBOARD);
     }
   }, [state.success, router]);
 
@@ -113,7 +114,7 @@ export default function LoginPage() {
       <p className="text-center text-sm text-canon-text-dim mt-6">
         Don&apos;t have an account?{" "}
         <Link
-          href="/register"
+          href={ROUTE_REGISTER}
           className="text-canon-blue hover:text-canon-blue/80 transition-colors"
         >
           Register

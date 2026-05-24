@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { STATUS } from "@/lib/constants";
 
 interface GraphFiltersProps {
   statusFilter: string;
@@ -16,11 +17,11 @@ interface GraphFiltersProps {
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
-  { value: "active", label: "Active" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "deprecated", label: "Deprecated" },
-  { value: "resolved", label: "Resolved" },
-  { value: "completed", label: "Completed" },
+  { value: STATUS.ACTIVE, label: "Active" },
+  { value: STATUS.IN_PROGRESS, label: "In Progress" },
+  { value: STATUS.DEPRECATED, label: "Deprecated" },
+  { value: STATUS.RESOLVED, label: "Resolved" },
+  { value: STATUS.COMPLETED, label: "Completed" },
 ] as const;
 
 export function GraphFilters({

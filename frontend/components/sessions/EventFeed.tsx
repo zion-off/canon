@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import type { AgentEvent } from "@/lib/schemas/sessions";
 import { useEventStream } from "@/hooks/useEventStream";
 import { RunGroup } from "./RunGroup";
+import { EVENT_TYPE } from "@/lib/constants";
 
 interface EventFeedProps {
   sessionId: string;
@@ -28,7 +29,7 @@ function groupEventsIntoRuns(events: IdentifiedEvent[]): RunBucket[] {
   let currentTimestamp: string | null = null;
 
   for (const event of events) {
-    if (event.type === "run_started") {
+    if (event.type === EVENT_TYPE.RUN_STARTED) {
       if (currentRun.length > 0) {
         runs.push({
           runIndex: runCounter,
@@ -73,7 +74,7 @@ export function EventFeed({ sessionId, initialEvents, isLive }: EventFeedProps) 
 
   const handleNewEvent = useCallback((event: AgentEvent) => {
     setEvents((prev) => [...prev, assignId(event)]);
-    if (event.type === "run_completed") {
+    if (event.type === EVENT_TYPE.RUN_COMPLETED) {
       setLive(false);
     }
   }, [assignId]);

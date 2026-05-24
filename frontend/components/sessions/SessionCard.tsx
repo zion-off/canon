@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { SessionResponse } from "@/lib/schemas/sessions";
 import { formatRelativeTime } from "@/lib/date-utils";
+import { routeToSession, STATUS } from "@/lib/constants";
 
 interface SessionCardProps {
   session: SessionResponse;
@@ -10,9 +11,9 @@ interface SessionCardProps {
 
 function statusColor(status: string): string {
   switch (status) {
-    case "active":
+    case STATUS.ACTIVE:
       return "bg-emerald-500";
-    case "completed":
+    case STATUS.COMPLETED:
       return "bg-slate-500";
     default:
       return "bg-slate-600";
@@ -20,7 +21,7 @@ function statusColor(status: string): string {
 }
 
 function borderColor(status: string): string {
-  return status === "active" ? "border-l-canon-blue" : "border-l-slate-700";
+  return status === STATUS.ACTIVE ? "border-l-canon-blue" : "border-l-slate-700";
 }
 
 export function SessionCard({ session }: SessionCardProps) {
@@ -31,7 +32,7 @@ export function SessionCard({ session }: SessionCardProps) {
     : null;
 
   return (
-    <Link href={`/sessions/${session.sessionId}`} className="block group">
+    <Link href={routeToSession(session.sessionId)} className="block group">
       <div
         className={`rounded-lg border border-canon-border border-l-2 ${borderColor(session.status)} bg-canon-surface px-5 py-4 transition-colors group-hover:bg-[#141428]`}
       >

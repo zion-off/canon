@@ -3,11 +3,11 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AuthResponseSchema, MeResponseSchema, type AuthResponse, type MeResponse } from "@/lib/schemas/auth";
-import { API_URL } from "@/lib/constants";
+import { API_URL, COOKIE_NAME, API_V1_AUTH, ROUTE_LOGIN } from "@/lib/constants";
 import { handleErrorResponse, logout, setAuthCookie } from "@/lib/api-utils";
 
 export async function login(email: string, password: string): Promise<AuthResponse["user"]> {
-  const res = await fetch(`${API_URL}/api/v1/auth/login`, {
+  const res = await fetch(`${API_URL}/${API_V1_AUTH}/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
@@ -26,7 +26,7 @@ export async function login(email: string, password: string): Promise<AuthRespon
 }
 
 export async function register(email: string, name: string, password: string): Promise<AuthResponse["user"]> {
-  const res = await fetch(`${API_URL}/api/v1/auth/register`, {
+  const res = await fetch(`${API_URL}/${API_V1_AUTH}/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, name, password }),
@@ -53,13 +53,13 @@ export async function handleLogout() {
 
 export async function getCurrentUser(): Promise<MeResponse | null> {
   const cookieStore = await cookies();
-  const token = cookieStore.get("canon_token")?.value;
+  const token = cookieStore.get(COOKIE_NAME)?.value;
 
   if (!token) {
     return null;
   }
 
-  const res = await fetch(`${API_URL}/api/v1/auth/me`, {
+  const res = await fetch(`${API_URL}/${API_V1_AUTH}/me`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
@@ -72,6 +72,4 @@ export async function getCurrentUser(): Promise<MeResponse | null> {
   }
 
   return MeResponseSchema.parse(await res.json());
-}
-seSchema.parse(await res.json());
 }

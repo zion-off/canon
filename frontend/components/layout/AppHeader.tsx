@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { handleLogout } from "@/lib/actions/auth";
+import { ROUTE_DASHBOARD, ROUTE_GRAPH, ROUTE_SETTINGS, ROLE_OWNER } from "@/lib/constants";
 
 interface AppHeaderProps {
   user: {
@@ -16,7 +17,7 @@ export function AppHeader({ user }: AppHeaderProps) {
     <header className="sticky top-0 z-50 border-b border-canon-border bg-[rgba(8,8,16,0.85)] backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
         <Link
-          href="/dashboard"
+          href={ROUTE_DASHBOARD}
           className="font-syne text-lg font-bold tracking-tight text-canon-text hover:text-white transition-colors"
         >
           Canon
@@ -24,20 +25,20 @@ export function AppHeader({ user }: AppHeaderProps) {
 
         <nav className="flex items-center gap-6">
           <Link
-            href="/dashboard"
+            href={ROUTE_DASHBOARD}
             className="text-sm text-canon-text-dim hover:text-canon-text transition-colors"
           >
             Dashboard
           </Link>
           <Link
-            href="/graph"
+            href={ROUTE_GRAPH}
             className="text-sm text-canon-text-dim hover:text-canon-text transition-colors"
           >
             Graph
           </Link>
-          {user.role === "owner" && (
+          {user.role === ROLE_OWNER && (
             <Link
-              href="/settings"
+              href={ROUTE_SETTINGS}
               className="text-sm text-canon-text-dim hover:text-canon-text transition-colors"
             >
               Settings

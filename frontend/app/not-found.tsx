@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import { ROUTE_DASHBOARD } from "@/lib/constants";
 
 export default function NotFoundPage() {
   return (
@@ -11,7 +12,7 @@ export default function NotFoundPage() {
         <p className="text-sm text-canon-text-dim mb-8">
           The page you&apos;re looking for doesn&apos;t exist or has been moved.
         </p>
-        <Link href="/dashboard">
+        <Link href={ROUTE_DASHBOARD}>
           <Button>Go to Dashboard</Button>
         </Link>
       </div>

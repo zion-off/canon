@@ -1,11 +1,10 @@
-import os
-
 from google.adk.agents import Agent
 from google.adk.tools import AgentTool, google_search
 from google.adk.tools.mcp_tool import McpToolset
 from google.adk.tools.mcp_tool.mcp_toolset import StdioConnectionParams
 from pydantic import BaseModel, Field
 
+from src.config import settings
 from src.mcp.tools import (
     FAST_MODEL,
     REASONING_MODEL,
@@ -248,7 +247,7 @@ async def initialize_agents():
             command="npx",
             args=["-y", "mongodb-mcp-server"],
             env={
-                "MDB_MCP_CONNECTION_STRING": os.environ["MONGODB_URI"],
+                "MDB_MCP_CONNECTION_STRING": settings.mongodb_uri,
                 "MDB_MCP_READ_ONLY": "true",
             },
         ),
@@ -263,7 +262,7 @@ async def initialize_agents():
             command="npx",
             args=["-y", "mongodb-mcp-server"],
             env={
-                "MDB_MCP_CONNECTION_STRING": os.environ["MONGODB_URI"],
+                "MDB_MCP_CONNECTION_STRING": settings.mongodb_uri,
                 "MDB_MCP_READ_ONLY": "true",
             },
         ),

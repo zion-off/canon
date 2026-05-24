@@ -13,11 +13,11 @@ import httpx
 from bson import ObjectId
 from google.adk.tools import FunctionTool
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo.errors import DuplicateKeyError
 
 from src.config import settings
 
 # ─── Model Configuration ─────────────────────────────────────────────────────
-
 
 REASONING_MODEL: str = settings.reasoning_model
 FAST_MODEL: str = settings.fast_model
@@ -29,11 +29,7 @@ _mongo_client: AsyncIOMotorClient | None = None
 
 
 def _get_mongo_client() -> AsyncIOMotorClient:
-    """Return a lazily-initialized MongoDB client singleton.
-
-    Reads MONGODB_URI from environment on first call. Subsequent calls
-    return the cached client instance.
-    """
+    """Return a lazily-initialized MongoDB client singleton."""
     global _mongo_client  # noqa: PLW0603
     if _mongo_client is None:
         _mongo_client = AsyncIOMotorClient(settings.mongodb_uri)
@@ -46,39 +42,34 @@ def _get_mongo_client() -> AsyncIOMotorClient:
 def build_embedding_text(document: dict) -> str:
     """Build a retrieval-optimized semantic representation of a memory node.
 
-    Combines the node's name, description, content, tags, and status into
+    Combines the node's name, status, description, content, and tags into
     a single string optimized for embedding-based similarity search.
+    Content is capped at 1500 characters.
 
     Args:
-        document: A memory node dictionary containing at minimum 'name',
-            'description', and 'content' fields.
+        document: A memory node dictionary.
 
     Returns:
         A formatted string suitable for embedding generation.
     """
-    parts: list[str] = []
-
     name = document.get("name", "")
-    if name:
-        parts.append(f"Name: {name}")
-
     description = document.get("description", "")
-    if description:
-        parts.append(f"Description: {description}")
-
     content = document.get("content", "")
-    if content:
-        parts.append(f"Content: {content}")
-
-    tags = document.get("tags", [])
-    if tags:
-        parts.append(f"Tags: {', '.join(tags)}")
-
     status = document.get("status", "")
-    if status:
-        parts.append(f"Status: {status}")
+    tags = document.get("tags", [])
 
-    return "\n".join(parts)
+    lines: list[str] = []
+    header = name
+    if status:
+        header += f" [{status}]"
+    lines.append(header)
+    if description:
+        lines.append(description)
+    if content:
+        lines.append(content[:1500])
+    if tags:
+        lines.append(f"Tags: {', '.join(tags)}")
+    return "\n".join(filter(None, lines))
 
 
 async def generate_document_embedding(text: str) -> list[float]:
@@ -93,28 +84,19 @@ async def generate_document_embedding(text: str) -> list[float]:
 
     Returns:
         A list of 768 floats representing the embedding vector.
-
-    Raises:
-        httpx.HTTPStatusError: If the Gemini API returns a non-2xx response.
-        KeyError: If GEMINI_API_KEY is not set in environment.
     """
-    api_key = settings.gemini_api_key
-    url = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{EMBEDDING_MODEL}:embedContent?key={api_key}"
-    )
-    payload = {
-        "model": f"models/{EMBEDDING_MODEL}",
-        "content": {"parts": [{"text": text}]},
-        "taskType": "RETRIEVAL_DOCUMENT",
-        "outputDimensionality": 768,
-    }
-
     async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(url, json=payload)
-        response.raise_for_status()
-
-    data = response.json()
+        response = await client.post(
+            f"https://generativelanguage.googleapis.com/v1beta/models/{EMBEDDING_MODEL}:embedContent",
+            params={"key": settings.gemini_api_key},
+            json={
+                "model": f"models/{EMBEDDING_MODEL}",
+                "content": {"parts": [{"text": text}]},
+                "taskType": "RETRIEVAL_DOCUMENT",
+                "outputDimensionality": 768,
+            },
+        )
+        data = response.json()
     return data["embedding"]["values"]
 
 
@@ -129,28 +111,20 @@ async def generate_query_embedding(text: str) -> dict:
 
     Returns:
         A dictionary with key 'embedding' containing the 768-float vector.
-
-    Raises:
-        httpx.HTTPStatusError: If the Gemini API returns a non-2xx response.
-        KeyError: If GEMINI_API_KEY is not set in environment.
     """
-    api_key = settings.gemini_api_key
-    url = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{EMBEDDING_MODEL}:embedContent?key={api_key}"
-    )
-    payload = {
-        "model": f"models/{EMBEDDING_MODEL}",
-        "content": {"parts": [{"text": text}]},
-        "taskType": "RETRIEVAL_QUERY",
-        "outputDimensionality": 768,
-    }
-
+    model = EMBEDDING_MODEL
     async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(url, json=payload)
-        response.raise_for_status()
-
-    data = response.json()
+        response = await client.post(
+            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:embedContent",
+            params={"key": settings.gemini_api_key},
+            json={
+                "model": f"models/{model}",
+                "content": {"parts": [{"text": text}]},
+                "taskType": "RETRIEVAL_QUERY",
+                "outputDimensionality": 768,
+            },
+        )
+        data = response.json()
     return {"embedding": data["embedding"]["values"]}
 
 
@@ -180,38 +154,29 @@ async def canonize_node(
             Must have state["app:tenant_id"] set.
 
     Returns:
-        A dictionary with 'status', 'nodeId', and 'message' on success,
-        or 'status' and 'error' on validation failure.
+        A dictionary with 'status', 'node_id', and 'name' on success,
+        or 'error' on validation/persistence failure.
     """
-    # Force tenant isolation
-    tenant_id = tool_context.state.get("app:tenant_id")
-    if not tenant_id:
-        return {"status": "error", "error": "Missing tenant_id in agent state."}
+    tenant_id = ObjectId(tool_context.state["app:tenant_id"])
     document["tenantId"] = tenant_id
 
     # Validate required fields
     required_fields = ("name", "description", "content", "status", "tenantId")
     missing = [f for f in required_fields if not document.get(f)]
     if missing:
-        return {
-            "status": "error",
-            "error": f"Missing required fields: {', '.join(missing)}",
-        }
+        return {"error": f"Missing required fields: {', '.join(missing)}"}
 
     # Validate relatedEntityIds cardinality
     related_entity_ids = document.get("relatedEntityIds", [])
     if len(related_entity_ids) > 100:
-        return {
-            "status": "error",
-            "error": "relatedEntityIds exceeds maximum of 100 entries.",
-        }
+        return {"error": "relatedEntityIds exceeds maximum of 100 entries."}
 
     # Convert string IDs to ObjectIds
     try:
         related_object_ids = [ObjectId(rid) for rid in related_existing_ids]
         related_entity_object_ids = [ObjectId(rid) for rid in related_entity_ids]
     except Exception:
-        return {"status": "error", "error": "Invalid ObjectId in related IDs."}
+        return {"error": "Invalid ObjectId in related IDs."}
 
     document["relatedEntityIds"] = related_entity_object_ids
 
@@ -222,7 +187,7 @@ async def canonize_node(
             supersedes_id = ObjectId(document["supersedes"])
             document["supersedes"] = supersedes_id
         except Exception:
-            return {"status": "error", "error": "Invalid ObjectId in supersedes."}
+            return {"error": "Invalid ObjectId in supersedes."}
 
     # Set timestamps
     now = datetime.now(tz=UTC)
@@ -236,25 +201,26 @@ async def canonize_node(
     try:
         embedding = await generate_document_embedding(embedding_text)
     except Exception as exc:
-        return {"status": "error", "error": f"Embedding generation failed: {exc}"}
+        return {"error": f"Embedding generation failed: {exc}"}
 
     document["embedding"] = embedding
-
-    # Store rationale as metadata
-    document["_rationale"] = rationale
 
     # Insert into MongoDB
     client = _get_mongo_client()
     db = client["canon"]
     collection = db["memory_nodes"]
 
-    result = await collection.insert_one(document)
+    try:
+        result = await collection.insert_one(document)
+    except DuplicateKeyError as exc:
+        return {"error": f"Duplicate key: {exc}"}
+
     node_id = result.inserted_id
 
-    # Update bidirectional edges on related nodes
+    # Update bidirectional edges on related nodes (scoped by tenantId)
     if related_object_ids:
         await collection.update_many(
-            {"_id": {"$in": related_object_ids}},
+            {"_id": {"$in": related_object_ids}, "tenantId": tenant_id},
             {
                 "$addToSet": {"relatedEntityIds": node_id},
                 "$set": {"updatedAt": now},
@@ -264,7 +230,7 @@ async def canonize_node(
     # Mark superseded node as deprecated
     if supersedes_id:
         await collection.update_one(
-            {"_id": supersedes_id},
+            {"_id": supersedes_id, "tenantId": tenant_id},
             {
                 "$set": {
                     "status": "deprecated",
@@ -275,14 +241,16 @@ async def canonize_node(
         )
 
     # Store result in tool context state
-    write_result = {
-        "status": "success",
-        "nodeId": str(node_id),
-        "message": f"Node '{document['name']}' persisted successfully.",
+    tool_context.state["temp:last_write"] = {
+        "node_id": str(node_id),
+        "name": document["name"],
     }
-    tool_context.state["temp:last_write"] = write_result
 
-    return write_result
+    return {
+        "status": "written",
+        "node_id": str(node_id),
+        "name": document["name"],
+    }
 
 
 async def emit_checkpoint(message: str, tool_context: Any) -> dict:
@@ -298,17 +266,16 @@ async def emit_checkpoint(message: str, tool_context: Any) -> dict:
     Returns:
         A dictionary confirming the checkpoint was emitted.
     """
-    checkpoint = {
-        "type": "reasoning_checkpoint",
-        "content": message,
-        "timestamp": datetime.now(tz=UTC).isoformat(),
-    }
-    tool_context.state["temp:last_checkpoint"] = checkpoint
-    return {"status": "emitted", "checkpoint": checkpoint}
+    checkpoints = tool_context.state.get("temp:checkpoints", [])
+    checkpoints.append(
+        {"message": message, "timestamp": datetime.now(UTC).isoformat()}
+    )
+    tool_context.state["temp:checkpoints"] = checkpoints
+    return {"status": "emitted", "message": message}
 
 
 # ─── Tool Instances ──────────────────────────────────────────────────────────
 
-embed_query_tool = FunctionTool(func=generate_query_embedding, name="embed_query")
 canonize_node_tool = FunctionTool(func=canonize_node)
+embed_query_tool = FunctionTool(func=generate_query_embedding, name="embed_query")
 emit_checkpoint_tool = FunctionTool(func=emit_checkpoint)

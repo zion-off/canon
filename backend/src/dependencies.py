@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import os
-
 import jwt as pyjwt
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from src.config import settings
 from src.services.event_feed import AgentEventFeed
 from src.services.tenant_resolver import TenantContext, TenantResolver
 
@@ -36,8 +35,8 @@ async def jwt_auth(
     try:
         payload: dict = pyjwt.decode(
             credentials.credentials,
-            os.environ["JWT_SECRET"],
-            algorithms=["HS256"],
+            settings.jwt_secret,
+            algorithms=[settings.jwt_algorithm],
         )
         return payload
     except pyjwt.InvalidTokenError as exc:

@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import os
 from datetime import UTC, datetime, timedelta
 
 import jwt as pyjwt
+
+from src.config import settings
 
 
 def issue_jwt(
@@ -15,9 +16,9 @@ def issue_jwt(
     tenant_id: str | None,
     role: str | None,
 ) -> str:
-    """Issue a signed JWT with 7-day expiry.
+    """Issue a signed JWT with configurable expiry.
 
-    Uses HS256 algorithm with JWT_SECRET from environment.
+    Uses the algorithm and secret from centralized settings.
     """
     now = datetime.now(UTC)
     payload = {
@@ -27,6 +28,8 @@ def issue_jwt(
         "tenantId": tenant_id,
         "role": role,
         "iat": now,
-        "exp": now + timedelta(days=7),
+        "exp": now + timedelta(days=settings.jwt_expiry_days),
     }
-    return pyjwt.encode(payload, os.environ["JWT_SECRET"], algorithm="HS256")
+    return pyjwt.encode(
+        payload, settings.jwt_secret, algorithm=settings.jwt_algorithm
+    )

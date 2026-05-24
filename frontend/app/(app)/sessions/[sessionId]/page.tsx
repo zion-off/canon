@@ -1,0 +1,59 @@
+import Link from "next/link";
+import { getSession, getSessionEvents } from "@/lib/actions/sessions";
+import { EventFeed } from "@/components/sessions/EventFeed";
+
+interface SessionDetailPageProps {
+  params: Promise<{ sessionId: string }>;
+}
+
+function isSessionLive(events: { type: string }[]): boolean {
+  if (events.length === 0) return false;
+
+  let lastRunStartedIndex = -1;
+  let lastRunCompletedIndex = -1;
+
+  for (let i = 0; i < events.length; i++) {
+    if (events[i].type === "run_started") lastRunStartedIndex = i;
+    if (events[i].type === "run_completed") lastRunCompletedIndex = i;
+  }
+
+  return lastRunStartedIndex > lastRunCompletedIndex;
+}
+
+export default async function SessionDetailPage({
+  params,
+}: SessionDetailPageProps) {
+  const { sessionId } = await params;
+  const [session, events] = await Promise.all([
+    getSession(sessionId),
+    getSessionEvents(sessionId),
+  ]);
+
+  const isLive = isSessionLive(events);
+
+  return (
+    <div className="space-y-6">
+      <Link
+        href="/dashboard"
+        className="inline-flex items-center gap-1 text-sm text-slate-400 transition-colors hover:text-slate-200"
+      >
+        ← Sessions
+      </Link>
+
+      <header>
+        <h1 className="font-[family-name:var(--font-syne)] text-2xl font-bold text-slate-200">
+          {session.title}
+        </h1>
+        {session.summary && (
+          <p className="mt-1 text-sm text-slate-400">{session.summary}</p>
+        )}
+      </header>
+
+      <EventFeed
+        sessionId={sessionId}
+        initialEvents={events}
+        isLive={isLive}
+      />
+    </div>
+  );
+}

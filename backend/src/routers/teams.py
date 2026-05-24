@@ -20,7 +20,7 @@ from src.models.schemas import (
     CreateTokenResponse,
     JoinTeamRequest,
     JoinTeamResponse,
-    JWTPayload,
+    JwtPayload,
     TeamResponse,
     TokenItemResponse,
     TokenListResponse,
@@ -43,7 +43,7 @@ def _slugify(name: str) -> str:
 @router.post("/create", response_model=CreateTeamResponse)
 async def create_team(
     body: CreateTeamRequest,
-    user: JWTPayload = Depends(jwt_auth),
+    user: JwtPayload = Depends(jwt_auth),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CreateTeamResponse:
     """Create a new team (tenant), assign caller as owner, issue default API token."""
@@ -62,7 +62,13 @@ async def create_team(
 
     await db.users.update_one(
         {"_id": ObjectId(user_id)},
-        {"$set": {"tenantId": tenant_id, "role": "owner", "updatedAt": datetime.now(UTC)}},
+        {
+            "$set": {
+                "tenantId": tenant_id,
+                "role": "owner",
+                "updatedAt": datetime.now(UTC),
+            }
+        },
     )
 
     # Generate default API token
@@ -90,7 +96,7 @@ async def create_team(
 @router.post("/join", response_model=JoinTeamResponse)
 async def join_team(
     body: JoinTeamRequest,
-    user: JWTPayload = Depends(jwt_auth),
+    user: JwtPayload = Depends(jwt_auth),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> JoinTeamResponse:
     """Join an existing team via invite code."""
@@ -128,12 +134,14 @@ async def join_team(
 
 @router.post("/invite", response_model=CreateInviteResponse)
 async def create_invite(
-    user: JWTPayload = Depends(jwt_auth),
+    user: JwtPayload = Depends(jwt_auth),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CreateInviteResponse:
     """Create an invite code (owner only)."""
     if user.role != "owner":
-        raise HTTPException(status_code=403, detail="Only team owners can create invites")
+        raise HTTPException(
+            status_code=403, detail="Only team owners can create invites"
+        )
 
     now = datetime.now(UTC)
     code = secrets.token_hex(4)
@@ -155,7 +163,7 @@ async def create_invite(
 
 @router.get("/tokens", response_model=TokenListResponse)
 async def list_tokens(
-    user: JWTPayload = Depends(jwt_auth),
+    user: JwtPayload = Depends(jwt_auth),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> TokenListResponse:
     """List all API tokens for the user's team."""
@@ -173,7 +181,9 @@ async def list_tokens(
                 id=str(doc["_id"]),
                 label=doc["label"],
                 createdAt=doc["createdAt"].isoformat(),
-                lastUsedAt=doc["lastUsedAt"].isoformat() if doc.get("lastUsedAt") else None,
+                lastUsedAt=doc["lastUsedAt"].isoformat()
+                if doc.get("lastUsedAt")
+                else None,
             )
         )
 
@@ -183,12 +193,14 @@ async def list_tokens(
 @router.post("/tokens", response_model=CreateTokenResponse)
 async def create_token(
     body: CreateTokenRequest,
-    user: JWTPayload = Depends(jwt_auth),
+    user: JwtPayload = Depends(jwt_auth),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CreateTokenResponse:
     """Create a new API token (owner only)."""
     if user.role != "owner":
-        raise HTTPException(status_code=403, detail="Only team owners can create API tokens")
+        raise HTTPException(
+            status_code=403, detail="Only team owners can create API tokens"
+        )
 
     if not user.tenant_id:
         raise HTTPException(status_code=400, detail="User does not belong to a team")
@@ -207,4 +219,6 @@ async def create_token(
         }
     )
 
-    return CreateTokenResponse(token=raw_token, label=body.label, createdAt=now.isoformat())
+    return CreateTokenResponse(
+        token=raw_token, label=body.label, createdAt=now.isoformat()
+    )

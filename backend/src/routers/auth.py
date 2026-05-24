@@ -21,7 +21,9 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=LoginResponse)
-async def register(body: RegisterRequest, db: AsyncIOMotorDatabase = Depends(get_db)) -> LoginResponse:
+async def register(
+    body: RegisterRequest, db: AsyncIOMotorDatabase = Depends(get_db)
+) -> LoginResponse:
     """Create account, return JWT. No auth required."""
     email = body.email.strip().lower()
     password_hash = bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode()
@@ -38,7 +40,9 @@ async def register(body: RegisterRequest, db: AsyncIOMotorDatabase = Depends(get
         result = await db.users.insert_one(user)
     except Exception as e:
         if "duplicate key" in str(e).lower():
-            raise HTTPException(status_code=409, detail="Email already registered") from e
+            raise HTTPException(
+                status_code=409, detail="Email already registered"
+            ) from e
         raise
     token = issue_jwt(str(result.inserted_id), email, body.name, None, None)
     return LoginResponse(
@@ -54,7 +58,9 @@ async def register(body: RegisterRequest, db: AsyncIOMotorDatabase = Depends(get
 
 
 @router.post("/login", response_model=LoginResponse)
-async def login(body: LoginRequest, db: AsyncIOMotorDatabase = Depends(get_db)) -> LoginResponse:
+async def login(
+    body: LoginRequest, db: AsyncIOMotorDatabase = Depends(get_db)
+) -> LoginResponse:
     """Validate credentials, return JWT."""
     user = await db.users.find_one({"email": body.email.strip().lower()})
     if not user or not bcrypt.checkpw(

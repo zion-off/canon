@@ -67,6 +67,7 @@ class LoginResponse(BaseModel):
 
 class MeResponse(BaseModel):
     """Response for the /auth/me endpoint."""
+
     model_config = ConfigDict(populate_by_name=True)
 
     user_id: str = Field(alias="userId")
@@ -106,6 +107,7 @@ class CreateInviteResponse(BaseModel):
 
 class CreateTeamResponse(BaseModel):
     """Response for team creation."""
+
     model_config = ConfigDict(populate_by_name=True)
 
     token: str
@@ -115,12 +117,14 @@ class CreateTeamResponse(BaseModel):
 
 class JoinTeamResponse(BaseModel):
     """Response for joining a team."""
+
     token: str
     team: TeamResponse
 
 
 class TokenItemResponse(BaseModel):
     """Single API token in a list."""
+
     model_config = ConfigDict(populate_by_name=True)
 
     id: str
@@ -131,11 +135,13 @@ class TokenItemResponse(BaseModel):
 
 class TokenListResponse(BaseModel):
     """Response for listing API tokens."""
+
     tokens: list[TokenItemResponse]
 
 
 class CreateTokenResponse(BaseModel):
     """Response for creating a new API token."""
+
     model_config = ConfigDict(populate_by_name=True)
 
     token: str

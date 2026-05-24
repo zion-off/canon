@@ -22,16 +22,13 @@ export default function ErrorPage({
           Something went wrong
         </h1>
         <p className="text-sm text-canon-text-dim mb-8">
-          An unexpected error occurred. Please try again or return to the
-          dashboard.
+          An unexpected error occurred. Please try again or return to the dashboard.
         </p>
         <div className="flex gap-3 justify-center">
           <Button variant="secondary" onClick={() => reset()}>
             Try again
           </Button>
-          <Button onClick={() => (window.location.href = "/dashboard")}>
-            Go to Dashboard
-          </Button>
+          <Button onClick={() => (window.location.href = ROUTE_DASHBOARD)}>Go to Dashboard</Button>
         </div>
       </div>
     </div>

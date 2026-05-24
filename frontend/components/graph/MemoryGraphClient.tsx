@@ -140,10 +140,17 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
     }
 
     const nodeIds = new Set(nodes.map((n) => n.id));
-    const links = graphData.links.filter(
-      (l) =>
-        nodeIds.has(l.source as string) && nodeIds.has(l.target as string),
-    );
+    const links = graphData.links.filter((l) => {
+      const src =
+        typeof l.source === "object"
+          ? (l.source as GraphNodeFG).id
+          : (l.source as string);
+      const tgt =
+        typeof l.target === "object"
+          ? (l.target as GraphNodeFG).id
+          : (l.target as string);
+      return nodeIds.has(src) && nodeIds.has(tgt);
+    });
 
     return { nodes, links };
   }, [graphData, statusFilter, tagFilter]);
@@ -262,7 +269,7 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
             linkDirectionalArrowRelPos={1}
             linkWidth={linkWidth}
             nodeLabel=""
-            width={selectedNode ? width * 0.65 : width}
+            width={width}
             height={height}
             backgroundColor="#080810"
             cooldownTicks={100}

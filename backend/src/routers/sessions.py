@@ -28,14 +28,14 @@ harness_router = APIRouter(prefix="/tenants/{tenant_id}", tags=["harness-session
 def _doc_to_session(doc: dict[str, Any]) -> SessionResponse:
     """Convert a MongoDB session document to a SessionResponse model."""
     return SessionResponse(
-        sessionId=doc["sessionId"],
+        session_id=doc["sessionId"],
         title=doc.get("title", ""),
         summary=doc.get("summary"),
         status=doc.get("status", ""),
-        runCount=doc.get("runCount", 0),
-        createdAt=str(doc.get("createdAt", "")),
-        updatedAt=str(doc.get("updatedAt", "")),
-        lastRunAt=str(doc.get("lastRunAt", "")),
+        run_count=doc.get("runCount", 0),
+        created_at=str(doc.get("createdAt", "")),
+        updated_at=str(doc.get("updatedAt", "")),
+        last_run_at=str(doc.get("lastRunAt", "")),
     )
 
 
@@ -47,7 +47,7 @@ def _doc_to_event(doc: dict[str, Any]) -> AgentEvent:
         content=doc.get("content"),
         sequence=doc.get("sequence"),
         timestamp=str(doc.get("timestamp", "")) if doc.get("timestamp") else None,
-        isFinal=doc.get("isFinal", False),
+        is_final=doc.get("isFinal", False),
     )
 
 

@@ -38,13 +38,13 @@ async def get_graph(
                 status=node.get("status", ""),
                 tags=node.get("tags", []),
                 supersedes=str(node["supersedes"]) if node.get("supersedes") else None,
-                supersededBy=(
+                superseded_by=(
                     str(node["supersededBy"]) if node.get("supersededBy") else None
                 ),
-                updatedAt=(
+                updated_at=(
                     node["updatedAt"].isoformat() if node.get("updatedAt") else ""
                 ),
-                createdAt=(
+                created_at=(
                     node["createdAt"].isoformat() if node.get("createdAt") else ""
                 ),
             )

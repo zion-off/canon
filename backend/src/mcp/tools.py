@@ -7,21 +7,21 @@ generate embeddings, and emit reasoning checkpoints.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
 
 import httpx
 from bson import ObjectId
 from google.adk.tools import FunctionTool
+from google.adk.tools.tool_context import ToolContext
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import DuplicateKeyError
 
-from src.config import settings
+from src.config import get_settings
 
 # ─── Model Configuration ─────────────────────────────────────────────────────
 
-REASONING_MODEL: str = settings.reasoning_model
-FAST_MODEL: str = settings.fast_model
-EMBEDDING_MODEL: str = settings.embedding_model
+REASONING_MODEL: str = get_settings().reasoning_model
+FAST_MODEL: str = get_settings().fast_model
+EMBEDDING_MODEL: str = get_settings().embedding_model
 
 # ─── Lazy MongoDB Client ─────────────────────────────────────────────────────
 
@@ -32,7 +32,7 @@ def _get_mongo_client() -> AsyncIOMotorClient:
     """Return a lazily-initialized MongoDB client singleton."""
     global _mongo_client  # noqa: PLW0603
     if _mongo_client is None:
-        _mongo_client = AsyncIOMotorClient(settings.mongodb_uri)
+        _mongo_client = AsyncIOMotorClient(get_settings().mongodb_uri)
     return _mongo_client
 
 
@@ -88,7 +88,7 @@ async def generate_document_embedding(text: str) -> list[float]:
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
             f"https://generativelanguage.googleapis.com/v1beta/models/{EMBEDDING_MODEL}:embedContent",
-            params={"key": settings.gemini_api_key},
+            params={"key": get_settings().gemini_api_key},
             json={
                 "model": f"models/{EMBEDDING_MODEL}",
                 "content": {"parts": [{"text": text}]},
@@ -116,7 +116,7 @@ async def generate_query_embedding(text: str) -> dict:
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
             f"https://generativelanguage.googleapis.com/v1beta/models/{model}:embedContent",
-            params={"key": settings.gemini_api_key},
+            params={"key": get_settings().gemini_api_key},
             json={
                 "model": f"models/{model}",
                 "content": {"parts": [{"text": text}]},
@@ -135,7 +135,7 @@ async def canonize_node(
     document: dict,
     rationale: str,
     related_existing_ids: list[str],
-    tool_context: Any,
+    tool_context: ToolContext,
 ) -> dict:
     """Persist a structured memory node to the Canon knowledge graph.
 
@@ -253,7 +253,7 @@ async def canonize_node(
     }
 
 
-async def emit_checkpoint(message: str, tool_context: Any) -> dict:
+async def emit_checkpoint(message: str, tool_context: ToolContext) -> dict:
     """Emit a reasoning checkpoint visible to the user.
 
     Checkpoints allow agents to communicate intermediate reasoning steps

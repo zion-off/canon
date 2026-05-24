@@ -6,7 +6,6 @@ generate embeddings, and emit reasoning checkpoints.
 
 from __future__ import annotations
 
-import os
 from datetime import UTC, datetime
 from typing import Any
 
@@ -15,11 +14,14 @@ from bson import ObjectId
 from google.adk.tools import FunctionTool
 from motor.motor_asyncio import AsyncIOMotorClient
 
+from src.config import settings
+
 # ─── Model Configuration ─────────────────────────────────────────────────────
 
-REASONING_MODEL: str = os.environ.get("CANON_REASONING_MODEL", "gemini-2.5-pro")
-FAST_MODEL: str = os.environ.get("CANON_FAST_MODEL", "gemini-2.5-flash")
-EMBEDDING_MODEL: str = os.environ.get("CANON_EMBEDDING_MODEL", "text-embedding-004")
+
+REASONING_MODEL: str = settings.reasoning_model
+FAST_MODEL: str = settings.fast_model
+EMBEDDING_MODEL: str = settings.embedding_model
 
 # ─── Lazy MongoDB Client ─────────────────────────────────────────────────────
 
@@ -34,8 +36,7 @@ def _get_mongo_client() -> AsyncIOMotorClient:
     """
     global _mongo_client  # noqa: PLW0603
     if _mongo_client is None:
-        uri = os.environ["MONGODB_URI"]
-        _mongo_client = AsyncIOMotorClient(uri)
+        _mongo_client = AsyncIOMotorClient(settings.mongodb_uri)
     return _mongo_client
 
 
@@ -97,7 +98,7 @@ async def generate_document_embedding(text: str) -> list[float]:
         httpx.HTTPStatusError: If the Gemini API returns a non-2xx response.
         KeyError: If GEMINI_API_KEY is not set in environment.
     """
-    api_key = os.environ["GEMINI_API_KEY"]
+    api_key = settings.gemini_api_key
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
         f"{EMBEDDING_MODEL}:embedContent?key={api_key}"
@@ -133,7 +134,7 @@ async def generate_query_embedding(text: str) -> dict:
         httpx.HTTPStatusError: If the Gemini API returns a non-2xx response.
         KeyError: If GEMINI_API_KEY is not set in environment.
     """
-    api_key = os.environ["GEMINI_API_KEY"]
+    api_key = settings.gemini_api_key
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
         f"{EMBEDDING_MODEL}:embedContent?key={api_key}"

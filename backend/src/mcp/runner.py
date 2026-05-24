@@ -80,12 +80,12 @@ async def run_agent(
         },
     )
 
-    # Build runner directly (App wrapper may not be available in all ADK versions)
-    _plugin = ReasoningFeedPlugin(event_feed)  # noqa: F841 — retained for future App integration
+    plugin = ReasoningFeedPlugin(event_feed)
     runner = Runner(
         agent=orchestrator,
         app_name="canon",
         session_service=session_service,
+        plugins=[plugin],
     )
 
     content = Content(

@@ -22,6 +22,22 @@ if TYPE_CHECKING:
     from src.services.event_feed import AgentEventFeed
 
 
+def _summarize_args(args: dict[str, Any]) -> str:
+    """Produce a human-readable summary of tool arguments for the feed."""
+    if "query" in args:
+        return str(args["query"])[:100]
+    if "document" in args and isinstance(args["document"], dict) and "name" in args["document"]:
+        return f"writing: {args['document']['name']}"
+    return ", ".join(f"{k}={str(v)[:50]}" for k, v in list(args.items())[:3])
+
+
+def _summarize_result(tool_name: str, args: dict[str, Any], result: dict) -> str:
+    """Produce a concise summary of a completed tool invocation."""
+    arg_hint = _summarize_args(args)
+    status = result.get("status", "ok")
+    return f"{tool_name}({arg_hint}) -> {status}"
+
+
 class ReasoningFeedPlugin(BasePlugin):
     """Intercepts agent lifecycle events and emits them to the Reasoning Feed.
 
@@ -105,19 +121,3 @@ class ReasoningFeedPlugin(BasePlugin):
             ),
         )
         return None
-
-
-def _summarize_args(args: dict[str, Any]) -> str:
-    """Produce a human-readable summary of tool arguments for the feed."""
-    if "query" in args:
-        return str(args["query"])[:100]
-    if "document" in args and isinstance(args["document"], dict) and "name" in args["document"]:
-        return f"writing: {args['document']['name']}"
-    return ", ".join(f"{k}={str(v)[:50]}" for k, v in list(args.items())[:3])
-
-
-def _summarize_result(tool_name: str, args: dict[str, Any], result: dict) -> str:
-    """Produce a concise summary of a completed tool invocation."""
-    arg_hint = _summarize_args(args)
-    status = result.get("status", "ok")
-    return f"{tool_name}({arg_hint}) -> {status}"

@@ -10,11 +10,11 @@ from datetime import UTC, datetime
 from typing import Any
 
 from google.adk.agents import Agent
-from google.adk.agents.context import Context
 from google.adk.tools import AgentTool, google_search
 from google.adk.tools.base_tool import BaseTool
 from google.adk.tools.mcp_tool import McpToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
+from google.adk.tools.tool_context import ToolContext
 from mcp.client.stdio import StdioServerParameters
 from pydantic import BaseModel, Field
 
@@ -202,17 +202,17 @@ class MemoryNodeOutput(BaseModel):
 async def log_tool_usage(
     tool: BaseTool,
     args: dict[str, Any],
-    tool_context: ToolContext,
+    ctx: Context,
     result: dict[str, Any],
 ) -> dict[str, Any] | None:
     """Log tool calls across the agent hierarchy for observability.
 
-    Signature: (tool, args, tool_context, result) per ADK after_tool_callback.
+    Signature: (tool, args, context, result) per ADK after_tool_callback.
     """
-    state = tool_context.state
+    state = ctx.state
     log_entry = {
         "tool": tool.name,
-        "agent": tool_context.agent_name,
+        "agent": ctx.agent_name,
         "args_summary": _summarize_tool_args(args),
         "timestamp": datetime.now(UTC).isoformat(),
         "success": "error" not in (result if isinstance(result, dict) else {}),

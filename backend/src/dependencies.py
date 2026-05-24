@@ -9,8 +9,8 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from canon_mcp.services.event_feed import AgentEventFeed
-from canon_mcp.services.tenant_resolver import TenantContext, TenantResolver
+from src.services.event_feed import AgentEventFeed
+from src.services.tenant_resolver import TenantContext, TenantResolver
 
 bearer_scheme = HTTPBearer()
 

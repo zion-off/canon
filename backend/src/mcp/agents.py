@@ -6,7 +6,7 @@ from google.adk.tools.mcp_tool import McpToolset
 from google.adk.tools.mcp_tool.mcp_toolset import StdioConnectionParams
 from pydantic import BaseModel, Field
 
-from canon_mcp.mcp.tools import (
+from src.mcp.tools import (
     FAST_MODEL,
     REASONING_MODEL,
     canonize_node_tool,

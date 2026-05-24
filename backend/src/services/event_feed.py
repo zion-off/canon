@@ -7,7 +7,7 @@ from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Any
 
-from canon_mcp.repositories.agent_events import AgentEventRepository
+from src.repositories.agent_events import AgentEventRepository
 
 
 class AgentEventFeed:

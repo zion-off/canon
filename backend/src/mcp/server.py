@@ -7,12 +7,12 @@ from uuid import uuid4
 from bson import ObjectId
 from mcp.server.fastmcp import Context, FastMCP
 
-from canon_mcp.mcp.runner import run_agent
+from src.mcp.runner import run_agent
 
 if TYPE_CHECKING:
     from motor.motor_asyncio import AsyncIOMotorDatabase
 
-    from canon_mcp.services.event_feed import AgentEventFeed
+    from src.services.event_feed import AgentEventFeed
 
 
 mcp = FastMCP(

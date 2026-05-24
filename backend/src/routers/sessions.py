@@ -11,9 +11,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from canon_mcp.dependencies import api_token_auth, get_db, get_event_feed, jwt_auth
-from canon_mcp.services.event_feed import AgentEventFeed
-from canon_mcp.services.tenant_resolver import TenantContext
+from src.dependencies import api_token_auth, get_db, get_event_feed, jwt_auth
+from src.services.event_feed import AgentEventFeed
+from src.services.tenant_resolver import TenantContext
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 harness_router = APIRouter(prefix="/tenants/{tenant_id}", tags=["harness-sessions"])

@@ -8,13 +8,13 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from canon_mcp.dependencies import get_db, jwt_auth
-from canon_mcp.models.schemas import (
+from src.dependencies import get_db, jwt_auth
+from src.models.schemas import (
     CreateTeamRequest,
     CreateTokenRequest,
     JoinTeamRequest,
 )
-from canon_mcp.services.jwt import issue_jwt
+from src.services.jwt import issue_jwt
 
 router = APIRouter(prefix="/teams", tags=["teams"])
 

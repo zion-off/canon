@@ -9,14 +9,14 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai.types import Content, Part
 
-from canon_mcp.mcp.agents import build_orchestrator
-from canon_mcp.mcp.plugin import ReasoningFeedPlugin
-from canon_mcp.mcp.tools import FAST_MODEL
+from src.mcp.agents import build_orchestrator
+from src.mcp.plugin import ReasoningFeedPlugin
+from src.mcp.tools import FAST_MODEL
 
 if TYPE_CHECKING:
     from motor.motor_asyncio import AsyncIOMotorDatabase
 
-    from canon_mcp.services.event_feed import AgentEventFeed
+    from src.services.event_feed import AgentEventFeed
 
 
 async def run_agent(

@@ -10,11 +10,11 @@ from datetime import UTC, datetime
 from typing import Any
 
 from google.adk.agents import Agent
+from google.adk.agents.context import Context
 from google.adk.tools import AgentTool, google_search
 from google.adk.tools.base_tool import BaseTool
 from google.adk.tools.mcp_tool import McpToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
-from google.adk.tools.tool_context import ToolContext
 from mcp.client.stdio import StdioServerParameters
 from pydantic import BaseModel, Field
 
@@ -211,7 +211,7 @@ async def log_tool_usage(
     """
     state = tool_context.state
     log_entry = {
-        "tool": tool.name if hasattr(tool, "name") else str(tool),
+        "tool": tool.name,
         "agent": tool_context.agent_name,
         "args_summary": _summarize_tool_args(args),
         "timestamp": datetime.now(UTC).isoformat(),

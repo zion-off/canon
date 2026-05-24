@@ -52,7 +52,6 @@ class ReasoningFeedPlugin(BasePlugin):
                     type="subagent_invoked",
                     author=agent_name,
                     content=f"{agent_name} started",
-                    is_final=False,
                 ),
             )
         return None
@@ -77,7 +76,6 @@ class ReasoningFeedPlugin(BasePlugin):
                 type="tool_call_started",
                 author=tool_context.agent_name,
                 content=f"{tool.name}: {_summarize_args(tool_args)}",
-                is_final=False,
             ),
         )
         return None
@@ -86,9 +84,9 @@ class ReasoningFeedPlugin(BasePlugin):
         self,
         *,
         tool: BaseTool,
-        tool_args: dict[str, Any],
+        tool_args: dict[str, Any],  # noqa: ARG002
         tool_context: ToolContext,
-        result: dict,
+        result: dict,  # noqa: ARG002
     ) -> dict | None:
         """Emit tool_call_completed."""
         tenant_id = tool_context.state.get("app:tenant_id")
@@ -103,7 +101,6 @@ class ReasoningFeedPlugin(BasePlugin):
                 type="tool_call_completed",
                 author=tool_context.agent_name,
                 content=f"{tool.name} completed",
-                is_final=False,
             ),
         )
         return None

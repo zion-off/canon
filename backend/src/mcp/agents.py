@@ -10,10 +10,11 @@ from datetime import UTC, datetime
 from typing import Any
 
 from google.adk.agents import Agent
-from google.adk.agents.callback_context import CallbackContext
-from google.adk.tools import AgentTool
+from google.adk.tools import AgentTool, google_search
+from google.adk.tools.base_tool import BaseTool
 from google.adk.tools.mcp_tool import McpToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
+from google.adk.tools.tool_context import ToolContext  # noqa: F401 — used by callbacks
 from mcp.client.stdio import StdioServerParameters
 from pydantic import BaseModel, Field
 
@@ -201,18 +202,16 @@ class MemoryNodeOutput(BaseModel):
 async def log_tool_usage(
     tool: BaseTool,
     args: dict[str, Any],
-    tool_context: ToolContext,
+    ctx: ToolContext,
     result: dict[str, Any],
 ) -> dict[str, Any] | None:
     """Log tool calls across the agent hierarchy for observability.
 
-    Signature: (tool, args, tool_context, result) per ADK after_tool_callback.
+    Signature matches AfterToolCallback: (tool, args, ctx, result).
     """
-    state = tool_context.state
+    state = ctx.state
     log_entry = {
         "tool": tool.name,
-        "agent": tool_context.agent_name,
-        "args_summary": summarize_args(args),
         "timestamp": datetime.now(UTC).isoformat(),
         "success": "error" not in (result if isinstance(result, dict) else {}),
     }
@@ -225,11 +224,14 @@ async def log_tool_usage(
 _semantic_retriever: Agent | None = None
 _graph_explorer: Agent | None = None
 _memory_writer: Agent | None = None
+_read_toolset: McpToolset | None = None
 
 
 def _build_mongo_read_toolset() -> McpToolset:
-    """Create a read-only MongoDB MCP toolset."""
-    return McpToolset(
+    global _read_toolset
+    if _read_toolset is not None:
+        return _read_toolset
+    _read_toolset = McpToolset(
         connection_params=StdioConnectionParams(
             server_params=StdioServerParameters(
                 command="npx",
@@ -242,30 +244,7 @@ def _build_mongo_read_toolset() -> McpToolset:
         ),
         tool_filter=["find", "aggregate", "count"],
     )
-
-
-def _build_mongo_write_toolset() -> McpToolset:
-    """Create a read-write MongoDB MCP toolset."""
-    return McpToolset(
-        connection_params=StdioConnectionParams(
-            server_params=StdioServerParameters(
-                command="npx",
-                args=["-y", "mongodb-mcp-server"],
-                env={
-                    "MDB_MCP_CONNECTION_STRING": settings.mongodb_uri,
-                    "MDB_MCP_READ_ONLY": "false",
-                },
-            ),
-        ),
-        tool_filter=[
-            "find",
-            "aggregate",
-            "count",
-            "insertOne",
-            "updateOne",
-            "updateMany",
-        ],
-    )
+    return _read_toolset
 
 
 def _get_semantic_retriever() -> Agent:
@@ -313,6 +292,7 @@ def _get_memory_writer() -> Agent:
             instruction=MEMORY_WRITER_INSTRUCTION,
             tools=[_build_mongo_read_toolset(), canonize_node_tool],
             output_key="write_result",
+            output_schema=MemoryNodeOutput,
             after_tool_callback=log_tool_usage,
         )
     return _memory_writer
@@ -328,6 +308,25 @@ def build_orchestrator() -> Agent:
             AgentTool(_get_semantic_retriever()),
             AgentTool(_get_graph_explorer()),
             AgentTool(_get_memory_writer()),
+            google_search,
             emit_checkpoint_tool,
         ],
     )
+
+
+async def initialize_agents() -> None:
+    """Initialize MCP toolsets and warm up agent singletons at startup.
+
+    Constructs sub-agent singletons so the first real request does not
+    incur initialization latency. The shared read-only MCP toolset
+    persists for the container lifetime.
+    """
+    _get_semantic_retriever()
+    _get_graph_explorer()
+    _get_memory_writer()
+
+
+async def cleanup_agents() -> None:
+    """Close MCP subprocess connections. Called at container shutdown."""
+    if _read_toolset is not None:
+        await _read_toolset.close()

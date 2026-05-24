@@ -14,6 +14,8 @@ from google.adk.plugins.base_plugin import BasePlugin
 from google.adk.tools.base_tool import BaseTool
 from google.genai import types
 
+from src.models.schemas import AgentEvent
+
 if TYPE_CHECKING:
     from google.adk.tools.tool_context import ToolContext
 
@@ -46,12 +48,12 @@ class ReasoningFeedPlugin(BasePlugin):
                 tenant_id=tenant_id,
                 session_id=session_id,
                 run_id=run_id,
-                event={
-                    "type": "subagent_invoked",
-                    "author": agent_name,
-                    "content": f"{agent_name} started",
-                    "isFinal": False,
-                },
+                event=AgentEvent(
+                    type="subagent_invoked",
+                    author=agent_name,
+                    content=f"{agent_name} started",
+                    is_final=False,
+                ),
             )
         return None
 
@@ -71,12 +73,12 @@ class ReasoningFeedPlugin(BasePlugin):
             tenant_id=tenant_id,
             session_id=session_id,
             run_id=run_id,
-            event={
-                "type": "tool_call_started",
-                "author": tool_context.agent_name,
-                "content": f"{tool.name}: {_summarize_args(tool_args)}",
-                "isFinal": False,
-            },
+            event=AgentEvent(
+                type="tool_call_started",
+                author=tool_context.agent_name,
+                content=f"{tool.name}: {_summarize_args(tool_args)}",
+                is_final=False,
+            ),
         )
         return None
 
@@ -97,12 +99,12 @@ class ReasoningFeedPlugin(BasePlugin):
             tenant_id=tenant_id,
             session_id=session_id,
             run_id=run_id,
-            event={
-                "type": "tool_call_completed",
-                "author": tool_context.agent_name,
-                "content": f"{tool.name} completed",
-                "isFinal": False,
-            },
+            event=AgentEvent(
+                type="tool_call_completed",
+                author=tool_context.agent_name,
+                content=f"{tool.name} completed",
+                is_final=False,
+            ),
         )
         return None
 

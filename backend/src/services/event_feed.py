@@ -7,6 +7,7 @@ from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Any
 
+from src.models.schemas import AgentEvent
 from src.repositories.agent_events import AgentEventRepository
 
 
@@ -29,7 +30,7 @@ class AgentEventFeed:
         tenant_id: str,
         session_id: str,
         run_id: str,
-        event: dict[str, Any],
+        event: AgentEvent,
     ) -> None:
         """Broadcast an event to subscribers and persist to agent_events.
 
@@ -38,21 +39,26 @@ class AgentEventFeed:
         # Assign sequence (monotonically increasing per run)
         seq = self._sequences.get(run_id, 0) + 1
         self._sequences[run_id] = seq
-        event.setdefault("sequence", seq)
-        event.setdefault("timestamp", datetime.now(UTC).isoformat())
+        if event.sequence is None:
+            event.sequence = seq
+        if event.timestamp is None:
+            event.timestamp = datetime.now(UTC).isoformat()
+
+        # Serialize to dict for persistence and fan-out
+        event_dict = event.model_dump(by_alias=True)
 
         # Persist for replay
         await self._event_repo.insert(
             tenant_id=tenant_id,
             session_id=session_id,
             run_id=run_id,
-            event=event,
+            event=event_dict,
         )
 
         # Fan out to live subscribers
         key = f"{tenant_id}:{session_id}"
         for queue in self._subscribers.get(key, []):
-            await queue.put(event)
+            await queue.put(event_dict)
 
     async def subscribe(self, tenant_id: str, session_id: str) -> AsyncIterator[dict[str, Any]]:
         """Subscribe to live events for a session."""

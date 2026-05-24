@@ -14,6 +14,7 @@ from google.genai.types import Content, Part
 from src.mcp.agents import build_orchestrator
 from src.mcp.plugin import ReasoningFeedPlugin
 from src.mcp.tools import FAST_MODEL
+from src.models.schemas import AgentEvent
 
 if TYPE_CHECKING:
     from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -107,12 +108,12 @@ async def run_agent(
         tenant_id=tenant_id,
         session_id=session_id,
         run_id=run_id,
-        event={
-            "type": "run_started",
-            "author": "canon_orchestrator",
-            "content": None,
-            "isFinal": False,
-        },
+        event=AgentEvent(
+            type="run_started",
+            author="canon_orchestrator",
+            content=None,
+            is_final=False,
+        ),
     )
 
     # Run orchestrator and capture events
@@ -130,12 +131,12 @@ async def run_agent(
                         tenant_id=tenant_id,
                         session_id=session_id,
                         run_id=run_id,
-                        event={
-                            "type": "reasoning_checkpoint",
-                            "author": "canon_orchestrator",
-                            "content": fc.args.get("message", ""),
-                            "isFinal": False,
-                        },
+                        event=AgentEvent(
+                            type="reasoning_checkpoint",
+                            author="canon_orchestrator",
+                            content=fc.args.get("message", ""),
+                            is_final=False,
+                        ),
                     )
 
         # Detect subagent invocations and tool calls for the reasoning feed
@@ -150,12 +151,12 @@ async def run_agent(
                     tenant_id=tenant_id,
                     session_id=session_id,
                     run_id=run_id,
-                    event={
-                        "type": "tool_call_started",
-                        "author": event.author,
-                        "content": f"{fc.name}: {_summarize_function_args(fc.args)}",
-                        "isFinal": False,
-                    },
+                    event=AgentEvent(
+                        type="tool_call_started",
+                        author=event.author,
+                        content=f"{fc.name}: {_summarize_function_args(fc.args)}",
+                        is_final=False,
+                    ),
                 )
 
         if event.is_final_response() and event.content and event.content.parts:
@@ -167,12 +168,12 @@ async def run_agent(
             tenant_id=tenant_id,
             session_id=session_id,
             run_id=run_id,
-            event={
-                "type": "final_response",
-                "author": "canon_orchestrator",
-                "content": final_response,
-                "isFinal": True,
-            },
+            event=AgentEvent(
+                type="final_response",
+                author="canon_orchestrator",
+                content=final_response,
+                is_final=True,
+            ),
         )
 
     # Emit run_completed
@@ -180,12 +181,12 @@ async def run_agent(
         tenant_id=tenant_id,
         session_id=session_id,
         run_id=run_id,
-        event={
-            "type": "run_completed",
-            "author": "canon_orchestrator",
-            "content": None,
-            "isFinal": False,
-        },
+        event=AgentEvent(
+            type="run_completed",
+            author="canon_orchestrator",
+            content=None,
+            is_final=False,
+        ),
     )
 
     # Update session summary for continuity

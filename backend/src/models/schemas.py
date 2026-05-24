@@ -33,8 +33,8 @@ class CreateTokenRequest(BaseModel):
 # ─── Auth Models ─────────────────────────────────────────────────────────────
 
 
-class UserPayload(BaseModel):
-    """Decoded JWT payload returned by the jwt_auth dependency."""
+class JwtPayload(BaseModel):
+    """Decoded JWT token payload returned by the jwt_auth dependency."""
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -43,12 +43,8 @@ class UserPayload(BaseModel):
     name: str
     tenant_id: str | None = Field(default=None, alias="tenantId")
     role: str | None = None
-    iat: int
-    exp: int
-
-
-# Keep JwtPayload as an alias for backward compatibility
-JwtPayload = UserPayload
+    iat: float
+    exp: float
 
 
 # ─── Response Models ──────────────────────────────────────────────────────────
@@ -64,15 +60,9 @@ class UserResponse(BaseModel):
     role: str | None = None
 
 
-class AuthResponse(BaseModel):
-    """Shared response for register and login endpoints."""
-
+class LoginResponse(BaseModel):
     token: str
     user: UserResponse
-
-
-# Keep LoginResponse as an alias for backward compat
-LoginResponse = AuthResponse
 
 
 class MeResponse(BaseModel):
@@ -205,6 +195,7 @@ AgentEventType = Literal[
     "subagent_invoked",
     "run_started",
     "run_completed",
+    "final_response",
 ]
 
 

@@ -62,13 +62,7 @@ async def create_team(
 
     await db.users.update_one(
         {"_id": ObjectId(user_id)},
-        {
-            "$set": {
-                "tenantId": tenant_id,
-                "role": "owner",
-                "updatedAt": datetime.now(UTC),
-            }
-        },
+        {"$set": {"tenantId": tenant_id, "role": "owner", "updatedAt": datetime.now(UTC)}},
     )
 
     # Generate default API token
@@ -88,7 +82,7 @@ async def create_team(
 
     return CreateTeamResponse(
         token=token,
-        rawApiToken=raw_token,
+        raw_api_token=raw_token,
         team=TeamResponse(id=str(tenant_id), name=body.name, slug=slug),
     )
 
@@ -139,9 +133,7 @@ async def create_invite(
 ) -> CreateInviteResponse:
     """Create an invite code (owner only)."""
     if user.role != "owner":
-        raise HTTPException(
-            status_code=403, detail="Only team owners can create invites"
-        )
+        raise HTTPException(status_code=403, detail="Only team owners can create invites")
 
     now = datetime.now(UTC)
     code = secrets.token_hex(4)
@@ -158,7 +150,7 @@ async def create_invite(
         }
     )
 
-    return CreateInviteResponse(code=code, expiresAt=expires_at.isoformat())
+    return CreateInviteResponse(code=code, expires_at=expires_at.isoformat())
 
 
 @router.get("/tokens", response_model=TokenListResponse)
@@ -180,10 +172,10 @@ async def list_tokens(
             TokenItemResponse(
                 id=str(doc["_id"]),
                 label=doc["label"],
-                createdAt=doc["createdAt"].isoformat(),
-                lastUsedAt=doc["lastUsedAt"].isoformat()
-                if doc.get("lastUsedAt")
-                else None,
+                created_at=doc["createdAt"].isoformat(),
+                last_used_at=(
+                    doc["lastUsedAt"].isoformat() if doc.get("lastUsedAt") else None
+                ),
             )
         )
 
@@ -198,9 +190,7 @@ async def create_token(
 ) -> CreateTokenResponse:
     """Create a new API token (owner only)."""
     if user.role != "owner":
-        raise HTTPException(
-            status_code=403, detail="Only team owners can create API tokens"
-        )
+        raise HTTPException(status_code=403, detail="Only team owners can create API tokens")
 
     if not user.tenant_id:
         raise HTTPException(status_code=400, detail="User does not belong to a team")
@@ -220,5 +210,5 @@ async def create_token(
     )
 
     return CreateTokenResponse(
-        token=raw_token, label=body.label, createdAt=now.isoformat()
+        token=raw_token, label=body.label, created_at=now.isoformat()
     )

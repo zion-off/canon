@@ -12,6 +12,7 @@ from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from src.dependencies import api_token_auth, get_db, get_event_feed, jwt_auth
+from src.models.schemas import AgentEvent, JwtPayload, SessionResponse
 from src.services.event_feed import AgentEventFeed
 from src.services.tenant_resolver import TenantContext
 
@@ -24,28 +25,37 @@ harness_router = APIRouter(prefix="/tenants/{tenant_id}", tags=["harness-session
 # ---------------------------------------------------------------------------
 
 
-def _serialize_session(doc: dict[str, Any]) -> dict[str, Any]:
-    """Convert MongoDB ObjectIds to strings for JSON serialization."""
-    doc["_id"] = str(doc["_id"])
-    if "tenantId" in doc:
-        doc["tenantId"] = str(doc["tenantId"])
-    return doc
+def _doc_to_session(doc: dict[str, Any]) -> SessionResponse:
+    """Convert a MongoDB session document to a SessionResponse model."""
+    return SessionResponse(
+        sessionId=doc["sessionId"],
+        title=doc.get("title", ""),
+        summary=doc.get("summary"),
+        status=doc.get("status", ""),
+        runCount=doc.get("runCount", 0),
+        createdAt=str(doc.get("createdAt", "")),
+        updatedAt=str(doc.get("updatedAt", "")),
+        lastRunAt=str(doc.get("lastRunAt", "")),
+    )
 
 
-def _serialize_event(doc: dict[str, Any]) -> dict[str, Any]:
-    """Serialize an event document for API response."""
-    doc["_id"] = str(doc["_id"])
-    if "tenantId" in doc:
-        doc["tenantId"] = str(doc["tenantId"])
-    return doc
+def _doc_to_event(doc: dict[str, Any]) -> AgentEvent:
+    """Convert a MongoDB event document to an AgentEvent model."""
+    return AgentEvent(
+        type=doc["type"],
+        author=doc.get("author"),
+        content=doc.get("content"),
+        sequence=doc.get("sequence"),
+        timestamp=str(doc.get("timestamp", "")) if doc.get("timestamp") else None,
+        isFinal=doc.get("isFinal", False),
+    )
 
 
-def _require_tenant_id(user: dict) -> str:
+def _require_tenant_id(user: JwtPayload) -> str:
     """Extract tenantId from JWT payload, raising 400 if absent."""
-    tenant_id = user.get("tenantId")
-    if not tenant_id:
+    if not user.tenant_id:
         raise HTTPException(status_code=400, detail="User has no tenantId")
-    return tenant_id
+    return user.tenant_id
 
 
 def _validate_tenant_access(tenant_id: str, ctx: TenantContext) -> None:
@@ -78,9 +88,9 @@ async def _sse_stream(
 
 @router.get("")
 async def list_sessions(
-    user: dict = Depends(jwt_auth),
+    user: JwtPayload = Depends(jwt_auth),
     db: AsyncIOMotorDatabase = Depends(get_db),
-) -> list[dict[str, Any]]:
+) -> list[SessionResponse]:
     """List sessions for the authenticated user's tenant."""
     tenant_id = _require_tenant_id(user)
     cursor = (
@@ -88,15 +98,15 @@ async def list_sessions(
         .sort("lastRunAt", -1)
         .limit(20)
     )
-    return [_serialize_session(doc) async for doc in cursor]
+    return [_doc_to_session(doc) async for doc in cursor]
 
 
 @router.get("/{session_id}")
 async def get_session(
     session_id: str,
-    user: dict = Depends(jwt_auth),
+    user: JwtPayload = Depends(jwt_auth),
     db: AsyncIOMotorDatabase = Depends(get_db),
-) -> dict[str, Any]:
+) -> SessionResponse:
     """Get a single session by sessionId."""
     tenant_id = _require_tenant_id(user)
     doc = await db.sessions.find_one(
@@ -104,27 +114,27 @@ async def get_session(
     )
     if not doc:
         raise HTTPException(status_code=404, detail="Session not found")
-    return _serialize_session(doc)
+    return _doc_to_session(doc)
 
 
 @router.get("/{session_id}/events")
 async def list_session_events(
     session_id: str,
-    user: dict = Depends(jwt_auth),
+    user: JwtPayload = Depends(jwt_auth),
     db: AsyncIOMotorDatabase = Depends(get_db),
-) -> list[dict[str, Any]]:
+) -> list[AgentEvent]:
     """List all events for a session, ordered by sequence."""
     tenant_id = _require_tenant_id(user)
     cursor = db.agent_events.find(
         {"sessionId": session_id, "tenantId": ObjectId(tenant_id)}
     ).sort("sequence", 1)
-    return [_serialize_event(doc) async for doc in cursor]
+    return [_doc_to_event(doc) async for doc in cursor]
 
 
 @router.get("/{session_id}/stream")
 async def stream_session_events(
     session_id: str,
-    user: dict = Depends(jwt_auth),
+    user: JwtPayload = Depends(jwt_auth),
     event_feed: AgentEventFeed = Depends(get_event_feed),
     last_event_id: int = Query(default=0),
 ) -> StreamingResponse:
@@ -146,7 +156,7 @@ async def harness_list_sessions(
     tenant_id: str,
     ctx: TenantContext = Depends(api_token_auth),
     db: AsyncIOMotorDatabase = Depends(get_db),
-) -> list[dict[str, Any]]:
+) -> list[SessionResponse]:
     """List sessions for a tenant (harness access)."""
     _validate_tenant_access(tenant_id, ctx)
     cursor = (
@@ -154,7 +164,7 @@ async def harness_list_sessions(
         .sort("lastRunAt", -1)
         .limit(20)
     )
-    return [_serialize_session(doc) async for doc in cursor]
+    return [_doc_to_session(doc) async for doc in cursor]
 
 
 @harness_router.get("/sessions/{session_id}/events")
@@ -163,13 +173,13 @@ async def harness_list_session_events(
     session_id: str,
     ctx: TenantContext = Depends(api_token_auth),
     db: AsyncIOMotorDatabase = Depends(get_db),
-) -> list[dict[str, Any]]:
+) -> list[AgentEvent]:
     """List events for a session (harness access)."""
     _validate_tenant_access(tenant_id, ctx)
     cursor = db.agent_events.find(
         {"sessionId": session_id, "tenantId": ObjectId(tenant_id)}
     ).sort("sequence", 1)
-    return [_serialize_event(doc) async for doc in cursor]
+    return [_doc_to_event(doc) async for doc in cursor]
 
 
 @harness_router.get("/sessions/{session_id}/stream")

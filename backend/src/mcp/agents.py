@@ -10,11 +10,11 @@ from datetime import UTC, datetime
 from typing import Any
 
 from google.adk.agents import Agent
-from google.adk.agents.context import Context
 from google.adk.tools import AgentTool, google_search
 from google.adk.tools.base_tool import BaseTool
 from google.adk.tools.mcp_tool import McpToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
+from google.adk.tools.tool_context import ToolContext
 from mcp.client.stdio import StdioServerParameters
 from pydantic import BaseModel, Field
 
@@ -200,16 +200,20 @@ class MemoryNodeOutput(BaseModel):
 
 
 async def log_tool_usage(
-    tool: Any, _args: dict[str, Any], callback_context: Context, result: dict[str, Any]
+    tool: BaseTool,
+    args: dict[str, Any],
+    tool_context: ToolContext,
+    result: dict[str, Any],
 ) -> dict[str, Any] | None:
     """Log tool calls across the agent hierarchy for observability.
 
     Signature: (tool, args, tool_context, result) per ADK after_tool_callback.
     """
-    state = callback_context.state
+    state = tool_context.state
     log_entry = {
         "tool": tool.name if hasattr(tool, "name") else str(tool),
-        "agent": callback_context.agent_name,
+        "agent": tool_context.agent_name,
+        "args_summary": _summarize_tool_args(args),
         "timestamp": datetime.now(UTC).isoformat(),
         "success": "error" not in (result if isinstance(result, dict) else {}),
     }
@@ -217,6 +221,15 @@ async def log_tool_usage(
     logs.append(log_entry)
     state["temp:tool_logs"] = logs
     return None
+
+
+def _summarize_tool_args(args: dict[str, Any]) -> str:
+    """Produce a compact summary of tool args for logging."""
+    if not args:
+        return ""
+    if "query" in args:
+        return str(args["query"])[:100]
+    return ", ".join(f"{k}={str(v)[:50]}" for k, v in list(args.items())[:3])
 
 
 _semantic_retriever: Agent | None = None

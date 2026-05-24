@@ -7,10 +7,11 @@ graph_explorer, memory_writer) with their instructions and tool bindings.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from google.adk.agents import Agent
-from google.adk.tools import AgentTool, google_search
+from google.adk.agents.callback_context import CallbackContext
+from google.adk.tools import AgentTool
 from google.adk.tools.mcp_tool import McpToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
 from mcp.client.stdio import StdioServerParameters
@@ -19,14 +20,10 @@ from pydantic import BaseModel, Field
 from src.config import settings
 from src.mcp.tools import (
     canonize_node_tool,
-    embed_query,
+    embed_query_tool,
     emit_checkpoint_tool,
 )
 
-if TYPE_CHECKING:
-    from google.adk.tools.base_tool import BaseTool
-    from google.adk.tools.tool_context import ToolContext
-    
 MEMORY_NODE_SCHEMA = """\
 ## Memory Node Schema (memory_nodes collection)
 
@@ -55,7 +52,7 @@ using hybrid search.
 
 ## Query Strategy
 
-1. Call `generate_query_embedding` with the query text to obtain a 768-dim vector.
+1. Call `embed_query` with the query text to obtain a 768-dim vector.
 2. Extract keywords from the input (service names, pattern names, technical terms).
 3. Construct a $rankFusion aggregate pipeline combining:
    - $vectorSearch on the embedding field using the vector from step 1 \
@@ -204,18 +201,18 @@ class MemoryNodeOutput(BaseModel):
 async def log_tool_usage(
     tool: BaseTool,
     args: dict[str, Any],
-    ctx: ToolContext,
+    tool_context: ToolContext,
     result: dict[str, Any],
 ) -> dict[str, Any] | None:
     """Log tool calls across the agent hierarchy for observability.
 
-    Signature: (tool, args, context, result) per ADK after_tool_callback.
+    Signature: (tool, args, tool_context, result) per ADK after_tool_callback.
     """
-    state = ctx.state
+    state = tool_context.state
     log_entry = {
         "tool": tool.name,
-        "agent": ctx.agent_name,
-        "args_summary": _summarize_tool_args(args),
+        "agent": tool_context.agent_name,
+        "args_summary": summarize_args(args),
         "timestamp": datetime.now(UTC).isoformat(),
         "success": "error" not in (result if isinstance(result, dict) else {}),
     }
@@ -223,15 +220,6 @@ async def log_tool_usage(
     logs.append(log_entry)
     state["temp:tool_logs"] = logs
     return None
-
-
-def _summarize_tool_args(args: dict[str, Any]) -> str:
-    """Produce a compact summary of tool args for logging."""
-    if not args:
-        return ""
-    if "query" in args:
-        return str(args["query"])[:100]
-    return ", ".join(f"{k}={str(v)[:50]}" for k, v in list(args.items())[:3])
 
 
 _semantic_retriever: Agent | None = None
@@ -289,7 +277,7 @@ def _get_semantic_retriever() -> Agent:
             description="Perceives relevant organizational knowledge through hybrid search. "
             "Call with a query to find semantically and textually related memory nodes.",
             instruction=SEMANTIC_RETRIEVER_INSTRUCTION,
-            tools=[_build_mongo_read_toolset(), embed_query],
+            tools=[_build_mongo_read_toolset(), embed_query_tool],
             output_key="retrieval_results",
             after_tool_callback=log_tool_usage,
         )
@@ -325,7 +313,6 @@ def _get_memory_writer() -> Agent:
             instruction=MEMORY_WRITER_INSTRUCTION,
             tools=[_build_mongo_read_toolset(), canonize_node_tool],
             output_key="write_result",
-            output_schema=MemoryNodeOutput,
             after_tool_callback=log_tool_usage,
         )
     return _memory_writer
@@ -341,7 +328,6 @@ def build_orchestrator() -> Agent:
             AgentTool(_get_semantic_retriever()),
             AgentTool(_get_graph_explorer()),
             AgentTool(_get_memory_writer()),
-            google_search,
             emit_checkpoint_tool,
         ],
     )

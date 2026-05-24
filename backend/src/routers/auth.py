@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 
 import bcrypt
@@ -26,15 +27,18 @@ async def register(
 ) -> LoginResponse:
     """Create account, return JWT. No auth required."""
     email = body.email.strip().lower()
-    password_hash = bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode()
+    password_hash = (
+        await asyncio.to_thread(bcrypt.hashpw, body.password.encode(), bcrypt.gensalt())
+    ).decode()
+    now = datetime.now(UTC)
     user = {
         "email": email,
         "name": body.name,
         "passwordHash": password_hash,
         "tenantId": None,
         "role": None,
-        "createdAt": datetime.now(UTC),
-        "updatedAt": datetime.now(UTC),
+        "createdAt": now,
+        "updatedAt": now,
     }
     try:
         result = await db.users.insert_one(user)
@@ -61,8 +65,8 @@ async def login(
 ) -> LoginResponse:
     """Validate credentials, return JWT."""
     user = await db.users.find_one({"email": body.email.strip().lower()})
-    if not user or not bcrypt.checkpw(
-        body.password.encode(), user["passwordHash"].encode()
+    if not user or not await asyncio.to_thread(
+        bcrypt.checkpw, body.password.encode(), user["passwordHash"].encode()
     ):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     tenant_id = str(user["tenantId"]) if user.get("tenantId") else None

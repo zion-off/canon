@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from bson import ObjectId
-from google.adk.tools import FunctionTool
+from google.adk.tools.function_tool import FunctionTool
 from google.adk.tools.tool_context import ToolContext
 from google.genai import types
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -90,7 +90,12 @@ async def generate_document_embedding(text: str) -> list[float]:
             output_dimensionality=768,
         ),
     )
-    return response.embeddings[0].values
+    if not response.embeddings:
+        raise RuntimeError("Embedding API returned empty response.")
+    values = response.embeddings[0].values
+    if values is None:
+        raise RuntimeError("Embedding API returned None values.")
+    return values
 
 
 async def embed_query(text: str) -> dict[str, list[float]]:
@@ -103,7 +108,8 @@ async def embed_query(text: str) -> dict[str, list[float]]:
         text: The query text to embed.
 
     Returns:
-        A dictionary with key 'embedding' containing the 768-float vector.
+        A dictionary with key 'embedding' containing the 768-float vector,
+        or an 'error' key on failure.
     """
     client = get_genai_client()
     try:
@@ -116,10 +122,13 @@ async def embed_query(text: str) -> dict[str, list[float]]:
             ),
         )
         if not response.embeddings:
-            return {"error": "Embedding API returned empty response."}
-        return {"embedding": response.embeddings[0].values}
+            return {"error": "Embedding API returned empty response."}  # type: ignore[dict-item]
+        values = response.embeddings[0].values
+        if values is None:
+            return {"error": "Embedding API returned None values."}  # type: ignore[dict-item]
+        return {"embedding": values}
     except Exception as exc:
-        return {"error": f"Embedding generation failed: {exc}"}
+        return {"error": f"Embedding generation failed: {exc}"}  # type: ignore[dict-item]
 
 
 # ─── Core Agent Tools ────────────────────────────────────────────────────────

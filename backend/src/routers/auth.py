@@ -53,7 +53,7 @@ async def register(
             id=str(result.inserted_id),
             email=email,
             name=body.name,
-            tenant_id=None,
+            tenantId=None,
             role=None,
         ),
     )
@@ -83,7 +83,7 @@ async def login(
             id=str(user["_id"]),
             email=user["email"],
             name=user["name"],
-            tenant_id=tenant_id,
+            tenantId=tenant_id,
             role=user.get("role"),
         ),
     )
@@ -93,9 +93,9 @@ async def login(
 async def me(user: JwtPayload = Depends(jwt_auth)) -> MeResponse:
     """Current user from JWT."""
     return MeResponse(
-        user_id=user.sub,
+        userId=user.sub,
         email=user.email,
         name=user.name,
-        tenant_id=user.tenant_id,
+        tenantId=user.tenant_id,
         role=user.role,
     )

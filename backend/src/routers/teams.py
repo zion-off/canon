@@ -82,7 +82,7 @@ async def create_team(
 
     return CreateTeamResponse(
         token=token,
-        raw_api_token=raw_token,
+        rawApiToken=raw_token,
         team=TeamResponse(id=str(tenant_id), name=body.name, slug=slug),
     )
 
@@ -154,7 +154,7 @@ async def create_invite(
         }
     )
 
-    return CreateInviteResponse(code=code, expires_at=expires_at.isoformat())
+    return CreateInviteResponse(code=code, expiresAt=expires_at.isoformat())
 
 
 @router.get("/tokens", response_model=TokenListResponse)
@@ -176,8 +176,8 @@ async def list_tokens(
             TokenItemResponse(
                 id=str(doc["_id"]),
                 label=doc["label"],
-                created_at=doc["createdAt"].isoformat(),
-                last_used_at=(
+                createdAt=doc["createdAt"].isoformat(),
+                lastUsedAt=(
                     doc["lastUsedAt"].isoformat() if doc.get("lastUsedAt") else None
                 ),
             )
@@ -214,5 +214,5 @@ async def create_token(
     )
 
     return CreateTokenResponse(
-        token=raw_token, label=body.label, created_at=now.isoformat()
+        token=raw_token, label=body.label, createdAt=now.isoformat()
     )

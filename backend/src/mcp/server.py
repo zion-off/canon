@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from bson import ObjectId
 from mcp.server.fastmcp import Context, FastMCP
+from mcp.types import ToolAnnotations
 
 from src.mcp.runner import run_agent
 from src.services.tenant_resolver import TenantResolver
@@ -43,7 +44,7 @@ class _RequestContext:
 
 async def _build_context(ctx: Context) -> _RequestContext:
     """Extract tenant context from the MCP request's underlying HTTP transport."""
-    request = ctx.request
+    request = ctx.request  # type: ignore[attr-defined]
     db = request.app.state.mongo.db
 
     auth_header = request.headers.get("Authorization", "")
@@ -66,18 +67,18 @@ async def _build_context(ctx: Context) -> _RequestContext:
 
 @mcp.tool(
     name="canon",
-    annotations={
-        "readOnlyHint": False,
-        "destructiveHint": False,
-        "idempotentHint": False,
-        "openWorldHint": False,
-    },
+    annotations=ToolAnnotations(
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=False,
+    ),
 )
 async def canon(
     request: str,
     context: str = "",
     session_id: str | None = None,
-    ctx: Context = None,
+    ctx: Context | None = None,
 ) -> str:
     """Invoke Canon's organizational continuity agent.
 
@@ -91,6 +92,8 @@ async def canon(
     Returns:
         Agent response with session_id for workflow continuity.
     """
+    if ctx is None:
+        raise RuntimeError("Context required — FastMCP should inject it automatically.")
     request_ctx = await _build_context(ctx)
     run_id = str(uuid4())
     resolved_session_id = session_id or str(uuid4())
@@ -111,12 +114,14 @@ async def canon(
 # --- Resources ---
 
 @mcp.resource("canon://org/state")
-async def get_org_state(ctx: Context = None) -> str:
+async def get_org_state(ctx: Context | None = None) -> str:
     """Synthesized organizational posture — what the org is currently doing.
 
     Projects the organization's active decisions, ongoing work, enforced
     patterns, and live constraints into a coherent situational awareness picture.
     """
+    if ctx is None:
+        raise RuntimeError("Context required — FastMCP should inject it automatically.")
     request_ctx = await _build_context(ctx)
     nodes = await request_ctx.db.memory_nodes.find(
         {
@@ -130,12 +135,14 @@ async def get_org_state(ctx: Context = None) -> str:
 
 
 @mcp.resource("canon://org/momentum")
-async def get_org_momentum(ctx: Context = None) -> str:
+async def get_org_momentum(ctx: Context | None = None) -> str:
     """Organizational momentum — recent trajectory and evolution.
 
     Synthesizes recently captured decisions, discoveries, and changes into
     a projection of where the organization is heading.
     """
+    if ctx is None:
+        raise RuntimeError("Context required — FastMCP should inject it automatically.")
     request_ctx = await _build_context(ctx)
     cutoff = datetime.now(UTC) - timedelta(days=30)
     nodes = await request_ctx.db.memory_nodes.find(

@@ -126,21 +126,21 @@ async def run_agent(
         session_id=session.id,
         new_message=content,
     ):
-        if hasattr(event, "function_calls") and event.function_calls:
-            for fc in event.function_calls:
-                if fc.name == "emit_checkpoint":
-                    await event_feed.broadcast(
-                        tenant_id=tenant_id,
-                        user_id=user_id,
-                        session_id=session_id,
-                        run_id=run_id,
-                        event=AgentEvent(
-                            type="reasoning_checkpoint",
-                            author="canon_orchestrator",
-                            content=fc.args.get("message", ""),
-                            is_final=False,
-                        ),
-                    )
+        function_calls: list = getattr(event, "function_calls", None) or []
+        for fc in function_calls:
+            if fc.name == "emit_checkpoint":
+                await event_feed.broadcast(
+                    tenant_id=tenant_id,
+                    user_id=user_id,
+                    session_id=session_id,
+                    run_id=run_id,
+                    event=AgentEvent(
+                        type="reasoning_checkpoint",
+                        author="canon_orchestrator",
+                        content=fc.args.get("message", ""),
+                        is_final=False,
+                    ),
+                )
 
         if event.is_final_response() and event.content and event.content.parts:
             final_response = event.content.parts[0].text
@@ -224,4 +224,6 @@ Write only the updated summary — no preamble, no explanation. Ruthlessly compr
         model=f"models/{settings.fast_model}",
         contents=prompt,
     )
+    if not result.text:
+        return ""
     return result.text.strip()

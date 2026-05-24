@@ -10,8 +10,9 @@ from datetime import UTC, datetime
 from typing import Any
 
 from google.adk.agents import Agent
-from google.adk.tools import AgentTool, google_search
+from google.adk.tools.agent_tool import AgentTool
 from google.adk.tools.base_tool import BaseTool
+from google.adk.tools.google_search_tool import GoogleSearchTool
 from google.adk.tools.mcp_tool import McpToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
 from google.adk.tools.tool_context import ToolContext  # noqa: F401 — used by callbacks
@@ -308,7 +309,7 @@ def build_orchestrator() -> Agent:
             AgentTool(_get_semantic_retriever()),
             AgentTool(_get_graph_explorer()),
             AgentTool(_get_memory_writer()),
-            google_search,
+            GoogleSearchTool,
             emit_checkpoint_tool,
         ],
     )

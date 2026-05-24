@@ -15,12 +15,13 @@ from google.adk.tools.mcp_tool import McpToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
 from pydantic import BaseModel, Field
 
-from src.config import get_settings
+from mcp import StdioServerParameters
+from src.config import settings
 from src.mcp.tools import (
     FAST_MODEL,
     REASONING_MODEL,
     canonize_node_tool,
-    embed_query,
+    embed_query_tool,
     emit_checkpoint_tool,
 )
 
@@ -275,12 +276,14 @@ async def initialize_agents():
     """Attach tools to all subagents. Called once at container startup."""
     read_tools, read_exit = await McpToolset.from_server(
         connection_params=StdioConnectionParams(
-            command="npx",
-            args=["-y", "mongodb-mcp-server"],
-            env={
-                "MDB_MCP_CONNECTION_STRING": get_settings().mongodb_uri,
-                "MDB_MCP_READ_ONLY": "true",
-            },
+            server_params=StdioServerParameters(
+                command="npx",
+                args=["-y", "mongodb-mcp-server"],
+                env={
+                    "MDB_MCP_CONNECTION_STRING": settings.mongodb_uri,
+                    "MDB_MCP_READ_ONLY": "true",
+                },
+            ),
         ),
         tool_filter=["find", "aggregate", "count"],
     )
@@ -290,12 +293,14 @@ async def initialize_agents():
 
     mw_tools, mw_exit = await McpToolset.from_server(
         connection_params=StdioConnectionParams(
-            command="npx",
-            args=["-y", "mongodb-mcp-server"],
-            env={
-                "MDB_MCP_CONNECTION_STRING": get_settings().mongodb_uri,
-                "MDB_MCP_READ_ONLY": "true",
-            },
+            server_params=StdioServerParameters(
+                command="npx",
+                args=["-y", "mongodb-mcp-server"],
+                env={
+                    "MDB_MCP_CONNECTION_STRING": settings.mongodb_uri,
+                    "MDB_MCP_READ_ONLY": "true",
+                },
+            ),
         ),
         tool_filter=["find", "aggregate", "count"],
     )

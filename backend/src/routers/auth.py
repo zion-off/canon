@@ -90,9 +90,9 @@ async def login(
 async def me(user: JwtPayload = Depends(jwt_auth)) -> MeResponse:
     """Current user from JWT."""
     return MeResponse(
-        userId=user.sub,
+        user_id=user.sub,
         email=user.email,
         name=user.name,
-        tenantId=user.tenant_id,
+        tenant_id=user.tenant_id,
         role=user.role,
     )

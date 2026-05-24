@@ -1,21 +1,26 @@
+from __future__ import annotations
+
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
+from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from src.dependencies import get_db, jwt_auth
-from src.models.schemas import GraphLink, GraphNode, GraphResponse
+from src.models.schemas import GraphLink, GraphNode, GraphResponse, UserPayload
 
 router = APIRouter(tags=["graph"])
 
 
 @router.get("/graph", response_model=GraphResponse)
-async def get_graph(user: dict = Depends(jwt_auth), db=Depends(get_db)) -> GraphResponse:
+async def get_graph(
+    user: UserPayload = Depends(jwt_auth),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+) -> GraphResponse:
     """Full memory graph for visualization. Tenant from JWT."""
-    tenant_id = user.get("tenantId")
-    if not tenant_id:
+    if not user.tenant_id:
         raise HTTPException(status_code=400, detail="No team associated")
 
     nodes = await db.memory_nodes.find(
-        {"tenantId": ObjectId(tenant_id)},
+        {"tenantId": ObjectId(user.tenant_id)},
         {"embedding": 0, "content": 0},
     ).to_list(length=2000)
 

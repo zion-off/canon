@@ -12,7 +12,7 @@ from fastapi.responses import StreamingResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from src.dependencies import api_token_auth, get_db, get_event_feed, jwt_auth
-from src.models.schemas import AgentEvent, JwtPayload, SessionResponse
+from src.models.schemas import AgentEvent, SessionResponse, UserPayload
 from src.services.event_feed import AgentEventFeed
 from src.services.tenant_resolver import TenantContext
 
@@ -51,7 +51,7 @@ def _doc_to_event(doc: dict[str, Any]) -> AgentEvent:
     )
 
 
-def _require_tenant_id(user: JwtPayload) -> str:
+def _require_tenant_id(user: UserPayload) -> str:
     """Extract tenantId from JWT payload, raising 400 if absent."""
     if not user.tenant_id:
         raise HTTPException(status_code=400, detail="User has no tenantId")
@@ -88,7 +88,7 @@ async def _sse_stream(
 
 @router.get("")
 async def list_sessions(
-    user: JwtPayload = Depends(jwt_auth),
+    user: UserPayload = Depends(jwt_auth),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> list[SessionResponse]:
     """List sessions for the authenticated user's tenant."""
@@ -104,7 +104,7 @@ async def list_sessions(
 @router.get("/{session_id}")
 async def get_session(
     session_id: str,
-    user: JwtPayload = Depends(jwt_auth),
+    user: UserPayload = Depends(jwt_auth),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> SessionResponse:
     """Get a single session by sessionId."""
@@ -120,7 +120,7 @@ async def get_session(
 @router.get("/{session_id}/events")
 async def list_session_events(
     session_id: str,
-    user: JwtPayload = Depends(jwt_auth),
+    user: UserPayload = Depends(jwt_auth),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> list[AgentEvent]:
     """List all events for a session, ordered by sequence."""
@@ -134,7 +134,7 @@ async def list_session_events(
 @router.get("/{session_id}/stream")
 async def stream_session_events(
     session_id: str,
-    user: JwtPayload = Depends(jwt_auth),
+    user: UserPayload = Depends(jwt_auth),
     event_feed: AgentEventFeed = Depends(get_event_feed),
     last_event_id: int = Query(default=0),
 ) -> StreamingResponse:

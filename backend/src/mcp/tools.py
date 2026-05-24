@@ -16,7 +16,7 @@ from google.genai import types
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import DuplicateKeyError
 
-from src.config import settings
+from src.config import get_settings, settings
 
 # ─── Model Configuration ─────────────────────────────────────────────────────
 

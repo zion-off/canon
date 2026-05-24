@@ -8,7 +8,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from src.dependencies import get_db, jwt_auth
 from src.models.schemas import (
-    JwtPayload,
+    JWTPayload,
     LoginRequest,
     LoginResponse,
     MeResponse,
@@ -87,7 +87,7 @@ async def login(
 
 
 @router.get("/me", response_model=MeResponse)
-async def me(user: JwtPayload = Depends(jwt_auth)) -> MeResponse:
+async def me(user: JWTPayload = Depends(jwt_auth)) -> MeResponse:
     """Current user from JWT."""
     return MeResponse(
         userId=user.sub,

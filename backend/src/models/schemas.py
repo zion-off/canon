@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -33,7 +34,7 @@ class CreateTokenRequest(BaseModel):
 # ─── Auth Models ─────────────────────────────────────────────────────────────
 
 
-class JwtPayload(BaseModel):
+class JWTPayload(BaseModel):
     """Decoded JWT token payload returned by the jwt_auth dependency."""
 
     model_config = ConfigDict(populate_by_name=True)
@@ -43,8 +44,8 @@ class JwtPayload(BaseModel):
     name: str
     tenant_id: str | None = Field(default=None, alias="tenantId")
     role: str | None = None
-    iat: float
-    exp: float
+    iat: datetime
+    exp: datetime
 
 
 # ─── Response Models ──────────────────────────────────────────────────────────

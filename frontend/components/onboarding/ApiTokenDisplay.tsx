@@ -1,15 +1,14 @@
 "use client";
 
 import { CopyButton } from "@/components/ui/CopyButton";
+import { PUBLIC_API_URL } from "@/lib/config";
 
 interface ApiTokenDisplayProps {
   token: string;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://YOUR_BACKEND_URL";
-
 export function ApiTokenDisplay({ token }: ApiTokenDisplayProps) {
-  const mcpUrl = `${API_BASE_URL}/mcp`;
+  const mcpUrl = `${PUBLIC_API_URL}/mcp`;
 
   const cursorConfig = JSON.stringify(
     {

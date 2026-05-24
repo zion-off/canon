@@ -1,4 +1,6 @@
-export const API_URL = (process.env.API_URL ?? "http://localhost:8000") as string;
+import { API_BASE_URL } from "./config";
+
+export const API_URL = API_BASE_URL;
 
 export const COOKIE_NAME = "canon_token" as const;
 

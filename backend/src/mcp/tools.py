@@ -8,26 +8,44 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-import httpx
 from bson import ObjectId
+from google import genai
 from google.adk.tools import FunctionTool
 from google.adk.tools.tool_context import ToolContext
+from google.genai import types
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import DuplicateKeyError
 
-from src.config import settings
+from src.config import get_settings
 
-# ─── Lazy MongoDB Client ─────────────────────────────────────────────────────
+# ─── Model Configuration ─────────────────────────────────────────────────────
+
+settings = get_settings()
+
+REASONING_MODEL: str = settings.reasoning_model
+FAST_MODEL: str = settings.fast_model
+EMBEDDING_MODEL: str = settings.embedding_model
+
+# ─── Lazy Singletons ─────────────────────────────────────────────────────────
 
 _mongo_client: AsyncIOMotorClient | None = None
+_genai_client: genai.Client | None = None
 
 
 def _get_mongo_client() -> AsyncIOMotorClient:
     """Return a lazily-initialized MongoDB client singleton."""
     global _mongo_client  # noqa: PLW0603
     if _mongo_client is None:
-        _mongo_client = AsyncIOMotorClient(settings.mongodb_uri)
+        _mongo_client = AsyncIOMotorClient(get_settings().mongodb_uri)
     return _mongo_client
+
+
+def _get_genai_client() -> genai.Client:
+    """Return a lazily-initialized Gemini API client singleton."""
+    global _genai_client  # noqa: PLW0603
+    if _genai_client is None:
+        _genai_client = genai.Client(api_key=get_settings().gemini_api_key)
+    return _genai_client
 
 
 # ─── Embedding Utilities ─────────────────────────────────────────────────────
@@ -38,7 +56,7 @@ def build_embedding_text(document: dict) -> str:
 
     Combines the node's name, status, description, content, and tags into
     a single string optimized for embedding-based similarity search.
-    Content is capped at 1500 characters.
+    Content is capped at 1500 characters to stay within model limits.
 
     Args:
         document: A memory node dictionary.
@@ -62,7 +80,7 @@ def build_embedding_text(document: dict) -> str:
     if content:
         lines.append(content[:1500])
     if tags:
-        lines.append(f"Tags: {', '.join(tags)}")
+        lines.append(f"Tags: {\', \'.join(tags)}")
     return "\n".join(filter(None, lines))
 
 
@@ -79,19 +97,16 @@ async def generate_document_embedding(text: str) -> list[float]:
     Returns:
         A list of 768 floats representing the embedding vector.
     """
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/{settings.embedding_model}:embedContent",
-            params={"key": settings.gemini_api_key},
-            json={
-                "model": f"models/{settings.embedding_model}",
-                "content": {"parts": [{"text": text}]},
-                "taskType": "RETRIEVAL_DOCUMENT",
-                "outputDimensionality": 768,
-            },
-        )
-        data = response.json()
-    return data["embedding"]["values"]
+    client = _get_genai_client()
+    response = await client.aio.models.embed_content(
+        model=EMBEDDING_MODEL,
+        contents=text,
+        config=types.EmbedContentConfig(
+            task_type="RETRIEVAL_DOCUMENT",
+            output_dimensionality=768,
+        ),
+    )
+    return response.embeddings[0].values
 
 
 async def generate_query_embedding(text: str) -> dict:
@@ -106,20 +121,16 @@ async def generate_query_embedding(text: str) -> dict:
     Returns:
         A dictionary with key 'embedding' containing the 768-float vector.
     """
-    model = settings.embedding_model
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:embedContent",
-            params={"key": settings.gemini_api_key},
-            json={
-                "model": f"models/{model}",
-                "content": {"parts": [{"text": text}]},
-                "taskType": "RETRIEVAL_QUERY",
-                "outputDimensionality": 768,
-            },
-        )
-        data = response.json()
-    return {"embedding": data["embedding"]["values"]}
+    client = _get_genai_client()
+    response = await client.aio.models.embed_content(
+        model=EMBEDDING_MODEL,
+        contents=text,
+        config=types.EmbedContentConfig(
+            task_type="RETRIEVAL_QUERY",
+            output_dimensionality=768,
+        ),
+    )
+    return {"embedding": response.embeddings[0].values}
 
 
 # ─── Core Agent Tools ────────────────────────────────────────────────────────
@@ -158,7 +169,7 @@ async def canonize_node(
     required_fields = ("name", "description", "content", "status", "tenantId")
     missing = [f for f in required_fields if not document.get(f)]
     if missing:
-        return {"error": f"Missing required fields: {', '.join(missing)}"}
+        return {"error": f"Missing required fields: {\', \'.join(missing)}"}
 
     # Validate relatedEntityIds cardinality
     related_entity_ids = document.get("relatedEntityIds", [])
@@ -206,8 +217,10 @@ async def canonize_node(
 
     try:
         result = await collection.insert_one(document)
-    except DuplicateKeyError as exc:
-        return {"error": f"Duplicate key: {exc}"}
+    except DuplicateKeyError:
+        return {
+            "error": f"A node named '{document[\x27name\x27]}' already exists for this tenant."
+        }
 
     node_id = result.inserted_id
 
@@ -271,5 +284,5 @@ async def emit_checkpoint(message: str, tool_context: ToolContext) -> dict:
 # ─── Tool Instances ──────────────────────────────────────────────────────────
 
 canonize_node_tool = FunctionTool(func=canonize_node)
-embed_query = FunctionTool(func=generate_query_embedding)
+embed_query = FunctionTool(func=generate_query_embedding, name="embed_query")
 emit_checkpoint_tool = FunctionTool(func=emit_checkpoint)

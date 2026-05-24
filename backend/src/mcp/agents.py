@@ -13,6 +13,7 @@ from google.adk.agents import Agent
 from google.adk.tools import AgentTool, google_search
 from google.adk.tools.mcp_tool import McpToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
+from mcp.client.stdio import StdioServerParameters
 from pydantic import BaseModel, Field
 
 from src.config import get_settings, settings
@@ -196,16 +197,16 @@ class MemoryNodeOutput(BaseModel):
     relationships_formed: int = Field(description="Number of bidirectional edges created")
 
 
-def log_tool_usage(
-    tool: Any, args: dict[str, Any], tool_context: Any, tool_response: dict
+async def log_tool_usage(
+    callback_context: Any, tool_name: str, result: dict
 ) -> dict | None:
     """Log tool calls across the agent hierarchy for observability."""
-    state = tool_context.state
+    state = callback_context.state
     log_entry = {
-        "tool": tool.name,
-        "agent": tool_context.agent_name,
+        "tool": tool_name,
+        "agent": callback_context.agent_name,
         "timestamp": datetime.now(UTC).isoformat(),
-        "success": "error" not in (tool_response if isinstance(tool_response, dict) else {}),
+        "success": "error" not in (result if isinstance(result, dict) else {}),
     }
     logs = state.get("temp:tool_logs", [])
     logs.append(log_entry)
@@ -285,36 +286,36 @@ def build_orchestrator() -> Agent:
     )
 
 
-_exit_stacks: list = []
-
-
-async def initialize_agents():
-    """Attach tools to all subagents. Called once at container startup."""
-    read_tools, read_exit = await McpToolset.from_server(
+async def initialize_agents() -> None:
+    """Attach MCP tools to all subagents. Called once at container startup."""
+    mongo_read_toolset = McpToolset(
         connection_params=StdioConnectionParams(
-            command="npx",
-            args=["-y", "mongodb-mcp-server"],
-            env={
-                "MDB_MCP_CONNECTION_STRING": get_settings().mongodb_uri,
-                "MDB_MCP_READ_ONLY": "true",
-            },
+            server_params=StdioServerParameters(
+                command="npx",
+                args=["-y", "mongodb-mcp-server"],
+                env={
+                    "MDB_MCP_CONNECTION_STRING": get_settings().mongodb_uri,
+                    "MDB_MCP_READ_ONLY": "true",
+                },
+            ),
         ),
         tool_filter=["find", "aggregate", "count"],
     )
-    _exit_stacks.append(read_exit)
-    _get_semantic_retriever().tools = read_tools + [embed_query]
-    _get_graph_explorer().tools = read_tools
 
-    mw_tools, mw_exit = await McpToolset.from_server(
+    mongo_write_toolset = McpToolset(
         connection_params=StdioConnectionParams(
-            command="npx",
-            args=["-y", "mongodb-mcp-server"],
-            env={
-                "MDB_MCP_CONNECTION_STRING": get_settings().mongodb_uri,
-                "MDB_MCP_READ_ONLY": "true",
-            },
+            server_params=StdioServerParameters(
+                command="npx",
+                args=["-y", "mongodb-mcp-server"],
+                env={
+                    "MDB_MCP_CONNECTION_STRING": get_settings().mongodb_uri,
+                    "MDB_MCP_READ_ONLY": "false",
+                },
+            ),
         ),
-        tool_filter=["find", "aggregate", "count"],
+        tool_filter=["find", "aggregate", "count", "insertOne", "updateOne", "updateMany"],
     )
-    _exit_stacks.append(mw_exit)
-    _get_memory_writer().tools = mw_tools + [canonize_node_tool]
+
+    _get_semantic_retriever().tools = [mongo_read_toolset, embed_query]
+    _get_graph_explorer().tools = [mongo_read_toolset]
+    _get_memory_writer().tools = [mongo_write_toolset, canonize_node_tool]

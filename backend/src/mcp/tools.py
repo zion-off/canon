@@ -169,7 +169,8 @@ async def canonize_node(
     required_fields = ("name", "description", "content", "status", "tenantId")
     missing = [f for f in required_fields if not document.get(f)]
     if missing:
-        return {"error": f"Missing required fields: {', '.join(missing)}"}
+        sep = ", "
+        return {"error": f"Missing required fields: {sep.join(missing)}"}
 
     # Validate relatedEntityIds cardinality
     related_entity_ids = document.get("relatedEntityIds", [])
@@ -219,7 +220,7 @@ async def canonize_node(
         result = await collection.insert_one(document)
     except DuplicateKeyError:
         return {
-            "error": f"A node named '{document["name"]}' already exists for this tenant."
+            "error": f"A node named '{document['name']}' already exists for this tenant."
         }
 
     node_id = result.inserted_id

@@ -16,7 +16,7 @@ from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
 from mcp.client.stdio import StdioServerParameters
 from pydantic import BaseModel, Field
 
-from src.config import get_settings, settings
+from src.config import settings
 from src.mcp.tools import (
     canonize_node_tool,
     embed_query,
@@ -198,13 +198,13 @@ class MemoryNodeOutput(BaseModel):
 
 
 async def log_tool_usage(
-    callback_context: Any, tool_name: str, result: dict
+    tool: Any, args: dict[str, Any], tool_context: Any, result: dict
 ) -> dict | None:
     """Log tool calls across the agent hierarchy for observability."""
-    state = callback_context.state
+    state = tool_context.state
     log_entry = {
-        "tool": tool_name,
-        "agent": callback_context.agent_name,
+        "tool": tool.name if hasattr(tool, "name") else str(tool),
+        "agent": tool_context.agent_name,
         "timestamp": datetime.now(UTC).isoformat(),
         "success": "error" not in (result if isinstance(result, dict) else {}),
     }
@@ -325,38 +325,3 @@ def build_orchestrator() -> Agent:
             emit_checkpoint_tool,
         ],
     )
-
-
-async def initialize_agents() -> None:
-    """Attach MCP tools to all subagents. Called once at container startup."""
-    mongo_read_toolset = McpToolset(
-        connection_params=StdioConnectionParams(
-            server_params=StdioServerParameters(
-                command="npx",
-                args=["-y", "mongodb-mcp-server"],
-                env={
-                    "MDB_MCP_CONNECTION_STRING": get_settings().mongodb_uri,
-                    "MDB_MCP_READ_ONLY": "true",
-                },
-            ),
-        ),
-        tool_filter=["find", "aggregate", "count"],
-    )
-
-    mongo_write_toolset = McpToolset(
-        connection_params=StdioConnectionParams(
-            server_params=StdioServerParameters(
-                command="npx",
-                args=["-y", "mongodb-mcp-server"],
-                env={
-                    "MDB_MCP_CONNECTION_STRING": get_settings().mongodb_uri,
-                    "MDB_MCP_READ_ONLY": "false",
-                },
-            ),
-        ),
-        tool_filter=["find", "aggregate", "count", "insertOne", "updateOne", "updateMany"],
-    )
-
-    _get_semantic_retriever().tools = [mongo_read_toolset, embed_query]
-    _get_graph_explorer().tools = [mongo_read_toolset]
-    _get_memory_writer().tools = [mongo_write_toolset, canonize_node_tool]

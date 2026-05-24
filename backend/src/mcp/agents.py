@@ -1,7 +1,15 @@
+"""Canon ADK agent definitions.
+
+Defines the orchestrator and its sub-agents (semantic_retriever,
+graph_explorer, memory_writer) with their instructions and tool bindings.
+"""
+
+from __future__ import annotations
+
 from google.adk.agents import Agent
 from google.adk.tools import AgentTool, google_search
 from google.adk.tools.mcp_tool import McpToolset
-from google.adk.tools.mcp_tool.mcp_toolset import StdioConnectionParams
+from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
 from pydantic import BaseModel, Field
 
 from src.config import settings

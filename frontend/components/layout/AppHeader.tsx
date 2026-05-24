@@ -35,6 +35,14 @@ export function AppHeader({ user }: AppHeaderProps) {
           >
             Graph
           </Link>
+          {user.role === "owner" && (
+            <Link
+              href="/settings"
+              className="text-sm text-canon-text-dim hover:text-canon-text transition-colors"
+            >
+              Settings
+            </Link>
+          )}
           <div
             className="flex h-8 w-8 items-center justify-center rounded-full bg-canon-surface-2 border border-canon-border text-sm font-medium text-canon-text"
             title={user.email}

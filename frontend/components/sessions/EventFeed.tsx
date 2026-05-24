@@ -59,20 +59,14 @@ function groupEventsIntoRuns(events: IdentifiedEvent[]): RunBucket[] {
   return runs;
 }
 
-let nextStableId = 0;
-
-function assignStableId(event: AgentEvent): IdentifiedEvent {
-  return { ...event, stableId: nextStableId++ };
-}
-
 export function EventFeed({ sessionId, initialEvents, isLive }: EventFeedProps) {
-  const stableIdRef = useRef(0);
+  const stableIdRef = useRef(initialEvents.length);
   const assignId = useCallback((event: AgentEvent): IdentifiedEvent => {
     return { ...event, stableId: stableIdRef.current++ };
   }, []);
 
   const [events, setEvents] = useState<IdentifiedEvent[]>(() =>
-    initialEvents.map((e) => ({ ...e, stableId: stableIdRef.current++ })),
+    initialEvents.map((e, i) => ({ ...e, stableId: i })),
   );
   const feedEndRef = useRef<HTMLDivElement>(null);
   const [live, setLive] = useState(isLive);

@@ -71,7 +71,7 @@ async def create_team(
         {
             "tenantId": tenant_id,
             "userId": user_id,
-            "tokenHash": _hash_token(raw_token),
+            "token": _hash_token(raw_token),
             "label": "Default",
             "createdAt": datetime.now(UTC),
             "lastUsedAt": None,
@@ -202,7 +202,7 @@ async def create_token(
         {
             "tenantId": ObjectId(user.tenant_id),
             "userId": user.sub,
-            "tokenHash": _hash_token(raw_token),
+            "token": _hash_token(raw_token),
             "label": body.label,
             "createdAt": now,
             "lastUsedAt": None,

@@ -5,14 +5,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from src.dependencies import get_db, jwt_auth
-from src.models.schemas import GraphLink, GraphNode, GraphResponse, JWTPayload
+from src.models.schemas import GraphLink, GraphNode, GraphResponse, JwtPayload
 
 router = APIRouter(tags=["graph"])
 
 
 @router.get("/graph", response_model=GraphResponse)
 async def get_graph(
-    user: JWTPayload = Depends(jwt_auth),
+    user: JwtPayload = Depends(jwt_auth),
     db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> GraphResponse:
     """Full memory graph for visualization. Tenant from JWT."""
@@ -30,25 +30,23 @@ async def get_graph(
 
     for node in nodes:
         nid = str(node["_id"])
-        graph_nodes.append(
-            GraphNode(
-                id=nid,
-                name=node["name"],
-                description=node.get("description", ""),
-                status=node.get("status", ""),
-                tags=node.get("tags", []),
-                supersedes=str(node["supersedes"]) if node.get("supersedes") else None,
-                superseded_by=(
-                    str(node["supersededBy"]) if node.get("supersededBy") else None
-                ),
-                updated_at=(
-                    node["updatedAt"].isoformat() if node.get("updatedAt") else ""
-                ),
-                created_at=(
-                    node["createdAt"].isoformat() if node.get("createdAt") else ""
-                ),
-            )
-        )
+        graph_nodes.append(GraphNode(
+            id=nid,
+            name=node["name"],
+            description=node.get("description", ""),
+            status=node.get("status", ""),
+            tags=node.get("tags", []),
+            supersedes=str(node["supersedes"]) if node.get("supersedes") else None,
+            superseded_by=(
+                str(node["supersededBy"]) if node.get("supersededBy") else None
+            ),
+            updated_at=(
+                node["updatedAt"].isoformat() if node.get("updatedAt") else ""
+            ),
+            created_at=(
+                node["createdAt"].isoformat() if node.get("createdAt") else ""
+            ),
+        ))
         for rel_id in node.get("relatedEntityIds", []):
             rid = str(rel_id)
             if rid in node_ids and nid < rid:

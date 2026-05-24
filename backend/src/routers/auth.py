@@ -8,7 +8,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from src.dependencies import get_db, jwt_auth
 from src.models.schemas import (
-    JWTPayload,
+    JwtPayload,
     LoginRequest,
     LoginResponse,
     MeResponse,
@@ -40,9 +40,7 @@ async def register(
         result = await db.users.insert_one(user)
     except Exception as e:
         if "duplicate key" in str(e).lower():
-            raise HTTPException(
-                status_code=409, detail="Email already registered"
-            ) from e
+            raise HTTPException(status_code=409, detail="Email already registered") from e
         raise
     token = issue_jwt(str(result.inserted_id), email, body.name, None, None)
     return LoginResponse(
@@ -67,11 +65,12 @@ async def login(
         body.password.encode(), user["passwordHash"].encode()
     ):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    tenant_id = str(user["tenantId"]) if user.get("tenantId") else None
     token = issue_jwt(
         str(user["_id"]),
         user["email"],
         user["name"],
-        str(user["tenantId"]) if user.get("tenantId") else None,
+        tenant_id,
         user.get("role"),
     )
     return LoginResponse(
@@ -80,19 +79,19 @@ async def login(
             id=str(user["_id"]),
             email=user["email"],
             name=user["name"],
-            tenant_id=str(user["tenantId"]) if user.get("tenantId") else None,
+            tenant_id=tenant_id,
             role=user.get("role"),
         ),
     )
 
 
 @router.get("/me", response_model=MeResponse)
-async def me(user: JWTPayload = Depends(jwt_auth)) -> MeResponse:
+async def me(user: JwtPayload = Depends(jwt_auth)) -> MeResponse:
     """Current user from JWT."""
     return MeResponse(
-        userId=user.sub,
+        user_id=user.sub,
         email=user.email,
         name=user.name,
-        tenantId=user.tenant_id,
+        tenant_id=user.tenant_id,
         role=user.role,
     )

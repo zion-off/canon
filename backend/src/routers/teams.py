@@ -10,6 +10,7 @@ from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from src.config import settings
 from src.dependencies import get_db, jwt_auth
 from src.models.schemas import (
     CreateInviteResponse,
@@ -52,7 +53,7 @@ async def create_team(
     tenant = {
         "name": body.name,
         "slug": slug,
-        "embeddingModel": "text-embedding-004",
+        "embeddingModel": settings.embedding_model,
         "createdAt": datetime.now(UTC),
         "settings": {"maxGraphDepth": 3},
     }

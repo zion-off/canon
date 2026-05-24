@@ -84,11 +84,16 @@ class ReasoningFeedPlugin(BasePlugin):
         self,
         *,
         tool: BaseTool,
-        tool_args: dict[str, Any],  # noqa: ARG002
+        tool_args: dict[str, Any],
         tool_context: ToolContext,
-        result: dict,  # noqa: ARG002
+        result: dict,
+        **_kwargs: Any,
     ) -> dict | None:
-        """Emit tool_call_completed."""
+        """Emit tool_call_completed.
+
+        Args tool_args and result are required by the BasePlugin interface
+        but not used for completion events (only tool name is emitted).
+        """
         tenant_id = tool_context.state.get("app:tenant_id")
         session_id = tool_context.state.get("app:session_id")
         run_id = tool_context.state.get("app:run_id")

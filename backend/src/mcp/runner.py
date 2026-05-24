@@ -112,7 +112,7 @@ async def run_agent(
             type="run_started",
             author="canon_orchestrator",
             content=None,
-            isFinal=False,
+            is_final=False,
         ),
     )
 
@@ -135,7 +135,7 @@ async def run_agent(
                             type="reasoning_checkpoint",
                             author="canon_orchestrator",
                             content=fc.args.get("message", ""),
-                            isFinal=False,
+                            is_final=False,
                         ),
                     )
 
@@ -155,7 +155,7 @@ async def run_agent(
                         type="tool_call_started",
                         author=event.author,
                         content=f"{fc.name}: {_summarize_function_args(fc.args)}",
-                        isFinal=False,
+                        is_final=False,
                     ),
                 )
 
@@ -172,7 +172,7 @@ async def run_agent(
                 type="final_response",
                 author="canon_orchestrator",
                 content=final_response,
-                isFinal=True,
+                is_final=True,
             ),
         )
 
@@ -185,7 +185,7 @@ async def run_agent(
             type="run_completed",
             author="canon_orchestrator",
             content=None,
-            isFinal=False,
+            is_final=False,
         ),
     )
 

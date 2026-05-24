@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from hashlib import sha256
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from pydantic import BaseModel
 
 
-@dataclass
-class TenantContext:
+class TenantContext(BaseModel):
     """Resolved tenant identity."""
+
     tenant_id: str
     user_id: str
 

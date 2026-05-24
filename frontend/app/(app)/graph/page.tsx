@@ -1,7 +1,8 @@
+import type { Metadata } from "next";
 import { getGraph } from "@/lib/actions/graph";
 import { MemoryGraphClient } from "@/components/graph/MemoryGraphClient";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Memory Graph — Canon",
   description: "Visualize organizational memory as a force-directed graph",
 };

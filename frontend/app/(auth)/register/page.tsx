@@ -1,46 +1,57 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { register } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
+interface RegisterState {
+  error: string | null;
+  success: boolean;
+}
+
+const initialState: RegisterState = { error: null, success: false };
+
+async function registerAction(
+  _prevState: RegisterState,
+  formData: FormData
+): Promise<RegisterState> {
+  const name = formData.get("name") as string;
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
+
+  if (!name || !email || !password) {
+    return { error: "All fields are required.", success: false };
+  }
+
+  if (password.length < 8) {
+    return { error: "Password must be at least 8 characters.", success: false };
+  }
+
+  try {
+    await register(email, name, password);
+    return { error: null, success: true };
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "An unexpected error occurred.";
+    return { error: message, success: false };
+  }
+}
+
 export default function RegisterPage() {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [state, formAction, isPending] = useActionState(
+    registerAction,
+    initialState
+  );
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-
-    if (!name || !email || !password) {
-      setError("All fields are required.");
-      return;
-    }
-
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      await register(email, name, password);
+  useEffect(() => {
+    if (state.success) {
       router.push("/onboarding");
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "An unexpected error occurred.";
-      setError(message);
-    } finally {
-      setIsSubmitting(false);
     }
-  }
+  }, [state.success, router]);
 
   return (
     <div className="w-full max-w-md px-4">
@@ -54,7 +65,7 @@ export default function RegisterPage() {
       </div>
 
       <div className="bg-[#0f0f1a] border border-white/[0.08] rounded-xl p-8">
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form action={formAction} className="space-y-5">
           <div>
             <label
               htmlFor="name"
@@ -64,9 +75,8 @@ export default function RegisterPage() {
             </label>
             <Input
               id="name"
+              name="name"
               type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
               placeholder="Jane Smith"
               required
               autoComplete="name"
@@ -82,9 +92,8 @@ export default function RegisterPage() {
             </label>
             <Input
               id="email"
+              name="email"
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
               placeholder="you@company.com"
               required
               autoComplete="email"
@@ -100,9 +109,8 @@ export default function RegisterPage() {
             </label>
             <Input
               id="password"
+              name="password"
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
               autoComplete="new-password"
@@ -111,17 +119,17 @@ export default function RegisterPage() {
             <p className="text-xs text-slate-500 mt-1">Minimum 8 characters</p>
           </div>
 
-          {error && (
+          {state.error && (
             <p
               role="alert"
               className="text-sm text-[#EF4444] bg-[#EF4444]/10 rounded-md px-3 py-2"
             >
-              {error}
+              {state.error}
             </p>
           )}
 
-          <Button type="submit" disabled={isSubmitting} className="w-full">
-            {isSubmitting ? "Creating account…" : "Create account"}
+          <Button type="submit" disabled={isPending} className="w-full">
+            {isPending ? "Creating account…" : "Create account"}
           </Button>
         </form>
       </div>

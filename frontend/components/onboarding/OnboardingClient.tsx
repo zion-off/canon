@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, type FormEvent } from "react";
+import { useActionState, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createTeam, joinTeam } from "@/lib/actions/teams";
 import { Button } from "@/components/ui/Button";
@@ -98,39 +98,44 @@ function TabButton({
   );
 }
 
-function CreateTeamForm() {
-  const router = useRouter();
-  const [teamName, setTeamName] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [apiToken, setApiToken] = useState<string | null>(null);
+interface CreateTeamState {
+  error: string | null;
+  token: string | null;
+}
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
+const createTeamInitialState: CreateTeamState = { error: null, token: null };
 
-    if (!teamName.trim()) {
-      setError("Team name is required.");
-      return;
-    }
+async function createTeamAction(
+  _prevState: CreateTeamState,
+  formData: FormData
+): Promise<CreateTeamState> {
+  const name = (formData.get("team-name") as string)?.trim();
 
-    setIsSubmitting(true);
-    try {
-      const result = await createTeam(teamName.trim());
-      setApiToken(result.rawApiToken);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to create team.";
-      setError(message);
-    } finally {
-      setIsSubmitting(false);
-    }
+  if (!name) {
+    return { error: "Team name is required.", token: null };
   }
 
-  if (apiToken) {
+  try {
+    const result = await createTeam(name);
+    return { error: null, token: result.rawApiToken };
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Failed to create team.";
+    return { error: message, token: null };
+  }
+}
+
+function CreateTeamForm() {
+  const router = useRouter();
+  const [state, formAction, isPending] = useActionState(
+    createTeamAction,
+    createTeamInitialState
+  );
+
+  if (state.token) {
     return (
       <div className="space-y-6">
-        <ApiTokenDisplay token={apiToken} />
+        <ApiTokenDisplay token={state.token} />
         <Button onClick={() => router.push("/dashboard")} className="w-full">
           Go to Dashboard
         </Button>
@@ -139,7 +144,7 @@ function CreateTeamForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form action={formAction} className="space-y-5">
       <div>
         <label
           htmlFor="team-name"
@@ -149,81 +154,88 @@ function CreateTeamForm() {
         </label>
         <Input
           id="team-name"
+          name="team-name"
           type="text"
-          value={teamName}
-          onChange={(e) => setTeamName(e.target.value)}
           placeholder="Acme Engineering"
           required
         />
       </div>
 
-      {error && (
+      {state.error && (
         <p
           role="alert"
           className="text-sm text-[#EF4444] bg-[#EF4444]/10 rounded-md px-3 py-2"
         >
-          {error}
+          {state.error}
         </p>
       )}
 
-      <Button type="submit" disabled={isSubmitting} className="w-full">
-        {isSubmitting ? "Creating team…" : "Create team"}
+      <Button type="submit" disabled={isPending} className="w-full">
+        {isPending ? "Creating team…" : "Create team"}
       </Button>
     </form>
   );
 }
 
+interface JoinTeamState {
+  error: string | null;
+  teamName: string | null;
+}
+
+const joinTeamInitialState: JoinTeamState = { error: null, teamName: null };
+
+async function joinTeamAction(
+  _prevState: JoinTeamState,
+  formData: FormData
+): Promise<JoinTeamState> {
+  const code = (formData.get("invite-code") as string)?.trim().toUpperCase();
+
+  if (!code || code.length !== 8) {
+    return { error: "Invite code must be 8 characters.", teamName: null };
+  }
+
+  try {
+    const result = await joinTeam(code);
+    return { error: null, teamName: result.teamName };
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Failed to join team.";
+    return { error: message, teamName: null };
+  }
+}
+
 function JoinTeamForm() {
   const router = useRouter();
-  const [code, setCode] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [state, formAction, isPending] = useActionState(
+    joinTeamAction,
+    joinTeamInitialState
+  );
   const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (state.teamName) {
+      redirectTimer.current = setTimeout(() => router.push("/dashboard"), 1000);
+    }
     return () => {
       if (redirectTimer.current) {
         clearTimeout(redirectTimer.current);
       }
     };
-  }, []);
+  }, [state.teamName, router]);
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-
-    const trimmed = code.trim().toUpperCase();
-    if (!trimmed || trimmed.length !== 8) {
-      setError("Invite code must be 8 characters.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const result = await joinTeam(trimmed);
-      setSuccessMessage(`Joined ${result.teamName}!`);
-      redirectTimer.current = setTimeout(() => router.push("/dashboard"), 1000);
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to join team.";
-      setError(message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  if (successMessage) {
+  if (state.teamName) {
     return (
       <div className="text-center py-4">
-        <p className="text-lg font-medium text-slate-200">{successMessage}</p>
+        <p className="text-lg font-medium text-slate-200">
+          Joined {state.teamName}!
+        </p>
         <p className="text-sm text-slate-400 mt-2">Redirecting to dashboard…</p>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form action={formAction} className="space-y-5">
       <div>
         <label
           htmlFor="invite-code"
@@ -233,9 +245,8 @@ function JoinTeamForm() {
         </label>
         <Input
           id="invite-code"
+          name="invite-code"
           type="text"
-          value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase())}
           placeholder="ABCD1234"
           required
           maxLength={8}
@@ -243,17 +254,17 @@ function JoinTeamForm() {
         />
       </div>
 
-      {error && (
+      {state.error && (
         <p
           role="alert"
           className="text-sm text-[#EF4444] bg-[#EF4444]/10 rounded-md px-3 py-2"
         >
-          {error}
+          {state.error}
         </p>
       )}
 
-      <Button type="submit" disabled={isSubmitting} className="w-full">
-        {isSubmitting ? "Joining…" : "Join team"}
+      <Button type="submit" disabled={isPending} className="w-full">
+        {isPending ? "Joining…" : "Join team"}
       </Button>
     </form>
   );

@@ -1,40 +1,52 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { login } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
+interface LoginState {
+  error: string | null;
+  success: boolean;
+}
+
+const initialState: LoginState = { error: null, success: false };
+
+async function loginAction(
+  _prevState: LoginState,
+  formData: FormData
+): Promise<LoginState> {
+  const email = formData.get("email") as string;
+  const password = formData.get("password") as string;
+
+  if (!email || !password) {
+    return { error: "Email and password are required.", success: false };
+  }
+
+  try {
+    await login(email, password);
+    return { error: null, success: true };
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "An unexpected error occurred.";
+    return { error: message, success: false };
+  }
+}
+
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [state, formAction, isPending] = useActionState(
+    loginAction,
+    initialState
+  );
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-
-    if (!email || !password) {
-      setError("Email and password are required.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      await login(email, password);
+  useEffect(() => {
+    if (state.success) {
       router.push("/dashboard");
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "An unexpected error occurred.";
-      setError(message);
-    } finally {
-      setIsSubmitting(false);
     }
-  }
+  }, [state.success, router]);
 
   return (
     <div className="w-full max-w-md px-4">
@@ -48,7 +60,7 @@ export default function LoginPage() {
       </div>
 
       <div className="bg-[#0f0f1a] border border-white/[0.08] rounded-xl p-8">
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form action={formAction} className="space-y-5">
           <div>
             <label
               htmlFor="email"
@@ -58,9 +70,8 @@ export default function LoginPage() {
             </label>
             <Input
               id="email"
+              name="email"
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
               placeholder="you@company.com"
               required
               autoComplete="email"
@@ -76,26 +87,25 @@ export default function LoginPage() {
             </label>
             <Input
               id="password"
+              name="password"
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
               autoComplete="current-password"
             />
           </div>
 
-          {error && (
+          {state.error && (
             <p
               role="alert"
               className="text-sm text-[#EF4444] bg-[#EF4444]/10 rounded-md px-3 py-2"
             >
-              {error}
+              {state.error}
             </p>
           )}
 
-          <Button type="submit" disabled={isSubmitting} className="w-full">
-            {isSubmitting ? "Signing in…" : "Sign in"}
+          <Button type="submit" disabled={isPending} className="w-full">
+            {isPending ? "Signing in…" : "Sign in"}
           </Button>
         </form>
       </div>

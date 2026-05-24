@@ -13,6 +13,12 @@
       "skillPath": "skills/find-skills/SKILL.md",
       "computedHash": "9e1c8b3103f92fa8092568a44fe64858de7c5c9dc65ce4bea8f168080e889cfd"
     },
+    "gemini-api-dev": {
+      "source": "google-gemini/gemini-skills",
+      "sourceType": "github",
+      "skillPath": "skills/gemini-api-dev/SKILL.md",
+      "computedHash": "e358693ab81864c2ed8fae87dd404ee41173e615f0d04834161cc1343bff1354"
+    },
     "google-agents-cli-adk-code": {
       "source": "google/agents-cli",
       "sourceType": "github",

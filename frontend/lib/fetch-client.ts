@@ -17,13 +17,7 @@ export async function apiFetch<T>(
   schema: z.ZodSchema<T>,
   options: FetchOptions = {},
 ): Promise<T> {
-  const {
-    json,
-    auth = true,
-    headers: extraHeaders,
-    method,
-    signal,
-  } = options;
+  const { json, auth = true, headers: extraHeaders, method, signal } = options;
 
   const headers: Record<string, string> = { ...(extraHeaders ?? {}) };
 

@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, Any
 
 from google.adk.agents import Agent
 from google.adk.tools import AgentTool, google_search
-from google.adk.tools.base_tool import BaseTool
 from google.adk.tools.mcp_tool import McpToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
 from mcp.client.stdio import StdioServerParameters
@@ -23,6 +22,10 @@ from src.mcp.tools import (
     embed_query,
     emit_checkpoint_tool,
 )
+
+if TYPE_CHECKING:
+    from google.adk.tools.base_tool import BaseTool
+    from google.adk.tools.tool_context import ToolContext
     
 MEMORY_NODE_SCHEMA = """\
 ## Memory Node Schema (memory_nodes collection)

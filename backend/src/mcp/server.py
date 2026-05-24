@@ -51,7 +51,7 @@ async def _build_context(ctx: Context) -> _RequestContext:
     token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
     token_hash = sha256(token.encode()).hexdigest()
 
-    record = await db.api_tokens.find_one({"token": token_hash})
+    record = await db.api_tokens.find_one({"tokenHash": token_hash})
     if not record:
         raise ValueError("Invalid API token")
 

@@ -14,6 +14,7 @@ from google.adk.tools import AgentTool, google_search
 from google.adk.tools.base_tool import BaseTool
 from google.adk.tools.mcp_tool import McpToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
+from google.adk.tools.tool_context import ToolContext
 from mcp.client.stdio import StdioServerParameters
 from pydantic import BaseModel, Field
 
@@ -25,7 +26,7 @@ from src.mcp.tools import (
 )
 
 if TYPE_CHECKING:
-    pass
+    from google.adk.tools.tool_context import ToolContext
 
 MEMORY_NODE_SCHEMA = """\
 ## Memory Node Schema (memory_nodes collection)
@@ -323,7 +324,7 @@ def _get_memory_writer() -> Agent:
             "relationships, and persists to the knowledge graph. Call with the "
             "observation and any related context from prior retrieval.",
             instruction=MEMORY_WRITER_INSTRUCTION,
-            tools=[_build_mongo_write_toolset(), canonize_node_tool],
+            tools=[_build_mongo_read_toolset(), canonize_node_tool],
             output_key="write_result",
             output_schema=MemoryNodeOutput,
             after_tool_callback=log_tool_usage,

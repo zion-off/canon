@@ -29,7 +29,7 @@ class TenantResolver:
         and updates lastUsedAt on successful resolution.
         """
         token_hash = sha256(raw_token.encode()).hexdigest()
-        record = await self._db.api_tokens.find_one({"token": token_hash})
+        record = await self._db.api_tokens.find_one({"tokenHash": token_hash})
 
         if not record:
             return None

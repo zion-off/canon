@@ -285,7 +285,7 @@ async def initialize_agents():
         tool_filter=["find", "aggregate", "count"],
     )
     _exit_stacks.append(read_exit)
-    semantic_retriever.tools = read_tools + [embed_query_tool]
+    semantic_retriever.tools = read_tools + [embed_query]
     graph_explorer.tools = read_tools
 
     mw_tools, mw_exit = await McpToolset.from_server(

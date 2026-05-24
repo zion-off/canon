@@ -39,17 +39,20 @@ class Settings(BaseSettings):
 
     # ─── Model Configuration ─────────────────────────────────────────────
     reasoning_model: str = Field(
-        default="gemini-2.5-pro",
+        default="gemini-3.1-pro",
         validation_alias=AliasChoices("CANON_REASONING_MODEL", "reasoning_model"),
     )
     fast_model: str = Field(
-        default="gemini-2.5-flash",
+        default="gemini-3.1-flash",
         validation_alias=AliasChoices("CANON_FAST_MODEL", "fast_model"),
     )
     embedding_model: str = Field(
-        default="gemini-embedding-2",
+        default="text-embedding-004",
         validation_alias=AliasChoices("CANON_EMBEDDING_MODEL", "embedding_model"),
     )
+
+    # ─── Database Configuration ────────────────────────────────────────────
+    database_name: str = "canon"
 
     # ─── JWT Configuration ───────────────────────────────────────────────
     jwt_algorithm: str = "HS256"

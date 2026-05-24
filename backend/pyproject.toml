@@ -1,7 +1,25 @@
 [project]
-name = "backend"
+name = "canoon"
 version = "0.1.0"
-description = "Add your description here"
+description = "organizational continuity agent"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = []
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.14",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false

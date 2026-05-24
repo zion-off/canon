@@ -28,7 +28,9 @@ class Settings(BaseSettings):
         - jwt_expiry_days (JWT_EXPIRY_DAYS)
     """
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
 
     # ─── Required Secrets ─────────────────────────────────────────────────
     mongodb_uri: str

@@ -4,9 +4,12 @@ import { z } from "zod";
 import { API_URL } from "./constants";
 import { getAuthHeaders, handleErrorResponse } from "./api-utils";
 
-interface FetchOptions extends Omit<RequestInit, "body"> {
+interface FetchOptions {
   json?: unknown;
   auth?: boolean;
+  method?: string;
+  headers?: Record<string, string>;
+  signal?: AbortSignal;
 }
 
 export async function apiFetch<T>(
@@ -14,9 +17,15 @@ export async function apiFetch<T>(
   schema: z.ZodSchema<T>,
   options: FetchOptions = {},
 ): Promise<T> {
-  const { json, auth = true, headers: extraHeaders, ...init } = options;
+  const {
+    json,
+    auth = true,
+    headers: extraHeaders,
+    method,
+    signal,
+  } = options;
 
-  const headers: Record<string, string> = { ...((extraHeaders as Record<string, string>) ?? {}) };
+  const headers: Record<string, string> = { ...(extraHeaders ?? {}) };
 
   if (auth) {
     const authHeaders = await getAuthHeaders(json !== undefined);
@@ -25,10 +34,13 @@ export async function apiFetch<T>(
     headers["Content-Type"] = "application/json";
   }
 
+  const body = json !== undefined ? JSON.stringify(json) : undefined;
+
   const res = await fetch(`${API_URL}/${path}`, {
-    ...init,
+    method,
     headers,
-    body: json !== undefined ? JSON.stringify(json) : init.body,
+    body,
+    signal,
   });
 
   if (!res.ok) {

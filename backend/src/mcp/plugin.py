@@ -8,10 +8,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from google.adk.agents.base_agent import BaseAgent
 from google.adk.agents.callback_context import CallbackContext
 from google.adk.plugins.base_plugin import BasePlugin
+from google.adk.tools.base_tool import BaseTool
+from google.genai import types
 
 if TYPE_CHECKING:
+    from google.adk.tools.tool_context import ToolContext
+
     from src.services.event_feed import AgentEventFeed
 
 
@@ -28,13 +33,13 @@ class ReasoningFeedPlugin(BasePlugin):
         self._event_feed = event_feed
 
     async def before_agent_callback(
-        self, *, callback_context: CallbackContext, **kwargs: Any
-    ) -> None:
+        self, *, agent: BaseAgent, callback_context: CallbackContext
+    ) -> types.Content | None:
         """Emit subagent_invoked for non-orchestrator agents."""
         tenant_id = callback_context.state.get("app:tenant_id")
         session_id = callback_context.state.get("app:session_id")
         run_id = callback_context.state.get("app:run_id")
-        agent_name = callback_context.agent_name
+        agent_name = agent.name
 
         if agent_name != "canon_orchestrator":
             await self._event_feed.broadcast(
@@ -48,19 +53,19 @@ class ReasoningFeedPlugin(BasePlugin):
                     "isFinal": False,
                 },
             )
+        return None
 
     async def before_tool_callback(
         self,
         *,
-        callback_context: CallbackContext,
-        tool_name: str,
-        args: dict,
-        **kwargs: Any,
+        tool: BaseTool,
+        tool_args: dict[str, Any],
+        tool_context: ToolContext,
     ) -> dict | None:
         """Emit tool_call_started."""
-        tenant_id = callback_context.state.get("app:tenant_id")
-        session_id = callback_context.state.get("app:session_id")
-        run_id = callback_context.state.get("app:run_id")
+        tenant_id = tool_context.state.get("app:tenant_id")
+        session_id = tool_context.state.get("app:session_id")
+        run_id = tool_context.state.get("app:run_id")
 
         await self._event_feed.broadcast(
             tenant_id=tenant_id,
@@ -68,8 +73,8 @@ class ReasoningFeedPlugin(BasePlugin):
             run_id=run_id,
             event={
                 "type": "tool_call_started",
-                "author": callback_context.agent_name,
-                "content": f"{tool_name}: {_summarize_args(args)}",
+                "author": tool_context.agent_name,
+                "content": f"{tool.name}: {_summarize_args(tool_args)}",
                 "isFinal": False,
             },
         )
@@ -78,15 +83,15 @@ class ReasoningFeedPlugin(BasePlugin):
     async def after_tool_callback(
         self,
         *,
-        callback_context: CallbackContext,
-        tool_name: str,
+        tool: BaseTool,
+        tool_args: dict[str, Any],
+        tool_context: ToolContext,
         result: dict,
-        **kwargs: Any,
     ) -> dict | None:
         """Emit tool_call_completed."""
-        tenant_id = callback_context.state.get("app:tenant_id")
-        session_id = callback_context.state.get("app:session_id")
-        run_id = callback_context.state.get("app:run_id")
+        tenant_id = tool_context.state.get("app:tenant_id")
+        session_id = tool_context.state.get("app:session_id")
+        run_id = tool_context.state.get("app:run_id")
 
         await self._event_feed.broadcast(
             tenant_id=tenant_id,
@@ -94,8 +99,8 @@ class ReasoningFeedPlugin(BasePlugin):
             run_id=run_id,
             event={
                 "type": "tool_call_completed",
-                "author": callback_context.agent_name,
-                "content": f"{tool_name} completed",
+                "author": tool_context.agent_name,
+                "content": f"{tool.name} completed",
                 "isFinal": False,
             },
         )

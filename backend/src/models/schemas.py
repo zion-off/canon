@@ -30,6 +30,22 @@ class CreateTokenRequest(BaseModel):
     label: str = Field(default="API token")
 
 
+# ─── Auth Models ─────────────────────────────────────────────────────────────
+
+
+class JwtPayload(BaseModel):
+    """JWT token payload claims."""
+    model_config = ConfigDict(populate_by_name=True)
+
+    sub: str
+    email: str
+    name: str
+    tenant_id: str | None = Field(default=None, alias="tenantId")
+    role: str | None = None
+    iat: float
+    exp: float
+
+
 # ─── Response Models ──────────────────────────────────────────────────────────
 
 
@@ -43,9 +59,26 @@ class UserResponse(BaseModel):
     role: str | None = None
 
 
-class LoginResponse(BaseModel):
+class AuthResponse(BaseModel):
+    """Shared response for register and login endpoints."""
+
     token: str
     user: UserResponse
+
+
+# Keep LoginResponse as an alias for backward compat
+LoginResponse = AuthResponse
+
+
+class MeResponse(BaseModel):
+    """Response for the /auth/me endpoint."""
+    model_config = ConfigDict(populate_by_name=True)
+
+    user_id: str = Field(alias="userId")
+    email: str
+    name: str
+    tenant_id: str | None = Field(default=None, alias="tenantId")
+    role: str | None = None
 
 
 class TeamResponse(BaseModel):
@@ -67,6 +100,54 @@ class InviteResponse(BaseModel):
     uses_remaining: int = Field(alias="usesRemaining")
 
 
+class CreateInviteResponse(BaseModel):
+    """Response for POST /teams/invite."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    code: str
+    expires_at: str = Field(alias="expiresAt")
+
+
+class CreateTeamResponse(BaseModel):
+    """Response for team creation."""
+    model_config = ConfigDict(populate_by_name=True)
+
+    token: str
+    raw_api_token: str = Field(alias="rawApiToken")
+    team: TeamResponse
+
+
+class JoinTeamResponse(BaseModel):
+    """Response for joining a team."""
+    token: str
+    team: TeamResponse
+
+
+class TokenItemResponse(BaseModel):
+    """Single API token in a list."""
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str
+    label: str
+    created_at: str = Field(alias="createdAt")
+    last_used_at: str | None = Field(default=None, alias="lastUsedAt")
+
+
+class TokenListResponse(BaseModel):
+    """Response for listing API tokens."""
+    tokens: list[TokenItemResponse]
+
+
+class CreateTokenResponse(BaseModel):
+    """Response for creating a new API token."""
+    model_config = ConfigDict(populate_by_name=True)
+
+    token: str
+    label: str
+    created_at: str = Field(alias="createdAt")
+
+
 class SessionResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -82,6 +163,20 @@ class SessionResponse(BaseModel):
 
 class SessionListResponse(BaseModel):
     sessions: list[SessionResponse]
+
+
+class SessionEventResponse(BaseModel):
+    """Single event document returned from session events endpoints."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+    id: str = Field(alias="_id")
+    type: str
+    author: str | None = None
+    content: str | None = None
+    sequence: int | None = None
+    timestamp: str | None = None
+    is_final: bool = Field(default=False, alias="isFinal")
 
 
 class GraphNode(BaseModel):

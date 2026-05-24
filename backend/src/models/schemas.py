@@ -33,8 +33,9 @@ class CreateTokenRequest(BaseModel):
 # ─── Auth Models ─────────────────────────────────────────────────────────────
 
 
-class JwtPayload(BaseModel):
-    """JWT token payload claims."""
+class UserPayload(BaseModel):
+    """Decoded JWT payload returned by the jwt_auth dependency."""
+
     model_config = ConfigDict(populate_by_name=True)
 
     sub: str
@@ -42,8 +43,12 @@ class JwtPayload(BaseModel):
     name: str
     tenant_id: str | None = Field(default=None, alias="tenantId")
     role: str | None = None
-    iat: float
-    exp: float
+    iat: int
+    exp: int
+
+
+# Keep JwtPayload as an alias for backward compatibility
+JwtPayload = UserPayload
 
 
 # ─── Response Models ──────────────────────────────────────────────────────────
@@ -163,20 +168,6 @@ class SessionResponse(BaseModel):
 
 class SessionListResponse(BaseModel):
     sessions: list[SessionResponse]
-
-
-class SessionEventResponse(BaseModel):
-    """Single event document returned from session events endpoints."""
-
-    model_config = ConfigDict(populate_by_name=True, extra="allow")
-
-    id: str = Field(alias="_id")
-    type: str
-    author: str | None = None
-    content: str | None = None
-    sequence: int | None = None
-    timestamp: str | None = None
-    is_final: bool = Field(default=False, alias="isFinal")
 
 
 class GraphNode(BaseModel):

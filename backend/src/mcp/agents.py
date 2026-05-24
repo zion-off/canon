@@ -7,7 +7,7 @@ graph_explorer, memory_writer) with their instructions and tool bindings.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from google.adk.agents import Agent
 from google.adk.tools import AgentTool, google_search
@@ -23,6 +23,9 @@ from src.mcp.tools import (
     embed_query,
     emit_checkpoint_tool,
 )
+
+if TYPE_CHECKING:
+    pass
 
 MEMORY_NODE_SCHEMA = """\
 ## Memory Node Schema (memory_nodes collection)

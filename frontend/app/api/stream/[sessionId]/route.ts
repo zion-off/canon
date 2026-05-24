@@ -20,12 +20,15 @@ export async function GET(
   const url = new URL(request.url);
   const after = url.searchParams.get("after") ?? "0";
 
-  const upstream = await fetch(
-    `${API_URL}/api/v1/sessions/${sessionId}/stream?after=${after}`,
-    {
-      headers: { Authorization: `Bearer ${token}` },
-    }
+  const upstreamUrl = new URL(
+    `/api/v1/sessions/${sessionId}/stream`,
+    API_URL
   );
+  upstreamUrl.searchParams.set("after", after);
+
+  const upstream = await fetch(upstreamUrl.toString(), {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 
   if (!upstream.ok) {
     return NextResponse.json(

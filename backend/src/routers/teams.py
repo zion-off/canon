@@ -55,7 +55,7 @@ async def create_team(
         "slug": slug,
         "embeddingModel": settings.embedding_model,
         "createdAt": datetime.now(UTC),
-        "settings": {"maxGraphDepth": 3},
+        "settings": {"maxGraphDepth": 2},
     }
     result = await db.tenants.insert_one(tenant)
     tenant_id = result.inserted_id
@@ -118,6 +118,8 @@ async def join_team(
     )
 
     tenant = await db.tenants.find_one({"_id": tenant_id})
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Team not found")
     token = issue_jwt(user_id, user.email, user.name, str(tenant_id), "member")
 
     return JoinTeamResponse(
@@ -134,6 +136,8 @@ async def create_invite(
     """Create an invite code (owner only)."""
     if user.role != "owner":
         raise HTTPException(status_code=403, detail="Only team owners can create invites")
+    if not user.tenant_id:
+        raise HTTPException(status_code=400, detail="User does not belong to a team")
 
     now = datetime.now(UTC)
     code = secrets.token_hex(4)

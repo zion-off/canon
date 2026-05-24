@@ -8,6 +8,7 @@ from bson import ObjectId
 from mcp.server.fastmcp import Context, FastMCP
 
 from src.mcp.runner import run_agent
+from src.services.tenant_resolver import TenantResolver
 
 if TYPE_CHECKING:
     from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -42,27 +43,20 @@ class _RequestContext:
 
 async def _build_context(ctx: Context) -> _RequestContext:
     """Extract tenant context from the MCP request's underlying HTTP transport."""
-    from hashlib import sha256
-
     request = ctx.request
     db = request.app.state.mongo.db
 
     auth_header = request.headers.get("Authorization", "")
     token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
-    token_hash = sha256(token.encode()).hexdigest()
+    resolver = TenantResolver(db)
+    tenant_ctx = await resolver.resolve(token)
 
-    record = await db.api_tokens.find_one({"tokenHash": token_hash})
-    if not record:
+    if not tenant_ctx:
         raise ValueError("Invalid API token")
 
-    await db.api_tokens.update_one(
-        {"_id": record["_id"]},
-        {"$set": {"lastUsedAt": datetime.now(UTC)}},
-    )
-
     return _RequestContext(
-        tenant_id=str(record["tenantId"]),
-        user_id=str(record.get("userId", record["tenantId"])),
+        tenant_id=tenant_ctx.tenant_id,
+        user_id=tenant_ctx.user_id,
         db=db,
         event_feed=request.app.state.event_feed,
     )

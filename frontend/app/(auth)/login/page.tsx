@@ -51,20 +51,20 @@ export default function LoginPage() {
   return (
     <div className="w-full max-w-md px-4">
       <div className="text-center mb-8">
-        <h1 className="text-4xl font-[Syne] font-bold text-slate-200 mb-2">
+        <h1 className="text-4xl font-syne font-bold text-canon-text mb-2">
           Canon
         </h1>
-        <p className="text-slate-400 text-sm">
+        <p className="text-canon-text-dim text-sm">
           Organizational memory for engineering teams
         </p>
       </div>
 
-      <div className="bg-[#0f0f1a] border border-white/[0.08] rounded-xl p-8">
+      <div className="bg-canon-surface border border-canon-border rounded-xl p-8">
         <form action={formAction} className="space-y-5">
           <div>
             <label
               htmlFor="email"
-              className="block text-sm font-medium text-slate-300 mb-1.5"
+              className="block text-sm font-medium text-canon-text mb-1.5"
             >
               Email
             </label>
@@ -81,7 +81,7 @@ export default function LoginPage() {
           <div>
             <label
               htmlFor="password"
-              className="block text-sm font-medium text-slate-300 mb-1.5"
+              className="block text-sm font-medium text-canon-text mb-1.5"
             >
               Password
             </label>
@@ -98,7 +98,7 @@ export default function LoginPage() {
           {state.error && (
             <p
               role="alert"
-              className="text-sm text-[#EF4444] bg-[#EF4444]/10 rounded-md px-3 py-2"
+              className="text-sm text-canon-red bg-canon-red/10 rounded-md px-3 py-2"
             >
               {state.error}
             </p>
@@ -110,11 +110,11 @@ export default function LoginPage() {
         </form>
       </div>
 
-      <p className="text-center text-sm text-slate-400 mt-6">
+      <p className="text-center text-sm text-canon-text-dim mt-6">
         Don&apos;t have an account?{" "}
         <Link
           href="/register"
-          className="text-blue-500 hover:text-blue-400 transition-colors"
+          className="text-canon-blue hover:text-canon-blue/80 transition-colors"
         >
           Register
         </Link>

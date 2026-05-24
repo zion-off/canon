@@ -35,17 +35,17 @@ export default async function SessionDetailPage({
     <div className="space-y-6">
       <Link
         href="/dashboard"
-        className="inline-flex items-center gap-1 text-sm text-slate-400 transition-colors hover:text-slate-200"
+        className="inline-flex items-center gap-1 text-sm text-canon-text-dim transition-colors hover:text-canon-text"
       >
         ← Sessions
       </Link>
 
       <header>
-        <h1 className="font-[family-name:var(--font-syne)] text-2xl font-bold text-slate-200">
+        <h1 className="font-syne text-2xl font-bold text-canon-text">
           {session.title}
         </h1>
         {session.summary && (
-          <p className="mt-1 text-sm text-slate-400">{session.summary}</p>
+          <p className="mt-1 text-sm text-canon-text-dim">{session.summary}</p>
         )}
       </header>
 

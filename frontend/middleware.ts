@@ -16,8 +16,7 @@ function decodeJwtPayload(token: string): JwtPayload | null {
   try {
     const segments = token.split(".");
     if (segments.length !== 3) return null;
-    const payload = segments[1];
-    const decoded = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    const decoded = atob(segments[1].replace(/-/g, "+").replace(/_/g, "/"));
     return JSON.parse(decoded) as JwtPayload;
   } catch {
     return null;
@@ -34,20 +33,17 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get("canon_token")?.value;
 
   if (!token) {
-    const loginUrl = new URL("/login", request.url);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   const payload = decodeJwtPayload(token);
 
   if (!payload || payload.exp * 1000 < Date.now()) {
-    const loginUrl = new URL("/login", request.url);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
   if (payload.tenantId === null && pathname !== "/onboarding") {
-    const onboardingUrl = new URL("/onboarding", request.url);
-    return NextResponse.redirect(onboardingUrl);
+    return NextResponse.redirect(new URL("/onboarding", request.url));
   }
 
   return NextResponse.next();

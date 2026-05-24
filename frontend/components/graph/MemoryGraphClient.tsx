@@ -280,20 +280,20 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
           {/* Custom tooltip */}
           {hoveredNode && (
             <div
-              className="pointer-events-none absolute z-50 max-w-64 rounded-md border border-white/[0.08] bg-[#0f0f1a] px-3 py-2 shadow-lg"
+              className="pointer-events-none absolute z-50 max-w-64 rounded-md border border-canon-border bg-canon-surface px-3 py-2 shadow-lg"
               style={{
                 left: tooltipPos.x + 12,
                 top: tooltipPos.y - 8,
               }}
             >
-              <p className="text-sm font-medium text-slate-200">
+              <p className="text-sm font-medium text-canon-text">
                 {hoveredNode.name}
               </p>
-              <p className="mt-0.5 text-xs text-slate-400">
+              <p className="mt-0.5 text-xs text-canon-text-dim">
                 {hoveredNode.status} · {hoveredNode.connections} connections
               </p>
               {hoveredNode.tags.length > 0 && (
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-canon-muted">
                   {hoveredNode.tags.slice(0, 3).join(", ")}
                 </p>
               )}

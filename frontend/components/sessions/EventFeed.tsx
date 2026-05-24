@@ -66,18 +66,23 @@ function assignStableId(event: AgentEvent): IdentifiedEvent {
 }
 
 export function EventFeed({ sessionId, initialEvents, isLive }: EventFeedProps) {
+  const stableIdRef = useRef(0);
+  const assignId = useCallback((event: AgentEvent): IdentifiedEvent => {
+    return { ...event, stableId: stableIdRef.current++ };
+  }, []);
+
   const [events, setEvents] = useState<IdentifiedEvent[]>(() =>
-    initialEvents.map(assignStableId),
+    initialEvents.map((e) => ({ ...e, stableId: stableIdRef.current++ })),
   );
   const feedEndRef = useRef<HTMLDivElement>(null);
   const [live, setLive] = useState(isLive);
 
   const handleNewEvent = useCallback((event: AgentEvent) => {
-    setEvents((prev) => [...prev, assignStableId(event)]);
-    if (event.type === "run_completed" && event.isFinal) {
+    setEvents((prev) => [...prev, assignId(event)]);
+    if (event.type === "run_completed") {
       setLive(false);
     }
-  }, []);
+  }, [assignId]);
 
   useEventStream(sessionId, handleNewEvent, live);
 
@@ -89,8 +94,8 @@ export function EventFeed({ sessionId, initialEvents, isLive }: EventFeedProps) 
 
   if (events.length === 0) {
     return (
-      <div className="rounded-lg border border-white/[0.08] bg-[#0f0f1a] px-6 py-12 text-center">
-        <p className="text-slate-400">
+      <div className="rounded-lg border border-canon-border bg-canon-surface px-6 py-12 text-center">
+        <p className="text-canon-text-dim">
           No events recorded yet. Events will appear here when the session
           receives activity.
         </p>

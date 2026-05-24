@@ -1,4 +1,4 @@
-type BadgeVariant =
+export type BadgeVariant =
   | "active"
   | "in_progress"
   | "deprecated"
@@ -7,7 +7,7 @@ type BadgeVariant =
   | "default";
 
 interface BadgeProps {
-  variant?: BadgeVariant;
+  variant?: string;
   children: React.ReactNode;
   className?: string;
 }

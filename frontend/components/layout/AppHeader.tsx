@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { handleLogout } from "@/lib/actions/auth";
 
 interface AppHeaderProps {
   user: {
@@ -40,6 +41,14 @@ export function AppHeader({ user }: AppHeaderProps) {
           >
             {initial}
           </div>
+          <form action={handleLogout}>
+            <button
+              type="submit"
+              className="text-sm text-canon-text-dim hover:text-canon-text transition-colors cursor-pointer"
+            >
+              Logout
+            </button>
+          </form>
         </nav>
       </div>
     </header>

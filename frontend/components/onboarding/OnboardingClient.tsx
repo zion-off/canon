@@ -13,9 +13,9 @@ export function OnboardingClient() {
   const [activeTab, setActiveTab] = useState<Tab>("create");
 
   return (
-    <div className="min-h-screen bg-[#080810]">
-      <header className="border-b border-white/[0.08] px-6 py-4">
-        <span className="text-xl font-[Syne] font-bold text-slate-200">
+    <div className="min-h-screen bg-canon-bg">
+      <header className="border-b border-canon-border px-6 py-4">
+        <span className="text-xl font-syne font-bold text-canon-text">
           Canon
         </span>
       </header>
@@ -23,16 +23,16 @@ export function OnboardingClient() {
       <main className="flex items-center justify-center px-4 py-16">
         <div className="w-full max-w-lg">
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-[Syne] font-semibold text-slate-200 mb-2">
+            <h1 className="text-2xl font-syne font-semibold text-canon-text mb-2">
               Welcome to Canon
             </h1>
-            <p className="text-slate-400 text-sm">
+            <p className="text-canon-text-dim text-sm">
               Create a new team or join an existing one to get started.
             </p>
           </div>
 
-          <div className="bg-[#0f0f1a] border border-white/[0.08] rounded-xl overflow-hidden">
-            <div role="tablist" className="flex border-b border-white/[0.08]">
+          <div className="bg-canon-surface border border-canon-border rounded-xl overflow-hidden">
+            <div role="tablist" className="flex border-b border-canon-border">
               <TabButton
                 id="tab-create"
                 panelId="panel-create"
@@ -89,8 +89,8 @@ function TabButton({
       onClick={onClick}
       className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
         active
-          ? "text-slate-200 bg-[#161625] border-b-2 border-blue-500"
-          : "text-slate-400 hover:text-slate-300 hover:bg-white/[0.02]"
+          ? "text-canon-text bg-canon-surface-2 border-b-2 border-canon-blue"
+          : "text-canon-text-dim hover:text-canon-text hover:bg-white/[0.02]"
       }`}
     >
       {children}
@@ -148,7 +148,7 @@ function CreateTeamForm() {
       <div>
         <label
           htmlFor="team-name"
-          className="block text-sm font-medium text-slate-300 mb-1.5"
+          className="block text-sm font-medium text-canon-text mb-1.5"
         >
           Team name
         </label>
@@ -164,7 +164,7 @@ function CreateTeamForm() {
       {state.error && (
         <p
           role="alert"
-          className="text-sm text-[#EF4444] bg-[#EF4444]/10 rounded-md px-3 py-2"
+          className="text-sm text-canon-red bg-canon-red/10 rounded-md px-3 py-2"
         >
           {state.error}
         </p>
@@ -196,7 +196,7 @@ async function joinTeamAction(
 
   try {
     const result = await joinTeam(code);
-    return { error: null, teamName: result.teamName };
+    return { error: null, teamName: result.team.name };
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Failed to join team.";
@@ -226,10 +226,10 @@ function JoinTeamForm() {
   if (state.teamName) {
     return (
       <div className="text-center py-4">
-        <p className="text-lg font-medium text-slate-200">
+        <p className="text-lg font-medium text-canon-text">
           Joined {state.teamName}!
         </p>
-        <p className="text-sm text-slate-400 mt-2">Redirecting to dashboard…</p>
+        <p className="text-sm text-canon-text-dim mt-2">Redirecting to dashboard…</p>
       </div>
     );
   }
@@ -239,7 +239,7 @@ function JoinTeamForm() {
       <div>
         <label
           htmlFor="invite-code"
-          className="block text-sm font-medium text-slate-300 mb-1.5"
+          className="block text-sm font-medium text-canon-text mb-1.5"
         >
           Invite code
         </label>
@@ -257,7 +257,7 @@ function JoinTeamForm() {
       {state.error && (
         <p
           role="alert"
-          className="text-sm text-[#EF4444] bg-[#EF4444]/10 rounded-md px-3 py-2"
+          className="text-sm text-canon-red bg-canon-red/10 rounded-md px-3 py-2"
         >
           {state.error}
         </p>

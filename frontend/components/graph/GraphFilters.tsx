@@ -50,12 +50,12 @@ export function GraphFilters({
   );
 
   return (
-    <div className="flex items-center gap-3 border-b border-white/[0.08] px-4 py-3">
+    <div className="flex items-center gap-3 border-b border-canon-border px-4 py-3">
       {/* Status dropdown */}
       <select
         value={statusFilter}
         onChange={(e) => onStatusChange(e.target.value)}
-        className="rounded-md border border-white/[0.08] bg-[#0f0f1a] px-3 py-1.5 text-sm text-slate-200 outline-none focus:border-blue-500/50"
+        className="rounded-md border border-canon-border bg-canon-surface px-3 py-1.5 text-sm text-canon-text outline-none focus:border-canon-blue/50"
       >
         {STATUS_OPTIONS.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -77,17 +77,17 @@ export function GraphFilters({
           onFocus={() => setShowTagSuggestions(true)}
           onBlur={() => setTimeout(() => setShowTagSuggestions(false), 150)}
           placeholder="Filter by tag…"
-          className="w-40 rounded-md border border-white/[0.08] bg-[#0f0f1a] px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-500 outline-none focus:border-blue-500/50"
+          className="w-40 rounded-md border border-canon-border bg-canon-surface px-3 py-1.5 text-sm text-canon-text placeholder:text-canon-muted outline-none focus:border-canon-blue/50"
         />
         {showTagSuggestions && filteredTags.length > 0 && (
-          <ul className="absolute top-full left-0 z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-white/[0.08] bg-[#0f0f1a] py-1 shadow-lg">
+          <ul className="absolute top-full left-0 z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-canon-border bg-canon-surface py-1 shadow-lg">
             {filteredTags.slice(0, 10).map((tag) => (
               <li key={tag}>
                 <button
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => handleTagSelect(tag)}
-                  className="w-full px-3 py-1 text-left text-sm text-slate-300 hover:bg-white/[0.05]"
+                  className="w-full px-3 py-1 text-left text-sm text-canon-text hover:bg-white/[0.05]"
                 >
                   {tag}
                 </button>
@@ -103,11 +103,11 @@ export function GraphFilters({
         value={searchQuery}
         onChange={(e) => onSearchChange(e.target.value)}
         placeholder="Search nodes…"
-        className="w-48 rounded-md border border-white/[0.08] bg-[#0f0f1a] px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-500 outline-none focus:border-blue-500/50"
+        className="w-48 rounded-md border border-canon-border bg-canon-surface px-3 py-1.5 text-sm text-canon-text placeholder:text-canon-muted outline-none focus:border-canon-blue/50"
       />
 
       {/* Counts */}
-      <span className="ml-auto text-xs text-slate-500">
+      <span className="ml-auto text-xs text-canon-muted">
         {nodeCount} nodes · {linkCount} edges
       </span>
     </div>

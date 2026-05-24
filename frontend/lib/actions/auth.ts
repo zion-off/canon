@@ -1,35 +1,11 @@
 "use server";
 
 import { cookies } from "next/headers";
-import {
-  AuthResponseSchema,
-  MeResponseSchema,
-  type AuthResponse,
-  type MeResponse,
-} from "@/lib/schemas/auth";
+import { redirect } from "next/navigation";
+import { AuthResponseSchema, MeResponseSchema, type AuthResponse, type MeResponse } from "@/lib/schemas/auth";
+import { API_URL, handleErrorResponse, logout, setAuthCookie } from "@/lib/api-utils";
 
-const API_URL = process.env.API_URL ?? "http://localhost:8000";
-
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: true,
-  sameSite: "lax" as const,
-  path: "/",
-  maxAge: 60 * 60 * 24 * 7,
-};
-
-async function handleErrorResponse(res: Response): Promise<never> {
-  const err = await res.json().catch(() => null);
-  throw new Error(
-    (err as { detail?: string } | null)?.detail ??
-      `Request failed: ${res.status}`
-  );
-}
-
-export async function login(
-  email: string,
-  password: string
-): Promise<AuthResponse["user"]> {
+export async function login(email: string, password: string): Promise<AuthResponse["user"]> {
   const res = await fetch(`${API_URL}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -44,17 +20,11 @@ export async function login(
   }
 
   const data = AuthResponseSchema.parse(await res.json());
-  const cookieStore = await cookies();
-  cookieStore.set("canon_token", data.token, COOKIE_OPTIONS);
-
+  await setAuthCookie(data.token);
   return data.user;
 }
 
-export async function register(
-  email: string,
-  name: string,
-  password: string
-): Promise<AuthResponse["user"]> {
+export async function register(email: string, name: string, password: string): Promise<AuthResponse["user"]> {
   const res = await fetch(`${API_URL}/api/v1/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -69,15 +39,15 @@ export async function register(
   }
 
   const data = AuthResponseSchema.parse(await res.json());
-  const cookieStore = await cookies();
-  cookieStore.set("canon_token", data.token, COOKIE_OPTIONS);
-
+  await setAuthCookie(data.token);
   return data.user;
 }
 
-export async function logout(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.delete("canon_token");
+export { logout };
+
+export async function handleLogout() {
+  await logout();
+  redirect("/login");
 }
 
 export async function getCurrentUser(): Promise<MeResponse | null> {

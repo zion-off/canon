@@ -23,20 +23,20 @@ export function RunGroup({ runIndex, events, timestamp }: RunGroupProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-3 pb-1 pt-4">
-        <span className="text-sm font-medium text-slate-300">
+        <span className="text-sm font-medium text-canon-text">
           Run {runIndex}
         </span>
         {timestamp && (
           <>
-            <span className="text-slate-600">·</span>
-            <span className="text-xs text-slate-500">
+            <span className="text-canon-muted">·</span>
+            <span className="text-xs text-canon-muted">
               {formatRunTime(timestamp)}
             </span>
           </>
         )}
       </div>
 
-      <div className="space-y-2 border-l border-white/[0.06] pl-4">
+      <div className="space-y-2 border-l border-canon-border pl-4">
         {events.map((event) => (
           <EventItem key={event.stableId} event={event} />
         ))}

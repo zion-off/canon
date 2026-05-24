@@ -28,7 +28,7 @@ function statusColor(status: string): string {
 }
 
 function borderColor(status: string): string {
-  return status === "active" ? "border-l-blue-500" : "border-l-slate-700";
+  return status === "active" ? "border-l-canon-blue" : "border-l-slate-700";
 }
 
 export function SessionCard({ session }: SessionCardProps) {
@@ -41,29 +41,29 @@ export function SessionCard({ session }: SessionCardProps) {
   return (
     <Link href={`/sessions/${session.sessionId}`} className="block group">
       <div
-        className={`rounded-lg border border-white/[0.08] border-l-2 ${borderColor(session.status)} bg-[#0f0f1a] px-5 py-4 transition-colors group-hover:bg-[#141428]`}
+        className={`rounded-lg border border-canon-border border-l-2 ${borderColor(session.status)} bg-canon-surface px-5 py-4 transition-colors group-hover:bg-[#141428]`}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span
               className={`inline-block h-2 w-2 rounded-full ${statusColor(session.status)}`}
             />
-            <span className="font-medium text-slate-200">
+            <span className="font-medium text-canon-text">
               {session.title}
             </span>
           </div>
-          <span className="text-sm text-slate-400">
+          <span className="text-sm text-canon-text-dim">
             {relativeTime(session.lastRunAt ?? session.updatedAt)}
           </span>
         </div>
 
         <div className="mt-2 flex items-center justify-between">
           {truncatedSummary ? (
-            <p className="text-sm text-slate-400">{truncatedSummary}</p>
+            <p className="text-sm text-canon-text-dim">{truncatedSummary}</p>
           ) : (
-            <p className="text-sm italic text-slate-500">No summary</p>
+            <p className="text-sm italic text-canon-muted">No summary</p>
           )}
-          <span className="ml-4 shrink-0 rounded-full bg-white/[0.06] px-2.5 py-0.5 text-xs text-slate-400">
+          <span className="ml-4 shrink-0 rounded-full bg-white/[0.06] px-2.5 py-0.5 text-xs text-canon-text-dim">
             {session.runCount} run{session.runCount !== 1 ? "s" : ""}
           </span>
         </div>

@@ -25,7 +25,7 @@ function RunSeparator({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-3 py-2">
       <div className="h-px flex-1 bg-slate-700/50" />
-      <span className="text-xs text-slate-500">{label}</span>
+      <span className="text-xs text-canon-muted">{label}</span>
       <div className="h-px flex-1 bg-slate-700/50" />
     </div>
   );
@@ -49,30 +49,30 @@ function CollapsibleEvent({
     <button
       type="button"
       onClick={() => setExpanded((prev) => !prev)}
-      className="w-full rounded-md border border-white/[0.06] bg-[#0a0a18] px-4 py-3 text-left transition-colors hover:bg-[#10101f]"
+      className="w-full rounded-md border border-canon-border bg-[#0a0a18] px-4 py-3 text-left transition-colors hover:bg-[#10101f]"
     >
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-slate-300">
+        <div className="flex items-center gap-2 text-sm text-canon-text">
           <span>{icon}</span>
           <span className="font-medium">{label}</span>
           {!expanded && firstLine && (
-            <span className="ml-2 truncate text-slate-500">{firstLine}</span>
+            <span className="ml-2 truncate text-canon-muted">{firstLine}</span>
           )}
         </div>
         {timestamp && (
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-canon-muted">
             {formatTimestamp(timestamp)}
           </span>
         )}
       </div>
       {expanded && content && (
-        <div className="mt-3 border-t border-white/[0.06] pt-3">
+        <div className="mt-3 border-t border-canon-border pt-3">
           {isJsonContent(content) ? (
-            <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-xs text-slate-400">
+            <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-xs text-canon-text-dim">
               {content}
             </pre>
           ) : (
-            <p className="whitespace-pre-wrap text-sm text-slate-400">
+            <p className="whitespace-pre-wrap text-sm text-canon-text-dim">
               {content}
             </p>
           )}
@@ -93,7 +93,7 @@ export function EventItem({ event }: EventItemProps) {
     case "subagent_invoked":
       return (
         <div className="py-1 pl-4">
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-canon-muted">
             ▶ {event.content ?? "Subagent"} started
           </span>
         </div>
@@ -121,19 +121,19 @@ export function EventItem({ event }: EventItemProps) {
 
     case "reasoning_checkpoint":
       return (
-        <div className="rounded-md border-l-2 border-l-blue-500 bg-[#0c0c20] px-4 py-3">
+        <div className="rounded-md border-l-2 border-l-canon-blue bg-[#0c0c20] px-4 py-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wide text-blue-400">
               Reasoning
             </span>
             {event.timestamp && (
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-canon-muted">
                 {formatTimestamp(event.timestamp)}
               </span>
             )}
           </div>
           {event.content && (
-            <p className="mt-2 whitespace-pre-wrap text-sm text-slate-200">
+            <p className="mt-2 whitespace-pre-wrap text-sm text-canon-text">
               {event.content}
             </p>
           )}
@@ -142,13 +142,13 @@ export function EventItem({ event }: EventItemProps) {
 
     case "final_response":
       return (
-        <div className="rounded-md border-l-4 border-l-blue-500 bg-[#0d0d22] px-5 py-4">
+        <div className="rounded-md border-l-4 border-l-canon-blue bg-[#0d0d22] px-5 py-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wide text-blue-300">
               Final Response
             </span>
             {event.timestamp && (
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-canon-muted">
                 {formatTimestamp(event.timestamp)}
               </span>
             )}
@@ -156,11 +156,11 @@ export function EventItem({ event }: EventItemProps) {
           {event.content && (
             <div className="mt-3">
               {isJsonContent(event.content) ? (
-                <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-sm text-slate-200">
+                <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-sm text-canon-text">
                   {event.content}
                 </pre>
               ) : (
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-200">
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-canon-text">
                   {event.content}
                 </p>
               )}

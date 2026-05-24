@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 export const runtime = "edge";
@@ -6,12 +6,12 @@ export const runtime = "edge";
 const API_URL = process.env.API_URL ?? "http://localhost:8000";
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const { sessionId } = await params;
-  const cookieStore = await cookies();
-  const token = cookieStore.get("canon_token")?.value;
+  // Edge Runtime: read cookie from the request directly (no next/headers)
+  const token = request.cookies.get("canon_token")?.value;
 
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

@@ -13,6 +13,11 @@ from google.genai.types import Content, Part
 from src.config import settings
 from src.mcp.agents import build_orchestrator
 from src.mcp.ambient_context import AmbientContextPlugin
+from src.mcp.constants import (
+    AgentName,
+    EventType,
+    SessionState,
+)
 from src.mcp.plugin import ReasoningFeedPlugin
 from src.mcp.utils import get_genai_client
 from src.models.documents import TenantDocument
@@ -44,7 +49,6 @@ async def run_agent(
         return "Error: tenant not found."
 
     # Atomically upsert session and increment runCount.
-    # Uses the Motor escape hatch to preserve the atomic $inc + $setOnInsert.
     session_doc = await db.sessions.find_one_and_update(
         {"sessionId": session_id},
         {
@@ -76,13 +80,13 @@ async def run_agent(
         app_name="canon",
         user_id=tenant_id,
         state={
-            "app:tenant_id": tenant_id,
-            "app:user_id": user_id,
-            "app:org_name": tenant.name,
-            "app:session_id": session_id,
-            "app:run_id": run_id,
-            "app:max_graph_depth": tenant.settings.get("maxGraphDepth", 2),
-            "app:embedding_model": tenant.embedding_model,
+            SessionState.TENANT_ID: tenant_id,
+            SessionState.USER_ID: user_id,
+            SessionState.ORG_NAME: tenant.name,
+            SessionState.SESSION_ID: session_id,
+            SessionState.RUN_ID: run_id,
+            SessionState.MAX_GRAPH_DEPTH: tenant.settings.get("maxGraphDepth", 2),
+            SessionState.EMBEDDING_MODEL: tenant.embedding_model,
         },
     )
 
@@ -113,16 +117,16 @@ async def run_agent(
         session_id=session_id,
         run_id=run_id,
         event=AgentEvent(
-            type="run_started",
-            author="canon_orchestrator",
+            type=EventType.RUN_STARTED,
+            author=AgentName.ORCHESTRATOR,
             content=None,
             is_final=False,
         ),
     )
 
     # Run orchestrator — the ReasoningFeedPlugin handles lifecycle events
-    # (tool_call_started, tool_call_completed, subagent_invoked) automatically.
-    # This loop only detects reasoning checkpoints and the final response.
+    # automatically. This loop only detects reasoning checkpoints and the
+    # final response.
     final_response = None
     async for event in runner.run_async(
         user_id=tenant_id,
@@ -138,8 +142,8 @@ async def run_agent(
                     session_id=session_id,
                     run_id=run_id,
                     event=AgentEvent(
-                        type="reasoning_checkpoint",
-                        author="canon_orchestrator",
+                        type=EventType.REASONING_CHECKPOINT,
+                        author=AgentName.ORCHESTRATOR,
                         content=fc.args.get("message", ""),
                         is_final=False,
                     ),
@@ -156,8 +160,8 @@ async def run_agent(
             session_id=session_id,
             run_id=run_id,
             event=AgentEvent(
-                type="final_response",
-                author="canon_orchestrator",
+                type=EventType.FINAL_RESPONSE,
+                author=AgentName.ORCHESTRATOR,
                 content=final_response,
                 is_final=True,
             ),
@@ -170,8 +174,8 @@ async def run_agent(
         session_id=session_id,
         run_id=run_id,
         event=AgentEvent(
-            type="run_completed",
-            author="canon_orchestrator",
+            type=EventType.RUN_COMPLETED,
+            author=AgentName.ORCHESTRATOR,
             content=None,
             is_final=False,
         ),

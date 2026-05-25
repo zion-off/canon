@@ -20,6 +20,7 @@ from mcp.client.stdio import StdioServerParameters
 from pydantic import BaseModel, Field
 
 from src.config import settings
+from src.mcp.constants import AgentName, TempState
 from src.mcp.tools import (
     embed_query_tool,
     emit_checkpoint_tool,
@@ -29,22 +30,12 @@ from src.mcp.tools import (
 MEMORY_NODE_SCHEMA = """\
 ## Memory Node Schema (memory_nodes collection)
 
-- _id: ObjectId
-- tenantId: ObjectId
-- name: string
-- description: string
-- content: string (full text body)
-- status: string (active, deprecated, in_progress, resolved, completed)
-- relatedEntityIds: ObjectId[] (max 100 — graph edges for $graphLookup)
-- supersedes: ObjectId | null (the node this one replaces — null if original)
-- supersededBy: ObjectId | null (the node that replaced this one — null if current)
-- tags: string[]
-- embedding: float[768] (generated synchronously — never write directly)
-- embeddingText: string (constructed by prepare_embedding — never write directly)
-- createdAt: ISODate
-- updatedAt: ISODate
-- metadata: object (freeform — agent writes whatever organizational context is useful)
-"""
+The ``MemoryNode`` Pydantic model describes the full schema — its JSON
+schema is sent to the LLM as the tool input definition, so this section
+is just a quick reference.
+
+- name, description, content, status, tags, relatedEntityIds, supersedes,
+  metadata"""
 
 SEMANTIC_RETRIEVER_INSTRUCTION = f"""\
 You are Canon's perception layer. Find memory nodes relevant to the given query \
@@ -259,9 +250,9 @@ async def log_tool_usage(
         "timestamp": datetime.now(UTC).isoformat(),
         "success": "error" not in (result if isinstance(result, dict) else {}),
     }
-    logs = state.get("temp:tool_logs", [])
+    logs = state.get(TempState.TOOL_LOGS, [])
     logs.append(log_entry)
-    state["temp:tool_logs"] = logs
+    state[TempState.TOOL_LOGS] = logs
     return None
 
 
@@ -315,7 +306,7 @@ def _get_semantic_retriever() -> Agent:
     global _semantic_retriever
     if _semantic_retriever is None:
         _semantic_retriever = Agent(
-            name="semantic_retriever",
+            name=AgentName.SEMANTIC_RETRIEVER,
             model=settings.fast_model,
             description="Perceives relevant organizational knowledge through hybrid search. "
             "Call with a query to find semantically and textually related memory nodes.",
@@ -331,7 +322,7 @@ def _get_graph_explorer() -> Agent:
     global _graph_explorer
     if _graph_explorer is None:
         _graph_explorer = Agent(
-            name="graph_explorer",
+            name=AgentName.GRAPH_EXPLORER,
             model=settings.fast_model,
             description="Traces relationships in the knowledge graph. Call when you need to "
             "understand what connects to a specific node — its neighbors, "
@@ -348,7 +339,7 @@ def _get_memory_writer() -> Agent:
     global _memory_writer
     if _memory_writer is None:
         _memory_writer = Agent(
-            name="memory_writer",
+            name=AgentName.MEMORY_WRITER,
             model=settings.reasoning_model,
             description="Crystallizes observations into structured memory nodes, resolves "
             "relationships, and persists to the knowledge graph. Call with the "
@@ -370,7 +361,7 @@ def _get_memory_writer() -> Agent:
 def build_orchestrator() -> Agent:
     """Construct the orchestrator agent for a single request."""
     return Agent(
-        name="canon_orchestrator",
+        name=AgentName.ORCHESTRATOR,
         model=settings.reasoning_model,
         instruction=ORCHESTRATOR_INSTRUCTION,
         tools=[

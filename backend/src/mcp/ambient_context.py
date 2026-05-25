@@ -1,6 +1,4 @@
-"""Plugin that injects ambient context (tenant ID, database name) into
-MongoDB MCP tool calls, and auto-wraps ObjectId hex strings into EJSON
-``$oid`` format.
+"""Plugin that injects ambient context into MongoDB MCP tool calls.
 
 The LLM only emits intent — it never has to predict or remember ambient
 values like which tenant owns the request or which database to target.
@@ -8,8 +6,8 @@ This plugin intercepts every MongoDB MCP tool invocation and:
 
 - Injects ``tenantId`` into filters, documents, and pipeline stages.
 - Injects ``database`` forced to ``"canon"``.
-- Wraps 24-char hex strings in ObjectId fields to ``{"$oid": "<hex>"}``
-  so the LLM never worries about EJSON serialization.
+- Wraps 24-char hex strings in ObjectId fields to EJSON ``$oid`` format
+  so the LLM never worries about serialization.
 
 Named by mechanism (injecting ambient context), not outcome (tenant
 isolation).
@@ -24,27 +22,16 @@ from google.adk.plugins.base_plugin import BasePlugin
 from google.adk.tools.base_tool import BaseTool
 from google.adk.tools.tool_context import ToolContext
 
-# 24-character hex string pattern (MongoDB ObjectId / BSON ObjectId).
+from src.mcp.constants import (
+    Database,
+    SessionState,
+    ToolName,
+)
+
 _HEX24 = re.compile(r"^[0-9a-fA-F]{24}$")
 
-# Fields whose values should be wrapped in {"$oid": "<hex>"} when they
-# appear as 24-char hex strings.
-_OID_FIELDS = frozenset(
-    {
-        "_id",
-        "tenantId",
-        "supersedes",
-        "supersededBy",
-    }
-)
-
-# Fields whose values (or list-element values) are 24-char hex strings that
-# should be wrapped in EJSON $oid format.
-_OID_ARRAY_FIELDS = frozenset(
-    {
-        "relatedEntityIds",
-    }
-)
+_OID_FIELDS = frozenset({"_id", "tenantId", "supersedes", "supersededBy"})
+_OID_ARRAY_FIELDS = frozenset({"relatedEntityIds"})
 
 
 class AmbientContextPlugin(BasePlugin):
@@ -57,15 +44,6 @@ class AmbientContextPlugin(BasePlugin):
 
     def __init__(self) -> None:
         super().__init__(name="ambient_context")
-        self._mongo_tools = frozenset(
-            {
-                "find",
-                "aggregate",
-                "count",
-                "insert-many",
-                "update-many",
-            }
-        )
 
     async def before_tool_callback(
         self,
@@ -74,32 +52,29 @@ class AmbientContextPlugin(BasePlugin):
         tool_args: dict[str, Any],
         tool_context: ToolContext,
     ) -> dict | None:
-        if tool.name not in self._mongo_tools:
+        if tool.name not in ToolName.ALL:
             return None
 
-        tenant_id = tool_context.state.get("app:tenant_id")
+        tenant_id = tool_context.state.get(SessionState.TENANT_ID)
         if not tenant_id:
             return None
 
-        # Force database to "canon".
-        tool_args["database"] = "canon"
-
-        # Auto-wrap hex strings in ObjectId fields to EJSON $oid format.
+        tool_args["database"] = Database.CANON
         self._ejsonize(tool_args)
 
         ejson_tenant = {"$oid": tenant_id}
 
-        if tool.name in ("find", "count"):
+        if tool.name in (ToolName.FIND, ToolName.COUNT):
             self._inject_into_filter(tool_args, ejson_tenant)
 
-        elif tool.name == "aggregate":
-            max_depth = tool_context.state.get("app:max_graph_depth", 2)
+        elif tool.name == ToolName.AGGREGATE:
+            max_depth = tool_context.state.get(SessionState.MAX_GRAPH_DEPTH, 2)
             self._inject_into_pipeline(tool_args, ejson_tenant, max_depth)
 
-        elif tool.name == "insert-many":
+        elif tool.name == ToolName.INSERT_MANY:
             self._inject_into_documents(tool_args, ejson_tenant)
 
-        elif tool.name == "update-many":
+        elif tool.name == ToolName.UPDATE_MANY:
             self._inject_into_filter(tool_args, ejson_tenant)
 
         return None
@@ -108,12 +83,6 @@ class AmbientContextPlugin(BasePlugin):
 
     @staticmethod
     def _ejsonize(obj: Any) -> None:
-        """Walk the object tree in place and wrap 24-char hex strings in
-        ObjectId-keyed fields to EJSON ``{"$oid": "<hex>"}`` format.
-
-        The LLM passes plain hex strings for IDs. This method converts them
-        before they reach the MongoDB MCP server.
-        """
         if isinstance(obj, dict):
             for key, value in list(obj.items()):
                 if (
@@ -132,7 +101,6 @@ class AmbientContextPlugin(BasePlugin):
 
     @staticmethod
     def _ejsonize_oid_list(items: list[Any]) -> list[Any]:
-        """Convert a list of 24-char hex strings to EJSON ``$oid`` objects."""
         return [
             {"$oid": item} if isinstance(item, str) and _HEX24.match(item) else item
             for item in items
@@ -145,7 +113,6 @@ class AmbientContextPlugin(BasePlugin):
         tool_args: dict[str, Any],
         ejson_tenant: dict[str, str],
     ) -> None:
-        """Inject tenantId into a MongoDB filter."""
         filt = tool_args.get("filter")
         if isinstance(filt, dict):
             filt["tenantId"] = ejson_tenant
@@ -155,7 +122,6 @@ class AmbientContextPlugin(BasePlugin):
         tool_args: dict[str, Any],
         ejson_tenant: dict[str, str],
     ) -> None:
-        """Inject tenantId into every document in an insert-many payload."""
         documents = tool_args.get("documents")
         if isinstance(documents, list):
             for doc in documents:
@@ -168,15 +134,6 @@ class AmbientContextPlugin(BasePlugin):
         ejson_tenant: dict[str, str],
         max_depth: int = 2,
     ) -> None:
-        """Inject ambient context into an aggregation pipeline.
-
-        Handles injection points:
-        1. ``$match`` stages — inject ``tenantId`` into the match expression.
-        2. ``$vectorSearch`` stages — inject ``tenantId`` into ``preFilter``.
-        3. ``$search`` stages — inject ``tenantId`` into ``filter``.
-        4. ``$graphLookup`` stages — inject ``tenantId`` into
-           ``restrictSearchWithMatch`` and ``maxDepth`` unless already set.
-        """
         pipeline = tool_args.get("pipeline")
         if not isinstance(pipeline, list):
             return
@@ -209,6 +166,5 @@ class AmbientContextPlugin(BasePlugin):
                 ):
                     gl["restrictSearchWithMatch"] = {}
                 gl["restrictSearchWithMatch"]["tenantId"] = ejson_tenant
-                # Inject maxDepth from state if not already set.
                 if "maxDepth" not in gl:
                     gl["maxDepth"] = max_depth

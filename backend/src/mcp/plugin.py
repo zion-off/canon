@@ -14,6 +14,7 @@ from google.adk.plugins.base_plugin import BasePlugin
 from google.adk.tools.base_tool import BaseTool
 from google.genai import types
 
+from src.mcp.constants import AgentName, EventType, SessionState
 from src.mcp.utils import summarize_args, summarize_result
 from src.models.schemas import AgentEvent
 
@@ -39,23 +40,20 @@ class ReasoningFeedPlugin(BasePlugin):
         self, *, agent: BaseAgent, callback_context: CallbackContext
     ) -> types.Content | None:
         """Emit subagent_invoked for non-orchestrator agents."""
-        tenant_id = callback_context.state.get("app:tenant_id")
-        session_id = callback_context.state.get("app:session_id")
-        run_id = callback_context.state.get("app:run_id")
-        agent_name = agent.name
+        if agent.name == AgentName.ORCHESTRATOR:
+            return None
 
-        if agent_name != "canon_orchestrator":
-            await self._event_feed.broadcast(
-                tenant_id=tenant_id,
-                user_id=callback_context.state.get("app:user_id"),
-                session_id=session_id,
-                run_id=run_id,
-                event=AgentEvent(
-                    type="subagent_invoked",
-                    author=agent_name,
-                    content=f"{agent_name} started",
-                ),
-            )
+        await self._event_feed.broadcast(
+            tenant_id=callback_context.state.get(SessionState.TENANT_ID),
+            user_id=callback_context.state.get(SessionState.USER_ID),
+            session_id=callback_context.state.get(SessionState.SESSION_ID),
+            run_id=callback_context.state.get(SessionState.RUN_ID),
+            event=AgentEvent(
+                type=EventType.SUBAGENT_INVOKED,
+                author=agent.name,
+                content=f"{agent.name} started",
+            ),
+        )
         return None
 
     async def before_tool_callback(
@@ -66,17 +64,13 @@ class ReasoningFeedPlugin(BasePlugin):
         tool_context: ToolContext,
     ) -> dict | None:
         """Emit tool_call_started."""
-        tenant_id = tool_context.state.get("app:tenant_id")
-        session_id = tool_context.state.get("app:session_id")
-        run_id = tool_context.state.get("app:run_id")
-
         await self._event_feed.broadcast(
-            tenant_id=tenant_id,
-            user_id=tool_context.state.get("app:user_id"),
-            session_id=session_id,
-            run_id=run_id,
+            tenant_id=tool_context.state.get(SessionState.TENANT_ID),
+            user_id=tool_context.state.get(SessionState.USER_ID),
+            session_id=tool_context.state.get(SessionState.SESSION_ID),
+            run_id=tool_context.state.get(SessionState.RUN_ID),
             event=AgentEvent(
-                type="tool_call_started",
+                type=EventType.TOOL_CALL_STARTED,
                 author=tool_context.agent_name,
                 content=f"{tool.name}: {summarize_args(tool_args)}",
             ),
@@ -92,18 +86,14 @@ class ReasoningFeedPlugin(BasePlugin):
         result: dict,
     ) -> dict | None:
         """Emit tool_call_completed with a summary of the invocation."""
-        tenant_id = tool_context.state.get("app:tenant_id")
-        session_id = tool_context.state.get("app:session_id")
-        run_id = tool_context.state.get("app:run_id")
-
         summary = summarize_result(tool.name, tool_args, result)
         await self._event_feed.broadcast(
-            tenant_id=tenant_id,
-            user_id=tool_context.state.get("app:user_id"),
-            session_id=session_id,
-            run_id=run_id,
+            tenant_id=tool_context.state.get(SessionState.TENANT_ID),
+            user_id=tool_context.state.get(SessionState.USER_ID),
+            session_id=tool_context.state.get(SessionState.SESSION_ID),
+            run_id=tool_context.state.get(SessionState.RUN_ID),
             event=AgentEvent(
-                type="tool_call_completed",
+                type=EventType.TOOL_CALL_COMPLETED,
                 author=tool_context.agent_name,
                 content=summary,
             ),

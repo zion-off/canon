@@ -20,9 +20,10 @@ if TYPE_CHECKING:
 
 
 mcp = FastMCP(
-    "Canon",
+    "canon",
     stateless_http=True,
     instructions="Ambient organizational continuity agent for engineering teams.",
+    streamable_http_path="/",
 )
 
 

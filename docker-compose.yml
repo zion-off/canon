@@ -21,6 +21,15 @@ services:
     restart: no
     ports:
       - "8000:8000"
+    volumes:
+      - ~/.config/gcloud/application_default_credentials.json:/gcp/credentials.json:ro
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/gcp/credentials.json
+      - MONGODB_URI=${MONGODB_URI:-mongodb://mongo:27017/canon}
+      - JWT_SECRET=${JWT_SECRET}
+      - CANON_REASONING_MODEL=${CANON_REASONING_MODEL:-gemini-3.1-pro}
+      - CANON_FAST_MODEL=${CANON_FAST_MODEL:-gemini-3.1-flash}
+      - CANON_EMBEDDING_MODEL=${CANON_EMBEDDING_MODEL:-text-embedding-004}
     develop:
       watch:
         - action: sync
@@ -31,13 +40,6 @@ services:
             - .venv/
         - action: rebuild
           path: ./backend/pyproject.toml
-    environment:
-      - MONGODB_URI=${MONGODB_URI:-mongodb://mongo:27017/canon}
-      - JWT_SECRET=${JWT_SECRET}
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - CANON_REASONING_MODEL=${CANON_REASONING_MODEL:-gemini-3.1-pro}
-      - CANON_FAST_MODEL=${CANON_FAST_MODEL:-gemini-3.1-flash}
-      - CANON_EMBEDDING_MODEL=${CANON_EMBEDDING_MODEL:-text-embedding-004}
     depends_on:
       mongo:
         condition: service_healthy

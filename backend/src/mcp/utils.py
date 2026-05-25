@@ -4,8 +4,6 @@ from typing import Any
 
 import google.genai as genai
 
-from src.config import settings
-
 _genai_client: genai.Client | None = None
 
 
@@ -13,7 +11,7 @@ def get_genai_client() -> genai.Client:
     """Return a lazily-initialized Gemini API client singleton."""
     global _genai_client  # noqa: PLW0603
     if _genai_client is None:
-        _genai_client = genai.Client(api_key=settings.gemini_api_key)
+        _genai_client = genai.Client()
     return _genai_client
 
 

@@ -2,3 +2,4 @@
 docs/internal/
 AGENTS.md
 .commandcode
+.env

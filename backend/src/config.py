@@ -18,7 +18,6 @@ class Settings(BaseSettings):
     Required (no defaults — must be set in environment or .env):
         - mongodb_uri  (MONGODB_URI)
         - jwt_secret   (JWT_SECRET)
-        - gemini_api_key (GEMINI_API_KEY)
 
     Optional with sensible defaults:
         - reasoning_model (CANON_REASONING_MODEL)
@@ -35,7 +34,6 @@ class Settings(BaseSettings):
     # ─── Required Secrets ─────────────────────────────────────────────────
     mongodb_uri: str
     jwt_secret: str
-    gemini_api_key: str
 
     # ─── Model Configuration ─────────────────────────────────────────────
     reasoning_model: str = Field(

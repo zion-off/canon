@@ -20,13 +20,13 @@ from mcp.client.stdio import StdioServerParameters
 from pydantic import BaseModel, Field
 
 from src.config import settings
+from src.mcp.agent_platform import VertexGemini
 from src.mcp.constants import AgentName, TempState
 from src.mcp.tools import (
     emit_checkpoint_tool,
     hybrid_search_tool,
     prepare_embedding_tool,
 )
-from src.mcp.utils import VertexGemini
 
 MEMORY_NODE_SCHEMA = """\
 ## Memory Node Schema (memory_nodes collection)

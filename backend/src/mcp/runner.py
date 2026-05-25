@@ -12,6 +12,7 @@ from google.genai.types import Content, Part
 
 from src.config import settings
 from src.constants import Status
+from src.mcp.agent_platform import get_genai_client
 from src.mcp.agents import build_orchestrator
 from src.mcp.ambient_context import AmbientContextPlugin
 from src.mcp.constants import (
@@ -21,7 +22,6 @@ from src.mcp.constants import (
     ToolName,
 )
 from src.mcp.plugin import ReasoningFeedPlugin
-from src.mcp.utils import get_genai_client
 from src.models.documents import SessionDocument, TenantDocument
 from src.models.schemas import AgentEvent
 

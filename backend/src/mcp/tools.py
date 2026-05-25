@@ -24,6 +24,7 @@ from mcp.types import TextContent
 
 from mcp import ClientSession
 from src.config import settings
+from src.mcp.agent_platform import get_genai_client
 from src.mcp.constants import Database, SessionState, TempState
 from src.mcp.models import (
     EmitCheckpointResult,
@@ -36,7 +37,6 @@ from src.mcp.models import (
     PrepareSuccess,
     RelationshipMeta,
 )
-from src.mcp.utils import get_genai_client
 
 # ─── Embedding Utilities ─────────────────────────────────────────────────────
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from beanie import SortDirection
@@ -13,11 +12,8 @@ from mcp.types import ToolAnnotations
 from src.constants import Status
 from src.mcp.runner import run_agent
 from src.models.documents import MemoryNodeDocument
+from src.services.event_feed import AgentEventFeed, get_feed
 from src.services.tenant_resolver import TenantResolver
-
-if TYPE_CHECKING:
-    from src.services.event_feed import AgentEventFeed
-
 
 mcp = FastMCP(
     "canon",
@@ -58,7 +54,7 @@ async def _build_context(ctx: Context) -> _RequestContext:
     return _RequestContext(
         tenant_id=tenant_ctx.tenant_id,
         user_id=tenant_ctx.user_id,
-        event_feed=request.app.state.event_feed,
+        event_feed=get_feed(),
     )
 
 

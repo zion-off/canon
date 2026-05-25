@@ -15,6 +15,7 @@ import sys
 import uvicorn
 from fastapi import FastAPI
 
+import src.services.event_feed as event_feed_module
 from src.mcp.server import mcp
 from src.routers.auth import router as auth_router
 from src.routers.graph import router as graph_router
@@ -38,6 +39,7 @@ async def lifespan(app: FastAPI):
         app.state.mongo = mongo
 
         event_feed = AgentEventFeed()
+        event_feed_module._feed = event_feed
         app.state.event_feed = event_feed
 
         # Defer agent initialization — requires Gemini API key and ADK agents

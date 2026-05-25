@@ -11,6 +11,16 @@ from bson import ObjectId
 from src.models.documents import AgentEventDocument
 from src.models.schemas import AgentEvent
 
+# Module-level singleton — initialized by the application lifespan.
+_feed: AgentEventFeed | None = None
+
+
+def get_feed() -> AgentEventFeed:
+    """Return the singleton AgentEventFeed. Raises if not yet initialized."""
+    if _feed is None:
+        raise RuntimeError("AgentEventFeed not initialized")
+    return _feed
+
 
 class AgentEventFeed:
     """Manages live event streaming and persistence for the Reasoning Feed.
@@ -97,11 +107,9 @@ class AgentEventFeed:
         tenant_oid = ObjectId(tenant_id)
         events = (
             await AgentEventDocument.find(
-                {
-                    "tenant_id": tenant_oid,
-                    "session_id": session_id,
-                    "sequence": {"$gt": after_sequence},
-                }
+                AgentEventDocument.tenant_id == tenant_oid,
+                AgentEventDocument.session_id == session_id,
+                AgentEventDocument.sequence > after_sequence,
             )
             .sort("sequence")
             .to_list(length=1000)

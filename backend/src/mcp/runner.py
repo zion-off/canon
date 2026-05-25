@@ -12,6 +12,7 @@ from google.genai.types import Content, Part
 
 from src.config import settings
 from src.mcp.agents import build_orchestrator
+from src.mcp.ambient_context import AmbientContextPlugin
 from src.mcp.plugin import ReasoningFeedPlugin
 from src.mcp.utils import get_genai_client
 from src.models.documents import TenantDocument
@@ -88,7 +89,7 @@ async def run_agent(
     canon_app = App(
         name="canon",
         root_agent=orchestrator,
-        plugins=[ReasoningFeedPlugin(event_feed)],
+        plugins=[AmbientContextPlugin(), ReasoningFeedPlugin(event_feed)],
         context_cache_config=ContextCacheConfig(
             min_tokens=2048,
             ttl_seconds=1800,

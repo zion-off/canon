@@ -61,10 +61,9 @@ using hybrid search.
      (index: "vector_search_index", numCandidates: 100, limit: 20)
    - $search on name, description, content fields using extracted keywords \
      (index: "text_search_index")
-4. Pre-filter by tenantId: "{{app:tenant_id}}" in both sub-pipelines.
-5. Combine with weights: vectorSearch 1.5, textSearch 1.0.
-6. Limit to 10 results.
-7. Return results including _id, name, description, status, tags, and metadata.
+4. Combine with weights: vectorSearch 1.5, textSearch 1.0.
+5. Limit to 10 results.
+6. Return results including _id, name, description, status, tags, and metadata.
 
 Never hallucinate node IDs. Only reference IDs from actual query results.\
 """
@@ -80,14 +79,13 @@ organizational knowledge graph.
 1. Identify named entities or recognizable terms from the input (proper nouns, \
    technical terms, project names, or any identifiable organizational concept).
 2. Find matching nodes using a find query with case-insensitive regex or \
-   text search. Filter by tenantId: "{{app:tenant_id}}".
+   text search.
    If exact names do not match, try partial matches or search by tags.
 3. From found nodes, run $graphLookup:
    - startWith: $relatedEntityIds
    - connectFromField: relatedEntityIds
    - connectToField: _id
-   - maxDepth: {{app:max_graph_depth}}
-   - restrictSearchWithMatch: {{ tenantId: ObjectId("{{app:tenant_id}}") }}
+   - depthField: hops
 4. Project: _id, name, description, status, tags, metadata, supersedes, \
    supersededBy, and connected nodes with hops.
 5. Return the full traversal results.
@@ -98,7 +96,7 @@ explicitly and return empty results. Do not fabricate node IDs.\
 
 MEMORY_WRITER_INSTRUCTION = f"""\
 You are Canon's memory formation. Your job is to convert observations into \
-properly structured memory nodes and persist them through the MongoDB MCP server.
+properly structured memory nodes and persist them.
 
 {MEMORY_NODE_SCHEMA}
 
@@ -107,53 +105,35 @@ properly structured memory nodes and persist them through the MongoDB MCP server
 - **prepare_embedding** — validates the document, generates a 768-dim vector.
   Returns ``document`` (ready for insertion) and ``meta`` (with relationship
   and supersession info).
-- **MCP insert-many** — inserts an array of documents. Parameters: ``database``,
-  ``collection``, ``documents`` (array).
-- **MCP update-many** — updates documents matching a filter. Parameters:
-  ``database``, ``collection``, ``filter``, ``update``.
+- **MCP insert-many** — inserts document(s) into a collection.
+- **MCP update-many** — updates documents matching a filter.
 - **MCP find / aggregate / count** — read-back tools for discovery queries
   before writing.
-
-## The ``database`` parameter is always ``"canon"``.
-
-## EJSON for ObjectId Fields
-
-The MCP server understands MongoDB EJSON format. Any field representing an
-ObjectId (``_id``, ``tenantId``, ``relatedEntityIds``, ``supersedes``,
-``supersededBy``) must be wrapped as ``{{"$oid": "<24-char-hex>"}}`` in
-filters and documents. Example:
-
-- Filter by _id: ``{{"_id": {{"$oid": "abc123def456abc123def456"}}}}``
-- Array field value: ``{{"relatedEntityIds": [{{"$oid": "..."}}]}}``
-
-The ``prepare_embedding`` tool returns these as plain hex strings. You must
-wrap them in ``$oid`` when using them in MCP tool parameters.
 
 ## Write Flow
 
 1. Build the node document with name, description, content, status, tags,
-   metadata, and optionally the hex string ``supersedes`` and hex-string array
-   ``relatedEntityIds``.
+   metadata, and optionally ``supersedes`` (hex string of the node being
+   replaced) and ``relatedEntityIds`` (hex strings of nodes to link to).
 
 2. Call ``prepare_embedding`` with:
    - document: the full node
    - rationale: why this node should exist
    - related_existing_ids: existing node hex IDs to link bidirectionally
 
-3. Insert via ``insert-many`` with database ``"canon"``, collection
-   ``"memory_nodes"``, and documents as a single-element array containing the
-   returned ``document`` (wrapping ObjectId fields in ``$oid``). The response
-   text contains the inserted IDs — record the first one as the new node's
-   ``_id``.
+3. Insert via ``insert-many`` into collection ``"memory_nodes"`` with
+   documents as a single-element array containing the returned ``document``.
+   The response text contains the inserted IDs — record the first one as
+   the new node's ``_id``.
 
 4. If ``meta.related_existing_id_strs`` is non-empty, call ``update-many`` for
    each related ID to add the new node's ``_id`` to their ``relatedEntityIds``:
-   filter: ``{{"_id": {{"$oid": "<existing_id>"}}}}``
-   update: ``{{"$addToSet": {{"relatedEntityIds": {{"$oid": "<new_id>"}}}} }}``
+   filter: ``{{"_id": "<existing_id>"}}``
+   update: ``{{"$addToSet": {{"relatedEntityIds": "<new_id>"}}}}``
 
 5. If ``meta.supersedes_id_str`` is set, call ``update-many`` to deprecate:
-   filter: ``{{"_id": {{"$oid": "<superseded_id>"}}}}``
-   update: ``{{"$set": {{"status": "deprecated", "supersededBy": {{"$oid": "<new_id>"}} }} }}``
+   filter: ``{{"_id": "<superseded_id>"}}``
+   update: ``{{"$set": {{"status": "deprecated", "supersededBy": "<new_id>"}}}}``
 
 ## Output Schema
 

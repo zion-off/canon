@@ -1,7 +1,9 @@
 "use server";
 
-import { GraphResponseSchema, type GraphResponse } from "@/lib/schemas/graph";
-import { API_URL, API_V1_GRAPH } from "@/lib/constants";
+import { GraphResponseSchema } from "@/lib/schemas/graph";
+import type { GraphResponse } from "@/lib/schemas/graph";
+import { API_V1_GRAPH } from "@/lib/constants";
+import { API_URL } from "@/lib/config";
 import { getAuthHeaders, handleErrorResponse } from "@/lib/api-utils";
 
 export async function getGraph(): Promise<GraphResponse> {

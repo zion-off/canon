@@ -1,7 +1,13 @@
-export const API_BASE_URL = (process.env.API_URL ?? "http://localhost:8000") as string;
+export const API_URL = process.env.API_URL ?? "http://localhost:8000";
 
-export const PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://YOUR_BACKEND_URL";
+export const PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-export const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET ?? "change-me-to-a-random-secret",
-);
+export function getJwtSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret === "change-me-to-a-random-secret") {
+    throw new Error(
+      "JWT_SECRET environment variable is not set — configure it to match your backend",
+    );
+  }
+  return new TextEncoder().encode(secret);
+}

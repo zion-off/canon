@@ -3,6 +3,10 @@
 import { useEffect, useRef } from "react";
 import type { AgentEvent } from "@/lib/schemas/sessions";
 
+const MAX_RETRIES = 10;
+const BASE_DELAY = 1000;
+const MAX_DELAY = 30_000;
+
 export function useEventStream(
   sessionId: string,
   onEvent: (event: AgentEvent) => void,
@@ -13,6 +17,7 @@ export function useEventStream(
   const sourceRef = useRef<EventSource | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unmountedRef = useRef(false);
+  const retryCountRef = useRef(0);
 
   useEffect(() => {
     onEventRef.current = onEvent;
@@ -20,6 +25,7 @@ export function useEventStream(
 
   useEffect(() => {
     unmountedRef.current = false;
+    retryCountRef.current = 0;
 
     function connect() {
       if (!enabled || unmountedRef.current) return;
@@ -43,7 +49,12 @@ export function useEventStream(
       es.onerror = () => {
         es.close();
         if (unmountedRef.current) return;
-        timerRef.current = setTimeout(connect, 2000);
+
+        retryCountRef.current += 1;
+        if (retryCountRef.current > MAX_RETRIES) return;
+
+        const delay = Math.min(BASE_DELAY * Math.pow(2, retryCountRef.current - 1), MAX_DELAY);
+        timerRef.current = setTimeout(connect, delay);
       };
     }
 

@@ -29,7 +29,15 @@ async function handleErrorResponse(res: Response): Promise<never> {
     throw new Error("Session expired");
   }
   const err = await res.json().catch(() => null);
-  throw new Error((err as { detail?: string } | null)?.detail ?? `Request failed: ${res.status}`);
+  if (err && typeof err === "object") {
+    if (typeof err.detail === "string") {
+      throw new Error(err.detail);
+    }
+    if (Array.isArray(err.detail)) {
+      throw new Error(err.detail.map((d: { msg?: string }) => d.msg).join("; "));
+    }
+  }
+  throw new Error(`Request failed: ${res.status}`);
 }
 
 async function setAuthCookie(token: string): Promise<void> {

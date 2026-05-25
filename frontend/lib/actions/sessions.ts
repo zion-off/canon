@@ -1,13 +1,10 @@
 "use server";
 
-import {
-  SessionResponseSchema,
-  AgentEventSchema,
-  type SessionResponse,
-  type AgentEvent,
-} from "@/lib/schemas/sessions";
+import { SessionResponseSchema, AgentEventSchema } from "@/lib/schemas/sessions";
+import type { SessionResponse, AgentEvent } from "@/lib/schemas/sessions";
 import { z } from "zod";
-import { API_URL, API_V1_SESSIONS } from "@/lib/constants";
+import { API_V1_SESSIONS } from "@/lib/constants";
+import { API_URL } from "@/lib/config";
 import { getAuthHeaders, handleErrorResponse } from "@/lib/api-utils";
 
 export async function listSessions(): Promise<SessionResponse[]> {

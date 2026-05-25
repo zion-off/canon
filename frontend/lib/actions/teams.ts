@@ -6,13 +6,16 @@ import {
   InviteResponseSchema,
   ListTokensResponseSchema,
   CreateTokenResponseSchema,
-  type CreateTeamResponse,
-  type JoinTeamResponse,
-  type InviteResponse,
-  type ListTokensResponse,
-  type CreateTokenResponse,
 } from "@/lib/schemas/teams";
-import { API_URL, API_V1_TEAMS } from "@/lib/constants";
+import type {
+  CreateTeamResponse,
+  JoinTeamResponse,
+  InviteResponse,
+  ListTokensResponse,
+  CreateTokenResponse,
+} from "@/lib/schemas/teams";
+import { API_V1_TEAMS } from "@/lib/constants";
+import { API_URL } from "@/lib/config";
 import { getAuthHeaders, handleErrorResponse, setAuthCookie } from "@/lib/api-utils";
 
 export async function createTeam(

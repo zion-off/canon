@@ -1,7 +1,3 @@
-import { API_BASE_URL } from "./config";
-
-export const API_URL = API_BASE_URL;
-
 export const COOKIE_NAME = "canon_token" as const;
 
 export const COOKIE_OPTIONS = {

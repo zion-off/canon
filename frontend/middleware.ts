@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 import { COOKIE_NAME, PUBLIC_PATHS, ROUTE_LOGIN, ROUTE_ONBOARDING } from "@/lib/constants";
-import { JWT_SECRET } from "@/lib/config";
+import { getJwtSecret } from "@/lib/config";
 
 interface JwtPayload {
   sub: string;
@@ -27,7 +27,7 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const { payload } = await jwtVerify(token, getJwtSecret());
     const jwtPayload = payload as unknown as JwtPayload;
 
     if (jwtPayload.tenantId === null && pathname !== ROUTE_ONBOARDING) {

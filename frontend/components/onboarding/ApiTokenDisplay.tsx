@@ -7,35 +7,22 @@ interface ApiTokenDisplayProps {
   token: string;
 }
 
+function mcpConfig(token: string, fileHint: string) {
+  return `// ${fileHint}\n${JSON.stringify(
+    {
+      mcpServers: {
+        canon: {
+          url: `${PUBLIC_API_URL}/mcp`,
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      },
+    },
+    null,
+    2,
+  )}`;
+}
+
 export function ApiTokenDisplay({ token }: ApiTokenDisplayProps) {
-  const mcpUrl = `${PUBLIC_API_URL}/mcp`;
-
-  const cursorConfig = JSON.stringify(
-    {
-      mcpServers: {
-        canon: {
-          url: mcpUrl,
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      },
-    },
-    null,
-    2,
-  );
-
-  const claudeConfig = JSON.stringify(
-    {
-      mcpServers: {
-        canon: {
-          url: mcpUrl,
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      },
-    },
-    null,
-    2,
-  );
-
   return (
     <div className="space-y-5">
       <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-4 py-3">
@@ -58,22 +45,11 @@ export function ApiTokenDisplay({ token }: ApiTokenDisplayProps) {
 
       <div>
         <p className="text-xs font-medium text-canon-text-dim mb-2 uppercase tracking-wide">
-          MCP Configuration — Cursor
+          MCP Configuration
         </p>
         <pre className="bg-canon-surface-2 border border-canon-border rounded-lg p-4 overflow-x-auto">
           <code className="text-xs font-mono text-canon-text">
-            {`// .cursor/mcp.json\n${cursorConfig}`}
-          </code>
-        </pre>
-      </div>
-
-      <div>
-        <p className="text-xs font-medium text-canon-text-dim mb-2 uppercase tracking-wide">
-          MCP Configuration — Claude Code
-        </p>
-        <pre className="rounded-lg border border-canon-border bg-canon-surface-2 p-4 overflow-x-auto">
-          <code className="text-xs font-mono text-canon-text">
-            {`// claude_desktop_config.json\n${claudeConfig}`}
+            {mcpConfig(token, ".cursor/mcp.json")}
           </code>
         </pre>
       </div>
@@ -84,18 +60,7 @@ export function ApiTokenDisplay({ token }: ApiTokenDisplayProps) {
         </p>
         <pre className="rounded-lg border border-canon-border bg-canon-surface-2 p-4 overflow-x-auto">
           <code className="text-xs font-mono text-canon-text">
-            {`// .gemini/settings.json\n${JSON.stringify(
-              {
-                mcpServers: {
-                  canon: {
-                    url: mcpUrl,
-                    headers: { Authorization: `Bearer ${token}` },
-                  },
-                },
-              },
-              null,
-              2,
-            )}`}
+            {mcpConfig(token, ".gemini/settings.json")}
           </code>
         </pre>
       </div>

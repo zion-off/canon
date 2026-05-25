@@ -1,7 +1,8 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { API_URL, COOKIE_NAME, API_V1_SESSIONS } from "@/lib/constants";
+import { COOKIE_NAME, API_V1_SESSIONS } from "@/lib/constants";
+import { API_URL } from "@/lib/config";
 
 export const runtime = "edge";
 

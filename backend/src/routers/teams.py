@@ -119,7 +119,7 @@ async def join_team(
         InviteDocument.id == invite.id,
         InviteDocument.uses_remaining > 0,
     ).inc({InviteDocument.uses_remaining: -1})
-    if result.modified_count == 0:
+    if result is None:
         raise HTTPException(status_code=400, detail="Invite code has no remaining uses")
 
     await UserDocument.find_one({"_id": ObjectId(user_id)}).set(

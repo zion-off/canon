@@ -42,6 +42,8 @@ class _RequestContext:
 async def _build_context(ctx: Context) -> _RequestContext:
     """Extract tenant context from the MCP request's underlying HTTP transport."""
     request = ctx.request_context.request
+    if request is None:
+        raise ValueError("No HTTP request available in MCP context")
     auth_header = request.headers.get("Authorization", "")
     token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
     resolver = TenantResolver()

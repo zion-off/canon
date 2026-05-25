@@ -130,7 +130,7 @@ async def join_team(
 
     return JoinTeamResponse(
         token=token,
-        team=TeamResponse(id=str(tenant_id), name=tenant["name"], slug=tenant["slug"]),
+        team=TeamResponse.model_validate(tenant),
     )
 
 
@@ -178,19 +178,7 @@ async def list_tokens(
         {"tenantId": ObjectId(user.tenant_id)},
         {"_id": 1, "label": 1, "createdAt": 1, "lastUsedAt": 1},
     )
-    tokens: list[TokenItemResponse] = []
-    async for doc in cursor:
-        tokens.append(
-            TokenItemResponse(
-                id=str(doc["_id"]),
-                label=doc["label"],
-                createdAt=doc["createdAt"].isoformat(),
-                lastUsedAt=(
-                    doc["lastUsedAt"].isoformat() if doc.get("lastUsedAt") else None
-                ),
-            )
-        )
-
+    tokens = [TokenItemResponse.model_validate(doc) async for doc in cursor]
     return TokenListResponse(tokens=tokens)
 
 

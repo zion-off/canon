@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
+from bson import ObjectId
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 # ─── Base Model ──────────────────────────────────────────────────────────────
@@ -11,20 +12,22 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 class MongoModel(BaseModel):
     """Base model for Pydantic schemas populated from MongoDB documents.
 
-    Coerces datetime fields to ISO strings and ignores extra fields
-    (like ``_id``) so that ``model_validate(doc)`` works directly on a
-    cursor result.
+    Coerces ``ObjectId`` → ``str`` and ``datetime`` → ISO strings, and ignores
+    extra fields so that ``model_validate(doc)`` works directly on a
+    MongoDB cursor result.
     """
 
     model_config = ConfigDict(populate_by_name=True, extra="ignore")
 
     @model_validator(mode="before")
     @classmethod
-    def _coerce_datetimes(cls, data: Any) -> Any:
+    def _coerce_types(cls, data: Any) -> Any:
         if isinstance(data, dict):
             for k, v in data.items():
                 if isinstance(v, datetime):
                     data[k] = v.isoformat()
+                elif isinstance(v, ObjectId):
+                    data[k] = str(v)
         return data
 
 
@@ -74,10 +77,8 @@ class JwtPayload(BaseModel):
 # ─── Response Models ──────────────────────────────────────────────────────────
 
 
-class UserResponse(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
-    id: str
+class UserResponse(MongoModel):
+    id: str = Field(validation_alias="_id")
     email: str
     name: str
     tenant_id: str | None = Field(default=None, alias="tenantId")
@@ -101,8 +102,8 @@ class MeResponse(BaseModel):
     role: str | None = None
 
 
-class TeamResponse(BaseModel):
-    id: str
+class TeamResponse(MongoModel):
+    id: str = Field(validation_alias="_id")
     name: str
     slug: str
 
@@ -146,12 +147,10 @@ class JoinTeamResponse(BaseModel):
     team: TeamResponse
 
 
-class TokenItemResponse(BaseModel):
+class TokenItemResponse(MongoModel):
     """Single API token in a list."""
 
-    model_config = ConfigDict(populate_by_name=True)
-
-    id: str
+    id: str = Field(validation_alias="_id")
     label: str
     created_at: str = Field(alias="createdAt")
     last_used_at: str | None = Field(default=None, alias="lastUsedAt")
@@ -188,18 +187,16 @@ class SessionListResponse(BaseModel):
     sessions: list[SessionResponse]
 
 
-class GraphNode(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
-    id: str
+class GraphNode(MongoModel):
+    id: str = Field(validation_alias="_id")
     name: str
-    description: str
-    status: str
-    tags: list[str]
+    description: str = Field(default="")
+    status: str = Field(default="")
+    tags: list[str] = Field(default_factory=list)
     supersedes: str | None = None
     superseded_by: str | None = Field(default=None, alias="supersededBy")
-    updated_at: str = Field(alias="updatedAt")
-    created_at: str = Field(alias="createdAt")
+    updated_at: str = Field(default="", alias="updatedAt")
+    created_at: str = Field(default="", alias="createdAt")
     connections: int = Field(default=0)
 
 

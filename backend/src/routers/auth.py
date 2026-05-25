@@ -49,15 +49,10 @@ async def register(
             ) from e
         raise
     token = issue_jwt(str(result.inserted_id), email, body.name, None, None)
+    user["_id"] = result.inserted_id
     return LoginResponse(
         token=token,
-        user=UserResponse(
-            id=str(result.inserted_id),
-            email=email,
-            name=body.name,
-            tenantId=None,
-            role=None,
-        ),
+        user=UserResponse.model_validate(user),
     )
 
 
@@ -81,13 +76,7 @@ async def login(
     )
     return LoginResponse(
         token=token,
-        user=UserResponse(
-            id=str(user["_id"]),
-            email=user["email"],
-            name=user["name"],
-            tenantId=tenant_id,
-            role=user.get("role"),
-        ),
+        user=UserResponse.model_validate(user),
     )
 
 

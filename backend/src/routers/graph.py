@@ -24,34 +24,18 @@ async def get_graph(
         {"embedding": 0, "content": 0},
     ).to_list(length=2000)
 
-    graph_nodes: list[GraphNode] = []
     graph_links: list[GraphLink] = []
-    node_ids = {str(n["_id"]) for n in nodes}
+    node_ids: set[str] = set()
+
+    graph_nodes: list[GraphNode] = []
+    for node in nodes:
+        node["connections"] = len(node.get("relatedEntityIds", []))
+        graph_nodes.append(GraphNode.model_validate(node))
+        node_ids.add(str(node["_id"]))
 
     for node in nodes:
         nid = str(node["_id"])
-        related_ids = node.get("relatedEntityIds", [])
-        graph_nodes.append(
-            GraphNode(
-                id=nid,
-                name=node["name"],
-                description=node.get("description", ""),
-                status=node.get("status", ""),
-                tags=node.get("tags", []),
-                supersedes=str(node["supersedes"]) if node.get("supersedes") else None,
-                supersededBy=(
-                    str(node["supersededBy"]) if node.get("supersededBy") else None
-                ),
-                updatedAt=(
-                    node["updatedAt"].isoformat() if node.get("updatedAt") else ""
-                ),
-                createdAt=(
-                    node["createdAt"].isoformat() if node.get("createdAt") else ""
-                ),
-                connections=len(related_ids),
-            )
-        )
-        for rel_id in related_ids:
+        for rel_id in node.get("relatedEntityIds", []):
             rid = str(rel_id)
             if rid in node_ids and nid < rid:
                 graph_links.append(GraphLink(source=nid, target=rid, type="related"))

@@ -6,14 +6,16 @@ from datetime import UTC, datetime
 from hashlib import sha256
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from pydantic import BaseModel
+from pydantic import Field
+
+from src.models.schemas import MongoModel
 
 
-class TenantContext(BaseModel):
+class TenantContext(MongoModel):
     """Resolved tenant identity."""
 
-    tenant_id: str
-    user_id: str
+    tenant_id: str = Field(validation_alias="tenantId")
+    user_id: str = Field(validation_alias="userId")
 
 
 class TenantResolver:
@@ -39,7 +41,5 @@ class TenantResolver:
             {"$set": {"lastUsedAt": datetime.now(UTC)}},
         )
 
-        return TenantContext(
-            tenant_id=str(record["tenantId"]),
-            user_id=str(record.get("userId", record["tenantId"])),
-        )
+        record.setdefault("userId", record["tenantId"])
+        return TenantContext.model_validate(record)

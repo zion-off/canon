@@ -42,10 +42,13 @@ async def lifespan(app: FastAPI):
         event_feed_module._feed = event_feed
         app.state.event_feed = event_feed
 
-        # Defer agent initialization — requires Gemini API key and ADK agents
+        # Defer agent initialization — requires Gemini and MongoDB MCP subprocess
         try:
             from src.mcp.agents import cleanup_agents, initialize_agents
+            from src.mcp.mongo_connections import shutdown as mongo_mcp_shutdown
+            from src.mcp.mongo_connections import startup as mongo_mcp_startup
 
+            await mongo_mcp_startup()
             await initialize_agents()
             logger.info("Canon ADK agents initialized")
         except Exception:
@@ -55,8 +58,10 @@ async def lifespan(app: FastAPI):
 
         try:
             from src.mcp.agents import cleanup_agents
+            from src.mcp.mongo_connections import shutdown as mongo_mcp_shutdown
 
             await cleanup_agents()
+            await mongo_mcp_shutdown()
         except Exception:
             pass
 

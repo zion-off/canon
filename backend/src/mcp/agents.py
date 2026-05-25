@@ -16,12 +16,12 @@ from google.adk.tools.google_search_tool import GoogleSearchTool
 from google.adk.tools.mcp_tool import McpToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
 from google.adk.tools.tool_context import ToolContext  # noqa: F401 — used by callbacks
-from mcp.client.stdio import StdioServerParameters
 from pydantic import BaseModel, Field
 
 from src.config import settings
 from src.mcp.agent_platform import VertexGemini
 from src.mcp.constants import AgentName, TempState
+from src.mcp.mongo_connections import get_read_params, get_write_params
 from src.mcp.tools import (
     emit_checkpoint_tool,
     hybrid_search_tool,
@@ -266,14 +266,7 @@ def _build_mongo_read_toolset() -> McpToolset:
         return _read_toolset
     _read_toolset = McpToolset(
         connection_params=StdioConnectionParams(
-            server_params=StdioServerParameters(
-                command="npx",
-                args=["-y", "mongodb-mcp-server"],
-                env={
-                    "MDB_MCP_CONNECTION_STRING": settings.mongodb_uri,
-                    "MDB_MCP_READ_ONLY": "true",
-                },
-            ),
+            server_params=get_read_params(),
         ),
         tool_filter=["find", "aggregate", "count"],
     )
@@ -286,13 +279,7 @@ def _build_mongo_write_toolset() -> McpToolset:
         return _write_toolset
     _write_toolset = McpToolset(
         connection_params=StdioConnectionParams(
-            server_params=StdioServerParameters(
-                command="npx",
-                args=["-y", "mongodb-mcp-server"],
-                env={
-                    "MDB_MCP_CONNECTION_STRING": settings.mongodb_uri,
-                },
-            ),
+            server_params=get_write_params(),
         ),
         tool_filter=["insert-many", "update-many"],
     )

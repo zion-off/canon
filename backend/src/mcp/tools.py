@@ -19,13 +19,11 @@ from bson import ObjectId
 from google.adk.tools.function_tool import FunctionTool
 from google.adk.tools.tool_context import ToolContext
 from google.genai import types
-from mcp.client.stdio import StdioServerParameters, stdio_client
 from mcp.types import TextContent
 
-from mcp import ClientSession
 from src.config import settings
 from src.mcp.agent_platform import get_genai_client
-from src.mcp.constants import Database, SessionState, TempState
+from src.mcp.constants import SessionState, TempState
 from src.mcp.models import (
     EmitCheckpointResult,
     HybridSearchError,
@@ -37,6 +35,7 @@ from src.mcp.models import (
     PrepareSuccess,
     RelationshipMeta,
 )
+from src.mcp.mongo_connections import call_aggregate
 
 # ─── Embedding Utilities ─────────────────────────────────────────────────────
 
@@ -202,27 +201,7 @@ async def hybrid_search(
     ]
 
     try:
-        params = StdioServerParameters(
-            command="npx",
-            args=["-y", "mongodb-mcp-server"],
-            env={
-                "MDB_MCP_CONNECTION_STRING": settings.mongodb_uri,
-                "MDB_MCP_READ_ONLY": "true",
-            },
-        )
-        async with (
-            stdio_client(params) as (read, write),
-            ClientSession(read, write) as session,
-        ):
-            await session.initialize()
-            result = await session.call_tool(
-                "aggregate",
-                {
-                    "collection": "memory_nodes",
-                    "database": Database.CANON,
-                    "pipeline": pipeline,
-                },
-            )
+        result = await call_aggregate("memory_nodes", pipeline)
 
         if result.isError:
             for item in result.content:

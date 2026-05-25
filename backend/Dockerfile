@@ -1,12 +1,20 @@
 # syntax=docker/dockerfile:1
 
+FROM node:20-slim AS node
+
 FROM python:3.14-slim
 
 WORKDIR /app
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-RUN apt-get update && apt-get install -y --no-install-recommends libatomic1 && \
+COPY --from=node /usr/local/bin/node /usr/local/bin/
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+COPY --from=node /opt /opt
+
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
+    ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx && \
+    apt-get update && apt-get install -y --no-install-recommends libatomic1 && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml uv.lock ./

@@ -58,7 +58,7 @@ async def list_sessions(
     """List sessions for the authenticated user's tenant."""
     tenant_oid = ObjectId(_require_tenant_id(user))
     sessions = (
-        await SessionDocument.find({"tenantId": tenant_oid})
+        await SessionDocument.find(SessionDocument.tenant_id == tenant_oid)
         .sort("-lastRunAt")
         .limit(20)
         .to_list()
@@ -76,7 +76,8 @@ async def get_session(
     """Get a single session by sessionId."""
     tenant_oid = ObjectId(_require_tenant_id(user))
     session = await SessionDocument.find_one(
-        {"sessionId": session_id, "tenantId": tenant_oid}
+        SessionDocument.session_id == session_id,
+        SessionDocument.tenant_id == tenant_oid,
     )
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -130,7 +131,7 @@ async def harness_list_sessions(
     _validate_tenant_access(tenant_id, ctx)
     tenant_oid = ObjectId(tenant_id)
     sessions = (
-        await SessionDocument.find({"tenant_id": tenant_oid})
+        await SessionDocument.find(SessionDocument.tenant_id == tenant_oid)
         .sort("-lastRunAt")
         .limit(20)
         .to_list()

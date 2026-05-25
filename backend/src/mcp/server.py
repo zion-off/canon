@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-from beanie import SortDirection
 from beanie.odm.operators.find.comparison import In
 from bson import ObjectId
 from mcp.server.fastmcp import Context, FastMCP
@@ -145,7 +144,7 @@ async def get_org_momentum(ctx: Context | None = None) -> str:
             MemoryNodeDocument.tenant_id == tenant_oid,
             MemoryNodeDocument.updated_at >= cutoff,
         )
-        .sort(("updated_at", SortDirection.DESCENDING))
+        .sort("-updatedAt")
         .to_list(length=200)
     )
 

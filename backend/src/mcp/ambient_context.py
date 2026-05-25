@@ -114,8 +114,10 @@ class AmbientContextPlugin(BasePlugin):
         ejson_tenant: dict[str, str],
     ) -> None:
         filt = tool_args.get("filter")
-        if isinstance(filt, dict):
-            filt["tenantId"] = ejson_tenant
+        if not isinstance(filt, dict):
+            filt = {}
+            tool_args["filter"] = filt
+        filt["tenantId"] = ejson_tenant
 
     @staticmethod
     def _inject_into_documents(

@@ -52,6 +52,8 @@ async def create_team(
     user: JwtPayload = Depends(jwt_auth),
 ) -> CreateTeamResponse:
     """Create a new team (tenant), assign caller as owner, issue default API token."""
+    if user.tenant_id:
+        raise HTTPException(status_code=409, detail="User already belongs to a team")
     user_id = user.sub
     slug = _slugify(body.name)
 
@@ -99,6 +101,8 @@ async def join_team(
     user: JwtPayload = Depends(jwt_auth),
 ) -> JoinTeamResponse:
     """Join an existing team via invite code."""
+    if user.tenant_id:
+        raise HTTPException(status_code=409, detail="User already belongs to a team")
     now = datetime.now(UTC)
 
     invite = await InviteDocument.find_one({"code": body.code})
@@ -106,8 +110,6 @@ async def join_team(
         raise HTTPException(status_code=400, detail="Invalid invite code")
     if invite.expires_at < now:
         raise HTTPException(status_code=400, detail="Invite code has expired")
-    if invite.uses_remaining <= 0:
-        raise HTTPException(status_code=400, detail="Invite code has no remaining uses")
 
     tenant_id = invite.tenant_id
     user_id = user.sub
@@ -120,9 +122,13 @@ async def join_team(
         }
     )
 
-    await InviteDocument.find_one({"_id": invite.id}).inc(
-        {InviteDocument.uses_remaining: -1}
-    )
+    # Atomic conditional decrement — prevents overbooking under concurrency
+    result = await InviteDocument.find_one(
+        InviteDocument.id == invite.id,
+        InviteDocument.uses_remaining > 0,
+    ).inc({InviteDocument.uses_remaining: -1})
+    if result.modified_count == 0:
+        raise HTTPException(status_code=400, detail="Invite code has no remaining uses")
 
     tenant = await TenantDocument.get(tenant_id)
     if not tenant:

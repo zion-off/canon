@@ -56,7 +56,7 @@ class AgentEventFeed:
             event.timestamp = datetime.now(UTC).isoformat()
 
         # Serialize to dict for persistence
-        event_dict = event.model_dump(by_alias=True)
+        event_dict = event.model_dump()
 
         # Persist for replay
         doc = AgentEventDocument.model_construct(
@@ -116,7 +116,7 @@ class AgentEventFeed:
         )
         return [
             AgentEvent.model_validate(
-                e.model_dump(by_alias=True, exclude={"tenant_id", "_id"})
+                e.model_dump(by_alias=True, exclude={"tenant_id", "id"})
             )
             for e in events
         ]

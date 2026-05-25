@@ -35,7 +35,7 @@ class MongoProvider:
         from pymongo import AsyncMongoClient
 
         self._client = AsyncMongoClient(self._uri)
-        self._db = self._client["canon"]
+        self._db = self._client[settings.database_name]
         await init_beanie(
             database=self._db,
             document_models=[

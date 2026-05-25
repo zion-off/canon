@@ -17,7 +17,8 @@ export async function login(email: string, password: string): Promise<AuthRespon
 
   if (!res.ok) {
     if (res.status === 401) {
-      throw new Error("Invalid credentials");
+      const err = await res.json().catch(() => null);
+      throw new Error(err?.detail ?? "Invalid credentials");
     }
     await handleErrorResponse(res);
   }

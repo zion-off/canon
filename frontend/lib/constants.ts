@@ -2,7 +2,7 @@ export const COOKIE_NAME = "canon_token" as const;
 
 export const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: true,
+  secure: process.env.NODE_ENV === "production",
   sameSite: "lax" as const,
   path: "/",
   maxAge: 60 * 60 * 24 * 7,

@@ -177,24 +177,8 @@ async def hybrid_search(
             "$rankFusion": {
                 "input": {
                     "pipelines": [
-                        {
-                            "$vectorSearch": {
-                                "index": "vector_search_index",
-                                "queryVector": embedding,
-                                "path": "embedding",
-                                "numCandidates": 100,
-                                "limit": 20,
-                            }
-                        },
-                        {
-                            "$search": {
-                                "index": "text_search_index",
-                                "text": {
-                                    "query": " ".join(extracted_keywords),
-                                    "path": ["name", "description", "content"],
-                                },
-                            }
-                        },
+                        vector_search_stage,
+                        text_search_stage,
                     ]
                 },
                 "rankFusion": {

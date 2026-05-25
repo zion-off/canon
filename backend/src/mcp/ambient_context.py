@@ -91,8 +91,13 @@ class AmbientContextPlugin(BasePlugin):
                     and _HEX24.match(value)
                 ):
                     obj[key] = {"$oid": value}
-                elif key in _OID_ARRAY_FIELDS and isinstance(value, list):
-                    obj[key] = AmbientContextPlugin._ejsonize_oid_list(value)
+                elif key in _OID_ARRAY_FIELDS:
+                    if isinstance(value, list):
+                        obj[key] = AmbientContextPlugin._ejsonize_oid_list(value)
+                    elif isinstance(value, str) and _HEX24.match(value):
+                        obj[key] = {"$oid": value}
+                    else:
+                        AmbientContextPlugin._ejsonize(value)
                 else:
                     AmbientContextPlugin._ejsonize(value)
         elif isinstance(obj, list):

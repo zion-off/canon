@@ -52,8 +52,9 @@ class AgentEventFeed:
         self._sequences[run_id] = seq
         if event.sequence is None:
             event.sequence = seq
+        now = datetime.now(UTC)
         if event.timestamp is None:
-            event.timestamp = datetime.now(UTC).isoformat()
+            event.timestamp = now.isoformat()
 
         # Serialize to dict for persistence
         event_dict = event.model_dump()
@@ -64,6 +65,7 @@ class AgentEventFeed:
             user_id=user_id,
             session_id=session_id,
             run_id=run_id,
+            created_at=now,
             **event_dict,
         )
         await doc.insert()

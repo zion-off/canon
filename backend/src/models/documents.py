@@ -117,6 +117,7 @@ class AgentEventDocument(Document):
     sequence: int
     timestamp: str | None = None
     is_final: bool = Field(default=False, alias="isFinal")
+    created_at: datetime = Field(alias="createdAt")
 
     class Settings:
         name = "agent_events"

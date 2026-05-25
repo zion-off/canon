@@ -11,15 +11,23 @@ from bson import ObjectId
 from src.models.documents import AgentEventDocument
 from src.models.schemas import AgentEvent
 
-# Module-level singleton — initialized by the application lifespan.
-_feed: AgentEventFeed | None = None
+
+class _FeedState:
+    """Module-level singleton container for the AgentEventFeed."""
+
+    instance: AgentEventFeed | None = None
+
+
+def init_feed(feed: AgentEventFeed) -> None:
+    """Initialize the global feed instance — called once during application startup."""
+    _FeedState.instance = feed
 
 
 def get_feed() -> AgentEventFeed:
     """Return the singleton AgentEventFeed. Raises if not yet initialized."""
-    if _feed is None:
+    if _FeedState.instance is None:
         raise RuntimeError("AgentEventFeed not initialized")
-    return _feed
+    return _FeedState.instance
 
 
 class AgentEventFeed:

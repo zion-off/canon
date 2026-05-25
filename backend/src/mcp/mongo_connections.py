@@ -19,21 +19,23 @@ from mcp.client.stdio import StdioServerParameters, stdio_client
 from mcp import ClientSession
 from src.config import settings
 
-_READ_PARAMS: StdioServerParameters | None = None
-_WRITE_PARAMS: StdioServerParameters | None = None
-_READ_SESSION: ClientSession | None = None
 
-# Must hold references to the async context managers so they don't
-# finalize (and close transports) when __aexit__ runs at shutdown.
-_read_ctx: Any = None
-_session_ctx: Any = None
+class _ConnectionState:
+    """Module-level singleton for MongoDB MCP connection state."""
+
+    read_params: StdioServerParameters | None = None
+    write_params: StdioServerParameters | None = None
+    read_session: ClientSession | None = None
+    # Must hold references to the async context managers so they don't
+    # finalize (and close transports) when __aexit__ runs at shutdown.
+    read_ctx: Any = None
+    session_ctx: Any = None
 
 
 def get_read_params() -> StdioServerParameters:
     """Return the canonical read-only MongoDB MCP server parameters."""
-    global _READ_PARAMS
-    if _READ_PARAMS is None:
-        _READ_PARAMS = StdioServerParameters(
+    if _ConnectionState.read_params is None:
+        _ConnectionState.read_params = StdioServerParameters(
             command="npx",
             args=["-y", "mongodb-mcp-server"],
             env={
@@ -41,49 +43,44 @@ def get_read_params() -> StdioServerParameters:
                 "MDB_MCP_READ_ONLY": "true",
             },
         )
-    return _READ_PARAMS
+    return _ConnectionState.read_params
 
 
 def get_write_params() -> StdioServerParameters:
     """Return the canonical write-capable MongoDB MCP server parameters."""
-    global _WRITE_PARAMS
-    if _WRITE_PARAMS is None:
-        _WRITE_PARAMS = StdioServerParameters(
+    if _ConnectionState.write_params is None:
+        _ConnectionState.write_params = StdioServerParameters(
             command="npx",
             args=["-y", "mongodb-mcp-server"],
             env={
                 "MDB_MCP_CONNECTION_STRING": settings.mongodb_uri,
             },
         )
-    return _WRITE_PARAMS
+    return _ConnectionState.write_params
 
 
 async def startup() -> None:
     """Start the persistent read-only MCP subprocess and initialize the session."""
-    global _read_ctx, _session_ctx, _READ_SESSION
-
     params = get_read_params()
-    _read_ctx = stdio_client(params)
-    read, write = await _read_ctx.__aenter__()
-    _session_ctx = ClientSession(read, write)
-    session = await _session_ctx.__aenter__()
+    _ConnectionState.read_ctx = stdio_client(params)
+    read, write = await _ConnectionState.read_ctx.__aenter__()
+    _ConnectionState.session_ctx = ClientSession(read, write)
+    session = await _ConnectionState.session_ctx.__aenter__()
     await session.initialize()
-    _READ_SESSION = session
+    _ConnectionState.read_session = session
 
 
 async def shutdown() -> None:
     """Close the persistent session and terminate the subprocess."""
-    global _READ_SESSION, _session_ctx, _read_ctx
+    if _ConnectionState.session_ctx is not None:
+        await _ConnectionState.session_ctx.__aexit__(None, None, None)
+        _ConnectionState.session_ctx = None
 
-    if _session_ctx is not None:
-        await _session_ctx.__aexit__(None, None, None)
-        _session_ctx = None
+    if _ConnectionState.read_ctx is not None:
+        await _ConnectionState.read_ctx.__aexit__(None, None, None)
+        _ConnectionState.read_ctx = None
 
-    if _read_ctx is not None:
-        await _read_ctx.__aexit__(None, None, None)
-        _read_ctx = None
-
-    _READ_SESSION = None
+    _ConnectionState.read_session = None
 
 
 async def call_aggregate(collection: str, pipeline: list[dict[str, Any]]) -> Any:
@@ -99,10 +96,11 @@ async def call_aggregate(collection: str, pipeline: list[dict[str, Any]]) -> Any
     Raises:
         RuntimeError: If the session hasn't been started.
     """
-    if _READ_SESSION is None:
+    session = _ConnectionState.read_session
+    if session is None:
         raise RuntimeError("MongoMCP read session not started")
 
-    return await _READ_SESSION.call_tool(
+    return await session.call_tool(
         "aggregate",
         {
             "collection": collection,

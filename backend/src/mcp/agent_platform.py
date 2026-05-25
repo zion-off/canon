@@ -11,29 +11,36 @@ from functools import cached_property
 import google.genai as genai
 from google.adk.models.google_llm import Gemini
 
-_genai_client: genai.Client | None = None
+
+class _GenaiClient:
+    """Module-level singleton container for the Vertex AI client."""
+
+    _instance: genai.Client | None = None
+
+    @classmethod
+    def get(cls) -> genai.Client:
+        if cls._instance is None:
+            cls._instance = genai.Client(vertexai=True)
+        return cls._instance
 
 
 def get_genai_client() -> genai.Client:
-    """Return a lazily-initialized Gemini API client singleton.
+    """Return a shared Vertex AI Gemini API client singleton.
 
-    Configured for Vertex AI (Application Default Credentials) —
-    no API key required when running in a Google Cloud environment
-    with gcloud auth application-default login.
+    Configured for Application Default Credentials — no API key
+    required when running in a Google Cloud environment with
+    ``gcloud auth application-default login``.
     """
-    global _genai_client  # noqa: PLW0603
-    if _genai_client is None:
-        _genai_client = genai.Client(vertexai=True)
-    return _genai_client
+    return _GenaiClient.get()
 
 
 class VertexGemini(Gemini):
     """ADK Gemini model that forces Vertex AI (ADC) auth, not API keys.
 
-    Shares the singleton `genai.Client` from `get_genai_client()` so
-    there is exactly one client per process.
+    Shares the singleton ``genai.Client`` via ``_GenaiClient`` so there
+    is exactly one client per process.
     """
 
     @cached_property
     def api_client(self) -> genai.Client:
-        return get_genai_client()
+        return _GenaiClient.get()

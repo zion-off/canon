@@ -27,6 +27,12 @@ from src.services.mongo import MongoProvider
 logger = logging.getLogger(__name__)
 
 
+class _AppState:
+    """Module-level singleton for application readiness flags."""
+
+    agents_ready: bool = False
+
+
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan — connect services, initialize agents, tear down."""
@@ -47,6 +53,7 @@ async def lifespan(app: FastAPI):
 
             await mongo_mcp_startup()
             await initialize_agents()
+            _AppState.agents_ready = True
             logger.info("Canon ADK agents initialized")
         except Exception:
             logger.exception("Agent initialization failed — MCP tool calls will error")
@@ -57,6 +64,7 @@ async def lifespan(app: FastAPI):
             from src.mcp.agents import cleanup_agents
             from src.mcp.mongo_connections import shutdown as mongo_mcp_shutdown
 
+            _AppState.agents_ready = False
             await cleanup_agents()
             await mongo_mcp_shutdown()
         except Exception:
@@ -98,8 +106,10 @@ app.include_router(graph_router, prefix="/api/v1")
 
 @app.get("/health", tags=["meta"])
 async def health_check() -> dict[str, str]:
-    """Liveness probe for Cloud Run."""
-    return {"status": "ok"}
+    """Readiness probe — reports degraded when agents failed to initialize."""
+    if _AppState.agents_ready:
+        return {"status": "ok"}
+    return {"status": "degraded", "detail": "agents not initialized"}
 
 
 if __name__ == "__main__":

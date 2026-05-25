@@ -1,15 +1,17 @@
 """ADK agent tools for the Canon memory graph.
 
-Provides tools that agents use to generate embeddings for memory nodes,
-prepare documents for persistence, and emit reasoning checkpoints.
+Provides tools that agents use for vector search, embedding generation,
+document preparation, and reasoning checkpoints.
 
-All database operations go through the MongoDB MCP server —
-this module only handles validation, embedding generation, and document
-preparation.
+Semantic retrieval (vector_search) generates embeddings and calls the
+MongoDB MCP server's aggregate tool internally — the LLM never sees
+raw vectors. All other database operations go through the MongoDB MCP
+server directly via agent tool bindings.
 """
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from typing import Any
 
@@ -17,14 +19,17 @@ from bson import ObjectId
 from google.adk.tools.function_tool import FunctionTool
 from google.adk.tools.tool_context import ToolContext
 from google.genai import types
+from mcp.client.stdio import StdioServerParameters, stdio_client
+from mcp.types import TextContent
 
+from mcp import ClientSession
 from src.config import settings
-from src.mcp.constants import SessionState, TempState
+from src.mcp.constants import Database, SessionState, TempState
 from src.mcp.models import (
-    EmbeddingError,
-    EmbeddingResult,
-    EmbeddingSuccess,
     EmitCheckpointResult,
+    HybridSearchError,
+    HybridSearchResult,
+    HybridSearchSuccess,
     MemoryNodeInput,
     PrepareError,
     PrepareResult,
@@ -81,37 +86,191 @@ async def generate_document_embedding(text: str) -> list[float]:
     return values
 
 
-async def embed_query(text: str) -> EmbeddingResult:
-    """Generate a 768-dimensional embedding for query-time vector search.
+async def _generate_query_embedding(text: str) -> list[float]:
+    """Generate a 768-dim query embedding via Gemini."""
+    client = get_genai_client()
+    response = await client.aio.models.embed_content(
+        model=settings.embedding_model,
+        contents=text,
+        config=types.EmbedContentConfig(
+            task_type="RETRIEVAL_QUERY",
+            output_dimensionality=768,
+        ),
+    )
+    if not response.embeddings:
+        raise RuntimeError("Embedding API returned empty response.")
+    values = response.embeddings[0].values
+    if values is None:
+        raise RuntimeError("Embedding API returned None values.")
+    return values
 
-    Uses the Gemini embedding API with RETRIEVAL_QUERY task type,
-    optimized for finding documents that match the query semantically.
+
+async def hybrid_search(
+    query: str,
+    keywords: list[str] | None = None,
+    limit: int = 10,
+    tool_context: ToolContext | None = None,
+) -> HybridSearchResult:
+    """Search memory nodes via hybrid semantic and keyword search.
+
+    Generates a query embedding and executes a ``$rankFusion`` pipeline
+    against the MongoDB MCP server — the LLM never handles raw vectors.
+
+    The pipeline combines:
+    - ``$vectorSearch`` (semantic) weighted 1.5x
+    - ``$search`` on ``name``/``description``/``content`` (keyword) weighted 1.0x
 
     Args:
-        text: The query text to embed.
+        query: Natural language query for semantic search.
+        keywords: Optional explicit keywords to boost. If omitted, extracted
+            from the query automatically.
+        limit: Maximum number of results (default 10).
+        tool_context: ADK tool context for tenant scoping.
 
     Returns:
-        An EmbeddingSuccess containing the 768-float vector, or
-        an EmbeddingError on failure.
+        A HybridSearchSuccess with matched documents, or a HybridSearchError.
+
+    Use after calling this tool: emit_checkpoint describing what patterns
+    were matched and the distribution of results.
     """
-    client = get_genai_client()
     try:
-        response = await client.aio.models.embed_content(
-            model=settings.embedding_model,
-            contents=text,
-            config=types.EmbedContentConfig(
-                task_type="RETRIEVAL_QUERY",
-                output_dimensionality=768,
-            ),
-        )
-        if not response.embeddings:
-            return EmbeddingError(error="Embedding API returned empty response.")
-        values = response.embeddings[0].values
-        if values is None:
-            return EmbeddingError(error="Embedding API returned None values.")
-        return EmbeddingSuccess(embedding=values)
+        embedding = await _generate_query_embedding(query)
     except Exception as exc:
-        return EmbeddingError(error=f"Embedding generation failed: {exc}")
+        return HybridSearchError(error=f"Embedding generation failed: {exc}")
+
+    extracted_keywords = keywords or [w for w in query.split() if len(w) > 2]
+
+    # Tenant scoping — normally AmbientContextPlugin injects this for LLM-
+    # initiated MCP calls, but this tool opens its own session internally.
+    tenant_id = tool_context.state.get(SessionState.TENANT_ID) if tool_context else None
+
+    vector_search_stage: dict[str, Any] = {
+        "$vectorSearch": {
+            "index": "vector_search_index",
+            "queryVector": embedding,
+            "path": "embedding",
+            "numCandidates": 100,
+            "limit": 20,
+        }
+    }
+    if tenant_id:
+        vector_search_stage["$vectorSearch"]["preFilter"] = {
+            "tenantId": {"$oid": tenant_id},
+        }
+
+    text_search_stage: dict[str, Any] = {
+        "$search": {
+            "index": "text_search_index",
+            "text": {
+                "query": " ".join(extracted_keywords),
+                "path": ["name", "description", "content"],
+            },
+        }
+    }
+    if tenant_id:
+        text_search_stage["$search"]["filter"] = {
+            "tenantId": {"$oid": tenant_id},
+        }
+
+    pipeline: list[dict[str, Any]] = [
+        {
+            "$rankFusion": {
+                "input": {
+                    "pipelines": [
+                        {
+                            "$vectorSearch": {
+                                "index": "vector_search_index",
+                                "queryVector": embedding,
+                                "path": "embedding",
+                                "numCandidates": 100,
+                                "limit": 20,
+                            }
+                        },
+                        {
+                            "$search": {
+                                "index": "text_search_index",
+                                "text": {
+                                    "query": " ".join(extracted_keywords),
+                                    "path": ["name", "description", "content"],
+                                },
+                            }
+                        },
+                    ]
+                },
+                "rankFusion": {
+                    "weights": {"0": 1.5, "1": 1.0},
+                    "normalization": "minmax",
+                },
+            }
+        },
+        {"$limit": limit},
+        {
+            "$project": {
+                "_id": 1,
+                "name": 1,
+                "description": 1,
+                "status": 1,
+                "tags": 1,
+                "metadata": 1,
+                "score": {"$meta": "rankFusionScore"},
+            }
+        },
+    ]
+
+    try:
+        params = StdioServerParameters(
+            command="npx",
+            args=["-y", "mongodb-mcp-server"],
+            env={
+                "MDB_MCP_CONNECTION_STRING": settings.mongodb_uri,
+                "MDB_MCP_READ_ONLY": "true",
+            },
+        )
+        async with (
+            stdio_client(params) as (read, write),
+            ClientSession(read, write) as session,
+        ):
+            await session.initialize()
+            result = await session.call_tool(
+                "aggregate",
+                {
+                    "collection": "memory_nodes",
+                    "database": Database.CANON,
+                    "pipeline": pipeline,
+                },
+            )
+
+        if result.isError:
+            for item in result.content:
+                if isinstance(item, TextContent):
+                    return HybridSearchError(
+                        error=f"MongoDB MCP aggregate failed: {item.text}"
+                    )
+            return HybridSearchError(
+                error="MongoDB MCP aggregate failed (unknown response)"
+            )
+
+        # Parse the result content into documents.
+        docs: list[dict[str, Any]] = []
+        for item in result.content:
+            if not isinstance(item, TextContent) or not item.text:
+                continue
+            try:
+                parsed = json.loads(item.text)
+                if isinstance(parsed, list):
+                    docs.extend(parsed)
+                else:
+                    docs.append(parsed)
+            except json.JSONDecodeError:
+                continue
+
+        return HybridSearchSuccess(
+            results=docs,
+            count=len(docs),
+            query=query,
+        )
+    except Exception as exc:
+        return HybridSearchError(error=f"Hybrid search failed: {exc}")
 
 
 # ─── Core Agent Tools ────────────────────────────────────────────────────────
@@ -223,5 +382,5 @@ async def emit_checkpoint(
 # ─── Tool Instances ──────────────────────────────────────────────────────────
 
 prepare_embedding_tool = FunctionTool(func=prepare_embedding)
-embed_query_tool = FunctionTool(func=embed_query)
+vector_search_tool = FunctionTool(func=hybrid_search)
 emit_checkpoint_tool = FunctionTool(func=emit_checkpoint)

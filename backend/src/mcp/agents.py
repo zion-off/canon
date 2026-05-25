@@ -22,9 +22,9 @@ from pydantic import BaseModel, Field
 from src.config import settings
 from src.mcp.constants import AgentName, TempState
 from src.mcp.tools import (
-    embed_query_tool,
     emit_checkpoint_tool,
     prepare_embedding_tool,
+    vector_search_tool,
 )
 
 MEMORY_NODE_SCHEMA = """\
@@ -45,18 +45,14 @@ using hybrid search.
 
 ## Query Strategy
 
-1. Call `embed_query` with the query text to obtain a 768-dim vector.
-2. Extract keywords from the input (service names, pattern names, technical terms).
-3. Construct a $rankFusion aggregate pipeline combining:
-   - $vectorSearch on the embedding field using the vector from step 1 \
-     (index: "vector_search_index", numCandidates: 100, limit: 20)
-   - $search on name, description, content fields using extracted keywords \
-     (index: "text_search_index")
-4. Combine with weights: vectorSearch 1.5, textSearch 1.0.
-5. Limit to 10 results.
-6. Return results including _id, name, description, status, tags, and metadata.
+1. Call ``hybrid_search`` with the query text (and optional explicit keywords)
+   to perform a hybrid search combining:
+   - Semantic vector search on the embedding field (weighted 1.5x)
+   - Keyword search on name, description, content fields (weighted 1.0x)
+2. The results include _id, name, description, status, tags, metadata, and rankFusionScore.
+3. Return up to 10 results.
 
-Use ``emit_checkpoint`` after the vector search completes, describing what
+Use ``emit_checkpoint`` after the search completes, describing what
 query patterns were matched and the distribution of results.
 
 Never hallucinate node IDs. Only reference IDs from actual query results.\
@@ -311,7 +307,7 @@ def _get_semantic_retriever() -> Agent:
             description="Perceives relevant organizational knowledge through hybrid search. "
             "Call with a query to find semantically and textually related memory nodes.",
             instruction=SEMANTIC_RETRIEVER_INSTRUCTION,
-            tools=[_build_mongo_read_toolset(), embed_query_tool, emit_checkpoint_tool],
+            tools=[vector_search_tool, emit_checkpoint_tool],
             output_key="retrieval_results",
             after_tool_callback=log_tool_usage,
         )

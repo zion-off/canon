@@ -35,19 +35,21 @@ class MemoryNodeInput(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
-class EmbeddingSuccess(BaseModel):
-    """Successful embedding result."""
+class HybridSearchSuccess(BaseModel):
+    """Successful hybrid search with results."""
 
-    embedding: list[float]
+    results: list[dict[str, Any]]
+    count: int
+    query: str
 
 
-class EmbeddingError(BaseModel):
-    """Failed embedding with a message."""
+class HybridSearchError(BaseModel):
+    """Failed hybrid search."""
 
     error: str
 
 
-type EmbeddingResult = EmbeddingSuccess | EmbeddingError
+type HybridSearchResult = HybridSearchSuccess | HybridSearchError
 
 
 class RelationshipMeta(BaseModel):

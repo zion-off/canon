@@ -67,3 +67,9 @@ class ToolName:
     READ_ONLY: Final[frozenset[str]] = frozenset({FIND, AGGREGATE, COUNT})
     WRITE: Final[frozenset[str]] = frozenset({INSERT_MANY, UPDATE_MANY})
     ALL: Final[frozenset[str]] = READ_ONLY | WRITE
+
+
+class Database:
+    """MongoDB database names."""
+
+    CANON: Final = "canon"

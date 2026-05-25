@@ -4,16 +4,18 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
+from beanie import SortDirection
+from beanie.odm.operators.find.comparison import In
 from bson import ObjectId
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
 
+from src.constants import Status
 from src.mcp.runner import run_agent
+from src.models.documents import MemoryNodeDocument
 from src.services.tenant_resolver import TenantResolver
 
 if TYPE_CHECKING:
-    from motor.motor_asyncio import AsyncIOMotorDatabase
-
     from src.services.event_feed import AgentEventFeed
 
 
@@ -34,20 +36,16 @@ class _RequestContext:
         self,
         tenant_id: str,
         user_id: str,
-        db: AsyncIOMotorDatabase,
         event_feed: AgentEventFeed,
     ):
         self.tenant_id = tenant_id
         self.user_id = user_id
-        self.db = db
         self.event_feed = event_feed
 
 
 async def _build_context(ctx: Context) -> _RequestContext:
     """Extract tenant context from the MCP request's underlying HTTP transport."""
     request = ctx.request  # type: ignore[attr-defined]
-    db = request.app.state.mongo.db
-
     auth_header = request.headers.get("Authorization", "")
     token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
     resolver = TenantResolver()
@@ -59,7 +57,6 @@ async def _build_context(ctx: Context) -> _RequestContext:
     return _RequestContext(
         tenant_id=tenant_ctx.tenant_id,
         user_id=tenant_ctx.user_id,
-        db=db,
         event_feed=request.app.state.event_feed,
     )
 
@@ -107,7 +104,6 @@ async def canon(
         run_id=run_id,
         message=f"Request:\n{request}\n\nContext:\n{context}",
         event_feed=request_ctx.event_feed,
-        db=request_ctx.db,
     )
 
     return f"{response}\n\n---\nsession_id: {resolved_session_id}"
@@ -127,12 +123,9 @@ async def get_org_state(ctx: Context | None = None) -> str:
         raise RuntimeError("Context required — FastMCP should inject it automatically.")
     request_ctx = await _build_context(ctx)
     tenant_oid = ObjectId(request_ctx.tenant_id)
-    nodes = await request_ctx.db.memory_nodes.find(
-        {
-            "tenantId": tenant_oid,
-            "status": {"$in": ["active", "in_progress"]},
-        },
-        {"_id": 0, "embedding": 0, "embeddingText": 0},
+    nodes = await MemoryNodeDocument.find(
+        MemoryNodeDocument.tenant_id == tenant_oid,
+        In(MemoryNodeDocument.status, [Status.ACTIVE, Status.IN_PROGRESS]),
     ).to_list(length=200)
 
     return _format_as_org_state(nodes)
@@ -151,14 +144,11 @@ async def get_org_momentum(ctx: Context | None = None) -> str:
     cutoff = datetime.now(UTC) - timedelta(days=30)
     tenant_oid = ObjectId(request_ctx.tenant_id)
     nodes = (
-        await request_ctx.db.memory_nodes.find(
-            {
-                "tenantId": tenant_oid,
-                "updatedAt": {"$gte": cutoff},
-            },
-            {"_id": 0, "embedding": 0, "embeddingText": 0},
+        await MemoryNodeDocument.find(
+            MemoryNodeDocument.tenant_id == tenant_oid,
+            MemoryNodeDocument.updated_at >= cutoff,
         )
-        .sort("updatedAt", -1)
+        .sort(("updated_at", SortDirection.DESCENDING))
         .to_list(length=200)
     )
 
@@ -232,38 +222,34 @@ through engineering effort persists and informs future work."""
 # --- Formatting helpers ---
 
 
-def _format_as_org_state(nodes: list[dict]) -> str:
+def _format_as_org_state(nodes: list[MemoryNodeDocument]) -> str:
     """Format active/in_progress nodes as organizational state projection."""
     if not nodes:
         return "No active organizational state recorded yet."
 
-    active = [n for n in nodes if n.get("status") == "active"]
-    in_progress = [n for n in nodes if n.get("status") == "in_progress"]
+    active = [n for n in nodes if n.status == Status.ACTIVE]
+    in_progress = [n for n in nodes if n.status == Status.IN_PROGRESS]
 
     sections: list[str] = []
 
     if active:
         sections.append("## Active Decisions & Constraints\n")
         for node in active:
-            sections.append(
-                f"- **{node.get('name', 'Unnamed')}**: {node.get('description', '')}"
-            )
-            if node.get("tags"):
-                sections.append(f"  Tags: {', '.join(node['tags'])}")
+            sections.append(f"- **{node.name}**: {node.description or ''}")
+            if node.tags:
+                sections.append(f"  Tags: {', '.join(node.tags)}")
 
     if in_progress:
         sections.append("\n## In Progress\n")
         for node in in_progress:
-            sections.append(
-                f"- **{node.get('name', 'Unnamed')}**: {node.get('description', '')}"
-            )
-            if node.get("tags"):
-                sections.append(f"  Tags: {', '.join(node['tags'])}")
+            sections.append(f"- **{node.name}**: {node.description or ''}")
+            if node.tags:
+                sections.append(f"  Tags: {', '.join(node.tags)}")
 
     return "\n".join(sections)
 
 
-def _format_as_org_momentum(nodes: list[dict]) -> str:
+def _format_as_org_momentum(nodes: list[MemoryNodeDocument]) -> str:
     """Format recently updated nodes as organizational momentum projection."""
     if not nodes:
         return "No recent organizational activity recorded."
@@ -271,12 +257,11 @@ def _format_as_org_momentum(nodes: list[dict]) -> str:
     sections: list[str] = ["## Recent Organizational Activity (last 30 days)\n"]
 
     for node in nodes[:50]:  # Cap display to 50 most recent
-        updated = node.get("updatedAt")
-        date_str = updated.strftime("%Y-%m-%d") if updated else "unknown"
-        status = node.get("status", "unknown")
+        date_str = (
+            node.updated_at.strftime("%Y-%m-%d") if node.updated_at else "unknown"
+        )
         sections.append(
-            f"- [{date_str}] **{node.get('name', 'Unnamed')}** ({status}): "
-            f"{node.get('description', '')}"
+            f"- [{date_str}] **{node.name}** ({node.status}): {node.description or ''}"
         )
 
     if len(nodes) > 50:

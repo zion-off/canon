@@ -54,19 +54,6 @@ class AgentName:
     MEMORY_WRITER: Final = "memory_writer"
 
 
-class Database:
-    """MongoDB database names."""
-
-    CANON: Final = "canon"
-
-
-class Collection:
-    """MongoDB collection names."""
-
-    MEMORY_NODES: Final = "memory_nodes"
-    SESSIONS: Final = "sessions"
-
-
 class ToolName:
     """MongoDB MCP server tool names."""
 
@@ -75,6 +62,7 @@ class ToolName:
     AGGREGATE: Final = "aggregate"
     INSERT_MANY: Final = "insert-many"
     UPDATE_MANY: Final = "update-many"
+    EMIT_CHECKPOINT: Final = "emit_checkpoint"
 
     READ_ONLY: Final[frozenset[str]] = frozenset({FIND, AGGREGATE, COUNT})
     WRITE: Final[frozenset[str]] = frozenset({INSERT_MANY, UPDATE_MANY})

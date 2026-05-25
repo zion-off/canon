@@ -11,21 +11,21 @@ from google.adk.sessions import InMemorySessionService
 from google.genai.types import Content, Part
 
 from src.config import settings
+from src.constants import Status
 from src.mcp.agents import build_orchestrator
 from src.mcp.ambient_context import AmbientContextPlugin
 from src.mcp.constants import (
     AgentName,
     EventType,
     SessionState,
+    ToolName,
 )
 from src.mcp.plugin import ReasoningFeedPlugin
 from src.mcp.utils import get_genai_client
-from src.models.documents import TenantDocument
+from src.models.documents import SessionDocument, TenantDocument
 from src.models.schemas import AgentEvent
 
 if TYPE_CHECKING:
-    from motor.motor_asyncio import AsyncIOMotorDatabase
-
     from src.services.event_feed import AgentEventFeed
 
 
@@ -36,7 +36,6 @@ async def run_agent(
     run_id: str,
     message: str,
     event_feed: AgentEventFeed,
-    db: AsyncIOMotorDatabase,
 ) -> str:
     """Invoke the ADK orchestrator agent for a single request lifecycle.
 
@@ -48,30 +47,30 @@ async def run_agent(
     if not tenant:
         return "Error: tenant not found."
 
-    # Atomically upsert session and increment runCount.
-    session_doc = await db.sessions.find_one_and_update(
-        {"sessionId": session_id},
-        {
-            "$setOnInsert": {
-                "tenantId": ObjectId(tenant_id),
-                "userId": user_id,
-                "sessionId": session_id,
-                "status": "active",
-                "title": message[:100],
-                "summary": None,
-                "createdAt": datetime.now(UTC),
-            },
-            "$inc": {"runCount": 1},
-            "$set": {
-                "updatedAt": datetime.now(UTC),
-                "lastRunAt": datetime.now(UTC),
-            },
-        },
-        upsert=True,
-        return_document=True,
-    )
+    # Upsert session — find or create, then increment run count.
+    now = datetime.now(UTC)
+    session = await SessionDocument.find_one(SessionDocument.session_id == session_id)
+    if session is None:
+        session = SessionDocument.model_construct(
+            session_id=session_id,
+            tenant_id=ObjectId(tenant_id),
+            user_id=user_id,
+            status=Status.ACTIVE,
+            title=message[:100],
+            summary=None,
+            run_count=1,
+            created_at=now,
+            updated_at=now,
+            last_run_at=now,
+        )
+        await session.insert()
+    else:
+        session.run_count += 1
+        session.updated_at = now
+        session.last_run_at = now
+        await session.save()
 
-    session_summary = session_doc.get("summary")
+    session_summary = session.summary
 
     orchestrator = build_orchestrator()
 
@@ -135,7 +134,7 @@ async def run_agent(
     ):
         function_calls: list = getattr(event, "function_calls", None) or []
         for fc in function_calls:
-            if fc.name == "emit_checkpoint":
+            if fc.name == ToolName.EMIT_CHECKPOINT:
                 await event_feed.broadcast(
                     tenant_id=tenant_id,
                     user_id=user_id,
@@ -188,8 +187,8 @@ async def run_agent(
             request=message,
             response=final_response,
         )
-        await db.sessions.update_one(
-            {"sessionId": session_id}, {"$set": {"summary": updated_summary}}
+        await SessionDocument.find_one(SessionDocument.session_id == session_id).set(
+            {SessionDocument.summary: updated_summary}
         )
 
     event_feed.cleanup_run(run_id)

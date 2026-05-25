@@ -8,14 +8,15 @@ from hashlib import sha256
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
-from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from src.config import settings
-from src.dependencies import get_db, jwt_auth
+from src.constants import Role
+from src.dependencies import jwt_auth
 from src.models.documents import (
     ApiTokenDocument,
     InviteDocument,
     TenantDocument,
+    UserDocument,
 )
 from src.models.schemas import (
     CreateInviteResponse,
@@ -49,7 +50,6 @@ def _slugify(name: str) -> str:
 async def create_team(
     body: CreateTeamRequest,
     user: JwtPayload = Depends(jwt_auth),
-    db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CreateTeamResponse:
     """Create a new team (tenant), assign caller as owner, issue default API token."""
     user_id = user.sub
@@ -65,15 +65,12 @@ async def create_team(
     await tenant.insert()
     tenant_id = tenant.id
 
-    await db.users.update_one(
-        {"_id": ObjectId(user_id)},
+    await UserDocument.find_one({"_id": ObjectId(user_id)}).set(
         {
-            "$set": {
-                "tenantId": tenant_id,
-                "role": "owner",
-                "updatedAt": datetime.now(UTC),
-            }
-        },
+            UserDocument.tenant_id: tenant_id,
+            UserDocument.role: Role.OWNER,
+            UserDocument.updated_at: datetime.now(UTC),
+        }
     )
 
     # Generate default API token
@@ -87,7 +84,7 @@ async def create_team(
         last_used_at=None,
     ).insert()
 
-    token = issue_jwt(user_id, user.email, user.name, str(tenant_id), "owner")
+    token = issue_jwt(user_id, user.email, user.name, str(tenant_id), Role.OWNER)
 
     return CreateTeamResponse(
         token=token,
@@ -100,7 +97,6 @@ async def create_team(
 async def join_team(
     body: JoinTeamRequest,
     user: JwtPayload = Depends(jwt_auth),
-    db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> JoinTeamResponse:
     """Join an existing team via invite code."""
     now = datetime.now(UTC)
@@ -116,21 +112,23 @@ async def join_team(
     tenant_id = invite.tenant_id
     user_id = user.sub
 
-    await db.users.update_one(
-        {"_id": ObjectId(user_id)},
-        {"$set": {"tenantId": tenant_id, "role": "member", "updatedAt": now}},
+    await UserDocument.find_one({"_id": ObjectId(user_id)}).set(
+        {
+            UserDocument.tenant_id: tenant_id,
+            UserDocument.role: Role.MEMBER,
+            UserDocument.updated_at: now,
+        }
     )
 
-    await db.invites.update_one(
-        {"_id": invite.id},
-        {"$inc": {"usesRemaining": -1}},
+    await InviteDocument.find_one({"_id": invite.id}).inc(
+        {InviteDocument.uses_remaining: -1}
     )
 
     tenant = await TenantDocument.get(tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Team not found")
 
-    token = issue_jwt(user_id, user.email, user.name, str(tenant_id), "member")
+    token = issue_jwt(user_id, user.email, user.name, str(tenant_id), Role.MEMBER)
 
     return JoinTeamResponse(
         token=token,
@@ -143,7 +141,7 @@ async def create_invite(
     user: JwtPayload = Depends(jwt_auth),
 ) -> CreateInviteResponse:
     """Create an invite code (owner only)."""
-    if user.role != "owner":
+    if user.role != Role.OWNER:
         raise HTTPException(
             status_code=403, detail="Only team owners can create invites"
         )
@@ -169,17 +167,17 @@ async def create_invite(
 @router.get("/tokens", response_model=TokenListResponse)
 async def list_tokens(
     user: JwtPayload = Depends(jwt_auth),
-    db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> TokenListResponse:
     """List all API tokens for the user's team."""
     if not user.tenant_id:
         raise HTTPException(status_code=400, detail="User does not belong to a team")
 
-    cursor = db.api_tokens.find(
-        {"tenantId": ObjectId(user.tenant_id)},
-        {"_id": 1, "label": 1, "createdAt": 1, "lastUsedAt": 1},
+    cursor = ApiTokenDocument.find(
+        ApiTokenDocument.tenant_id == ObjectId(user.tenant_id),
     )
-    tokens = [TokenItemResponse.model_validate(doc) async for doc in cursor]
+    tokens = []
+    async for doc in cursor:
+        tokens.append(TokenItemResponse.model_validate(doc.model_dump(by_alias=True)))
     return TokenListResponse(tokens=tokens)
 
 
@@ -189,7 +187,7 @@ async def create_token(
     user: JwtPayload = Depends(jwt_auth),
 ) -> CreateTokenResponse:
     """Create a new API token (owner only)."""
-    if user.role != "owner":
+    if user.role != Role.OWNER:
         raise HTTPException(
             status_code=403, detail="Only team owners can create API tokens"
         )

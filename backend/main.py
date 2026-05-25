@@ -6,6 +6,10 @@ Composes FastAPI and FastMCP into a single ASGI application:
 - Lifespan wires up MongoDB, AgentEventFeed, and ADK agent subprocesses
 """
 
+import sys
+
+sys.tracebacklimit = 0
+
 from __future__ import annotations
 
 import contextlib

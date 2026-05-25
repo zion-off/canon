@@ -28,7 +28,9 @@ class TenantResolver:
         and updates lastUsedAt on successful resolution.
         """
         token_hash = sha256(raw_token.encode()).hexdigest()
-        api_token = await ApiTokenDocument.find_one({"token_hash": token_hash})
+        api_token = await ApiTokenDocument.find_one(
+            ApiTokenDocument.token_hash == token_hash
+        )
 
         if not api_token:
             return None

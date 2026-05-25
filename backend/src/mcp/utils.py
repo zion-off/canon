@@ -1,8 +1,10 @@
 """Shared utilities for the MCP agent layer."""
 
+from functools import cached_property
 from typing import Any
 
 import google.genai as genai
+from google.adk.models.google_llm import Gemini
 
 _genai_client: genai.Client | None = None
 
@@ -11,8 +13,16 @@ def get_genai_client() -> genai.Client:
     """Return a lazily-initialized Gemini API client singleton."""
     global _genai_client  # noqa: PLW0603
     if _genai_client is None:
-        _genai_client = genai.Client()
+        _genai_client = genai.Client(vertexai=True)
     return _genai_client
+
+
+class VertexGemini(Gemini):
+    """ADK Gemini model that forces Vertex AI (ADC) auth, not API keys."""
+
+    @cached_property
+    def api_client(self) -> genai.Client:
+        return genai.Client(vertexai=True)
 
 
 def summarize_args(args: dict[str, Any] | None) -> str:

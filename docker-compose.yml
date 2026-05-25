@@ -29,6 +29,7 @@ services:
       - /app/__pycache__
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/gcp/credentials.json
+      - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}
       - MONGODB_URI=${MONGODB_URI:-mongodb://mongo:27017/canon}
       - JWT_SECRET=${JWT_SECRET}
       - CANON_REASONING_MODEL=${CANON_REASONING_MODEL:-gemini-3.1-pro}

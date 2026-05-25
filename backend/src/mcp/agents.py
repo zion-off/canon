@@ -194,10 +194,14 @@ class MemoryNodeOutput(BaseModel):
 
     name: str = Field(description="Concise node name")
     description: str = Field(description="One-paragraph summary")
-    status: str = Field(description="active, deprecated, in_progress, resolved, completed")
+    status: str = Field(
+        description="active, deprecated, in_progress, resolved, completed"
+    )
     tags: list[str] = Field(description="Discoverability tags")
     node_id: str = Field(description="The persisted node's _id")
-    relationships_formed: int = Field(description="Number of bidirectional edges created")
+    relationships_formed: int = Field(
+        description="Number of bidirectional edges created"
+    )
 
 
 async def log_tool_usage(

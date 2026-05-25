@@ -31,24 +31,26 @@ async def get_graph(
     for node in nodes:
         nid = str(node["_id"])
         related_ids = node.get("relatedEntityIds", [])
-        graph_nodes.append(GraphNode(
-            id=nid,
-            name=node["name"],
-            description=node.get("description", ""),
-            status=node.get("status", ""),
-            tags=node.get("tags", []),
-            supersedes=str(node["supersedes"]) if node.get("supersedes") else None,
-            supersededBy=(
-                str(node["supersededBy"]) if node.get("supersededBy") else None
-            ),
-            updatedAt=(
-                node["updatedAt"].isoformat() if node.get("updatedAt") else ""
-            ),
-            createdAt=(
-                node["createdAt"].isoformat() if node.get("createdAt") else ""
-            ),
-            connections=len(related_ids),
-        ))
+        graph_nodes.append(
+            GraphNode(
+                id=nid,
+                name=node["name"],
+                description=node.get("description", ""),
+                status=node.get("status", ""),
+                tags=node.get("tags", []),
+                supersedes=str(node["supersedes"]) if node.get("supersedes") else None,
+                supersededBy=(
+                    str(node["supersededBy"]) if node.get("supersededBy") else None
+                ),
+                updatedAt=(
+                    node["updatedAt"].isoformat() if node.get("updatedAt") else ""
+                ),
+                createdAt=(
+                    node["createdAt"].isoformat() if node.get("createdAt") else ""
+                ),
+                connections=len(related_ids),
+            )
+        )
         for rel_id in related_ids:
             rid = str(rel_id)
             if rid in node_ids and nid < rid:

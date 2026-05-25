@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator
-from typing import Any
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -18,37 +17,6 @@ from src.services.tenant_resolver import TenantContext
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 harness_router = APIRouter(prefix="/tenants/{tenant_id}", tags=["harness-sessions"])
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _doc_to_session(doc: dict[str, Any]) -> SessionResponse:
-    """Convert a MongoDB session document to a SessionResponse model."""
-    return SessionResponse(
-        sessionId=doc["sessionId"],
-        title=doc.get("title", ""),
-        summary=doc.get("summary"),
-        status=doc.get("status", ""),
-        runCount=doc.get("runCount", 0),
-        createdAt=str(doc.get("createdAt", "")),
-        updatedAt=str(doc.get("updatedAt", "")),
-        lastRunAt=doc["lastRunAt"].isoformat() if doc.get("lastRunAt") else None,
-    )
-
-
-def _doc_to_event(doc: dict[str, Any]) -> AgentEvent:
-    """Convert a MongoDB event document to an AgentEvent model."""
-    return AgentEvent(
-        type=doc["type"],
-        author=doc.get("author"),
-        content=doc.get("content"),
-        sequence=doc.get("sequence"),
-        timestamp=str(doc.get("timestamp", "")) if doc.get("timestamp") else None,
-        is_final=doc.get("isFinal", False),
-    )
 
 
 def _require_tenant_id(user: JwtPayload) -> str:
@@ -98,7 +66,7 @@ async def list_sessions(
         .sort("lastRunAt", -1)
         .limit(20)
     )
-    return [_doc_to_session(doc) async for doc in cursor]
+    return [SessionResponse.model_validate(doc) async for doc in cursor]
 
 
 @router.get("/{session_id}")
@@ -114,7 +82,7 @@ async def get_session(
     )
     if not doc:
         raise HTTPException(status_code=404, detail="Session not found")
-    return _doc_to_session(doc)
+    return SessionResponse.model_validate(doc)
 
 
 @router.get("/{session_id}/events")
@@ -128,7 +96,7 @@ async def list_session_events(
     cursor = db.agent_events.find(
         {"sessionId": session_id, "tenantId": ObjectId(tenant_id)}
     ).sort("sequence", 1)
-    return [_doc_to_event(doc) async for doc in cursor]
+    return [AgentEvent.model_validate(doc) async for doc in cursor]
 
 
 @router.get("/{session_id}/stream")
@@ -164,7 +132,7 @@ async def harness_list_sessions(
         .sort("lastRunAt", -1)
         .limit(20)
     )
-    return [_doc_to_session(doc) async for doc in cursor]
+    return [SessionResponse.model_validate(doc) async for doc in cursor]
 
 
 @harness_router.get("/sessions/{session_id}/events")
@@ -179,7 +147,7 @@ async def harness_list_session_events(
     cursor = db.agent_events.find(
         {"sessionId": session_id, "tenantId": ObjectId(tenant_id)}
     ).sort("sequence", 1)
-    return [_doc_to_event(doc) async for doc in cursor]
+    return [AgentEvent.model_validate(doc) async for doc in cursor]
 
 
 @harness_router.get("/sessions/{session_id}/stream")

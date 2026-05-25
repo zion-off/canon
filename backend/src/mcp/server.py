@@ -26,6 +26,7 @@ mcp = FastMCP(
 
 # --- Context resolution ---
 
+
 class _RequestContext:
     """Request-scoped dependency container resolved from MCP context."""
 
@@ -64,6 +65,7 @@ async def _build_context(ctx: Context) -> _RequestContext:
 
 
 # --- Tool ---
+
 
 @mcp.tool(
     name="canon",
@@ -113,6 +115,7 @@ async def canon(
 
 # --- Resources ---
 
+
 @mcp.resource("canon://org/state")
 async def get_org_state(ctx: Context | None = None) -> str:
     """Synthesized organizational posture — what the org is currently doing.
@@ -145,18 +148,23 @@ async def get_org_momentum(ctx: Context | None = None) -> str:
         raise RuntimeError("Context required — FastMCP should inject it automatically.")
     request_ctx = await _build_context(ctx)
     cutoff = datetime.now(UTC) - timedelta(days=30)
-    nodes = await request_ctx.db.memory_nodes.find(
-        {
-            "tenantId": ObjectId(request_ctx.tenant_id),
-            "updatedAt": {"$gte": cutoff},
-        },
-        {"_id": 0, "embedding": 0, "embeddingText": 0},
-    ).sort("updatedAt", -1).to_list(length=200)
+    nodes = (
+        await request_ctx.db.memory_nodes.find(
+            {
+                "tenantId": ObjectId(request_ctx.tenant_id),
+                "updatedAt": {"$gte": cutoff},
+            },
+            {"_id": 0, "embedding": 0, "embeddingText": 0},
+        )
+        .sort("updatedAt", -1)
+        .to_list(length=200)
+    )
 
     return _format_as_org_momentum(nodes)
 
 
 # --- Prompt ---
+
 
 @mcp.prompt("canon-behavior")
 def canon_behavior_prompt() -> str:
@@ -221,6 +229,7 @@ through engineering effort persists and informs future work."""
 
 # --- Formatting helpers ---
 
+
 def _format_as_org_state(nodes: list[dict]) -> str:
     """Format active/in_progress nodes as organizational state projection."""
     if not nodes:
@@ -234,14 +243,18 @@ def _format_as_org_state(nodes: list[dict]) -> str:
     if active:
         sections.append("## Active Decisions & Constraints\n")
         for node in active:
-            sections.append(f"- **{node.get('name', 'Unnamed')}**: {node.get('description', '')}")
+            sections.append(
+                f"- **{node.get('name', 'Unnamed')}**: {node.get('description', '')}"
+            )
             if node.get("tags"):
                 sections.append(f"  Tags: {', '.join(node['tags'])}")
 
     if in_progress:
         sections.append("\n## In Progress\n")
         for node in in_progress:
-            sections.append(f"- **{node.get('name', 'Unnamed')}**: {node.get('description', '')}")
+            sections.append(
+                f"- **{node.get('name', 'Unnamed')}**: {node.get('description', '')}"
+            )
             if node.get("tags"):
                 sections.append(f"  Tags: {', '.join(node['tags'])}")
 

@@ -44,7 +44,9 @@ async def register(
         result = await db.users.insert_one(user)
     except Exception as e:
         if "duplicate key" in str(e).lower():
-            raise HTTPException(status_code=409, detail="Email already registered") from e
+            raise HTTPException(
+                status_code=409, detail="Email already registered"
+            ) from e
         raise
     token = issue_jwt(str(result.inserted_id), email, body.name, None, None)
     return LoginResponse(

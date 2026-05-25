@@ -30,6 +30,4 @@ def issue_jwt(
         "iat": now,
         "exp": now + timedelta(days=settings.jwt_expiry_days),
     }
-    return pyjwt.encode(
-        payload, settings.jwt_secret, algorithm=settings.jwt_algorithm
-    )
+    return pyjwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)

@@ -62,7 +62,13 @@ async def create_team(
 
     await db.users.update_one(
         {"_id": ObjectId(user_id)},
-        {"$set": {"tenantId": tenant_id, "role": "owner", "updatedAt": datetime.now(UTC)}},
+        {
+            "$set": {
+                "tenantId": tenant_id,
+                "role": "owner",
+                "updatedAt": datetime.now(UTC),
+            }
+        },
     )
 
     # Generate default API token
@@ -135,7 +141,9 @@ async def create_invite(
 ) -> CreateInviteResponse:
     """Create an invite code (owner only)."""
     if user.role != "owner":
-        raise HTTPException(status_code=403, detail="Only team owners can create invites")
+        raise HTTPException(
+            status_code=403, detail="Only team owners can create invites"
+        )
     if not user.tenant_id:
         raise HTTPException(status_code=400, detail="User does not belong to a team")
 
@@ -194,7 +202,9 @@ async def create_token(
 ) -> CreateTokenResponse:
     """Create a new API token (owner only)."""
     if user.role != "owner":
-        raise HTTPException(status_code=403, detail="Only team owners can create API tokens")
+        raise HTTPException(
+            status_code=403, detail="Only team owners can create API tokens"
+        )
 
     if not user.tenant_id:
         raise HTTPException(status_code=400, detail="User does not belong to a team")

@@ -62,7 +62,9 @@ class AgentEventFeed:
         for queue in self._subscribers.get(key, []):
             await queue.put(event_dict)
 
-    async def subscribe(self, tenant_id: str, session_id: str) -> AsyncIterator[dict[str, Any]]:
+    async def subscribe(
+        self, tenant_id: str, session_id: str
+    ) -> AsyncIterator[dict[str, Any]]:
         """Subscribe to live events for a session."""
         key = f"{tenant_id}:{session_id}"
         queue: Queue[dict[str, Any]] = Queue()

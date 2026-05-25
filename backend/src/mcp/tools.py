@@ -273,9 +273,7 @@ async def emit_checkpoint(message: str, tool_context: ToolContext) -> dict[str, 
         A dictionary confirming the checkpoint was emitted.
     """
     checkpoints = tool_context.state.get("temp:checkpoints", [])
-    checkpoints.append(
-        {"message": message, "timestamp": datetime.now(UTC).isoformat()}
-    )
+    checkpoints.append({"message": message, "timestamp": datetime.now(UTC).isoformat()})
     tool_context.state["temp:checkpoints"] = checkpoints
     return {"status": "emitted", "message": message}
 

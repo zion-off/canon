@@ -1,8 +1,32 @@
 from __future__ import annotations
 
-from typing import Literal
+from datetime import datetime
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+
+# ─── Base Model ──────────────────────────────────────────────────────────────
+
+
+class MongoModel(BaseModel):
+    """Base model for Pydantic schemas populated from MongoDB documents.
+
+    Coerces datetime fields to ISO strings and ignores extra fields
+    (like ``_id``) so that ``model_validate(doc)`` works directly on a
+    cursor result.
+    """
+
+    model_config = ConfigDict(populate_by_name=True, extra="ignore")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_datetimes(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            for k, v in data.items():
+                if isinstance(v, datetime):
+                    data[k] = v.isoformat()
+        return data
+
 
 # ─── Request Models ───────────────────────────────────────────────────────────
 
@@ -149,16 +173,14 @@ class CreateTokenResponse(BaseModel):
     created_at: str = Field(alias="createdAt")
 
 
-class SessionResponse(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
+class SessionResponse(MongoModel):
     session_id: str = Field(alias="sessionId")
-    title: str
+    title: str = Field(default="")
     summary: str | None = None
-    status: str
-    run_count: int = Field(alias="runCount")
-    created_at: str = Field(alias="createdAt")
-    updated_at: str = Field(alias="updatedAt")
+    status: str = Field(default="")
+    run_count: int = Field(default=0, alias="runCount")
+    created_at: str = Field(default="", alias="createdAt")
+    updated_at: str = Field(default="", alias="updatedAt")
     last_run_at: str | None = Field(default=None, alias="lastRunAt")
 
 
@@ -205,12 +227,12 @@ AgentEventType = Literal[
 ]
 
 
-class AgentEvent(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
+class AgentEvent(MongoModel):
     type: AgentEventType
     author: str | None = None
     content: str | None = None
     sequence: int | None = None
     timestamp: str | None = None
-    is_final: bool = Field(default=False, serialization_alias="isFinal")
+    is_final: bool = Field(
+        default=False, validation_alias="isFinal", serialization_alias="isFinal"
+    )

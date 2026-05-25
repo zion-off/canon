@@ -5,6 +5,7 @@ services:
     restart: unless-stopped
     volumes:
       - mongo-data:/data/db
+      - mongo-configdb:/data/configdb
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -70,3 +71,4 @@ services:
 
 volumes:
   mongo-data:
+  mongo-configdb:

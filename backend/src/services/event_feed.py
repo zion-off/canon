@@ -7,8 +7,10 @@ from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Any
 
+from bson import ObjectId
+
+from src.models.documents import AgentEventDocument
 from src.models.schemas import AgentEvent
-from src.repositories.agent_events import AgentEventRepository
 
 
 class AgentEventFeed:
@@ -20,9 +22,8 @@ class AgentEventFeed:
     runner event loop.
     """
 
-    def __init__(self, event_repo: AgentEventRepository) -> None:
+    def __init__(self) -> None:
         self._subscribers: dict[str, list[Queue[dict[str, Any]]]] = {}
-        self._event_repo = event_repo
         self._sequences: dict[str, int] = {}  # run_id → current sequence
 
     async def broadcast(
@@ -49,13 +50,14 @@ class AgentEventFeed:
         event_dict = event.model_dump(by_alias=True)
 
         # Persist for replay
-        await self._event_repo.insert(
-            tenant_id=tenant_id,
+        doc = AgentEventDocument.model_construct(
+            tenant_id=ObjectId(tenant_id),
             user_id=user_id,
             session_id=session_id,
             run_id=run_id,
-            event=event_dict,
+            **event_dict,
         )
+        await doc.insert()
 
         # Fan out to live subscribers
         key = f"{tenant_id}:{session_id}"
@@ -93,8 +95,18 @@ class AgentEventFeed:
         after_sequence: int = 0,
     ) -> list[dict[str, Any]]:
         """Replay stored events from a sequence number."""
-        return await self._event_repo.list_after(
-            tenant_id=tenant_id,
-            session_id=session_id,
-            after_sequence=after_sequence,
+        tenant_oid = ObjectId(tenant_id)
+        events = (
+            await AgentEventDocument.find(
+                {
+                    "tenant_id": tenant_oid,
+                    "session_id": session_id,
+                    "sequence": {"$gt": after_sequence},
+                }
+            )
+            .sort("sequence")
+            .to_list(length=1000)
         )
+        return [
+            e.model_dump(by_alias=True, exclude={"tenant_id", "_id"}) for e in events
+        ]

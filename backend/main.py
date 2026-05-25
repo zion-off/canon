@@ -16,7 +16,6 @@ from fastapi import FastAPI
 from starlette.routing import Mount
 
 from src.mcp.server import mcp
-from src.repositories.agent_events import AgentEventRepository
 from src.routers.auth import router as auth_router
 from src.routers.graph import router as graph_router
 from src.routers.sessions import harness_router
@@ -35,7 +34,7 @@ async def lifespan(app: FastAPI):
     await mongo.connect()
     app.state.mongo = mongo
 
-    event_feed = AgentEventFeed(event_repo=AgentEventRepository())
+    event_feed = AgentEventFeed()
     app.state.event_feed = event_feed
 
     # Defer agent initialization — requires Gemini API key and ADK agents

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from asyncio import Queue
+from asyncio import Lock, Queue
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 
@@ -34,6 +34,7 @@ class AgentEventFeed:
     def __init__(self) -> None:
         self._subscribers: dict[str, list[Queue[AgentEvent]]] = {}
         self._sequences: dict[str, int] = {}  # run_id → current sequence
+        self._locks: dict[str, Lock] = {}  # run_id → sequence lock
 
     async def broadcast(
         self,
@@ -47,11 +48,16 @@ class AgentEventFeed:
 
         Assigns sequence number and timestamp if not already present.
         """
-        # Assign sequence (monotonically increasing per run)
-        seq = self._sequences.get(run_id, 0) + 1
-        self._sequences[run_id] = seq
-        if event.sequence is None:
-            event.sequence = seq
+        # Assign sequence (monotonically increasing per run, atomic)
+        lock = self._locks.get(run_id)
+        if lock is None:
+            lock = Lock()
+            self._locks[run_id] = lock
+        async with lock:
+            seq = self._sequences.get(run_id, 0) + 1
+            self._sequences[run_id] = seq
+            if event.sequence is None:
+                event.sequence = seq
         now = datetime.now(UTC)
         if event.timestamp is None:
             event.timestamp = now.isoformat()
@@ -98,6 +104,7 @@ class AgentEventFeed:
     def cleanup_run(self, run_id: str) -> None:
         """Remove sequence tracking for a completed run."""
         self._sequences.pop(run_id, None)
+        self._locks.pop(run_id, None)
 
     async def replay(
         self,

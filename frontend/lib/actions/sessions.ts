@@ -4,38 +4,16 @@ import { SessionResponseSchema, AgentEventSchema } from "@/lib/schemas/sessions"
 import type { SessionResponse, AgentEvent } from "@/lib/schemas/sessions";
 import { z } from "zod";
 import { API_V1_SESSIONS } from "@/lib/constants";
-import { API_URL } from "@/lib/config";
-import { getAuthHeaders, handleErrorResponse } from "@/lib/api-utils";
+import { apiFetch } from "@/lib/api-utils";
 
 export async function listSessions(): Promise<SessionResponse[]> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${API_URL}/${API_V1_SESSIONS}`, { headers });
-
-  if (!res.ok) {
-    await handleErrorResponse(res);
-  }
-
-  return z.array(SessionResponseSchema).parse(await res.json());
+  return apiFetch(API_V1_SESSIONS, z.array(SessionResponseSchema));
 }
 
 export async function getSession(sessionId: string): Promise<SessionResponse> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${API_URL}/${API_V1_SESSIONS}/${sessionId}`, { headers });
-
-  if (!res.ok) {
-    await handleErrorResponse(res);
-  }
-
-  return SessionResponseSchema.parse(await res.json());
+  return apiFetch(`${API_V1_SESSIONS}/${sessionId}`, SessionResponseSchema);
 }
 
 export async function getSessionEvents(sessionId: string): Promise<AgentEvent[]> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(`${API_URL}/${API_V1_SESSIONS}/${sessionId}/events`, { headers });
-
-  if (!res.ok) {
-    await handleErrorResponse(res);
-  }
-
-  return z.array(AgentEventSchema).parse(await res.json());
+  return apiFetch(`${API_V1_SESSIONS}/${sessionId}/events`, z.array(AgentEventSchema));
 }

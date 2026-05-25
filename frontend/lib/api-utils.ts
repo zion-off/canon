@@ -1,6 +1,8 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { z } from "zod";
+import { API_URL } from "./config";
 import { COOKIE_NAME, COOKIE_OPTIONS } from "./constants";
 
 async function logout(): Promise<void> {
@@ -45,4 +47,37 @@ async function setAuthCookie(token: string): Promise<void> {
   cookieStore.set(COOKIE_NAME, token, COOKIE_OPTIONS);
 }
 
-export { getAuthHeaders, handleErrorResponse, logout, setAuthCookie };
+interface ApiFetchOptions<T> {
+  method?: string;
+  body?: unknown;
+  onSuccess?: (data: T) => Promise<void>;
+}
+
+async function apiFetch<T>(
+  path: string,
+  schema: z.ZodSchema<T>,
+  options: ApiFetchOptions<T> = {},
+): Promise<T> {
+  const { method, body, onSuccess } = options;
+
+  const authHeaders = await getAuthHeaders(body !== undefined);
+  const res = await fetch(`${API_URL}/${path}`, {
+    method,
+    headers: authHeaders,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+
+  if (!res.ok) {
+    await handleErrorResponse(res);
+  }
+
+  const data = schema.parse(await res.json());
+
+  if (onSuccess) {
+    await onSuccess(data);
+  }
+
+  return data;
+}
+
+export { getAuthHeaders, handleErrorResponse, logout, setAuthCookie, apiFetch };

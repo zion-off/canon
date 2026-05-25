@@ -61,38 +61,20 @@ def build_embedding_text(doc: MemoryNodeInput) -> str:
     return "\n".join(filter(None, lines))
 
 
-async def generate_document_embedding(text: str) -> list[float]:
-    """Generate a 768-dimensional embedding for document storage.
+async def _generate_embedding(text: str, *, task_type: str) -> list[float]:
+    """Generate a 768-dim embedding via Gemini with a given task type.
 
-    Uses the Gemini embedding API with RETRIEVAL_DOCUMENT task type,
-    optimized for indexing documents that will later be retrieved via
-    query embeddings.
+    Args:
+        text: The text to embed.
+        task_type: ``"RETRIEVAL_DOCUMENT"`` for indexing or
+            ``"RETRIEVAL_QUERY"`` for search.
     """
     client = get_genai_client()
     response = await client.aio.models.embed_content(
         model=settings.embedding_model,
         contents=text,
         config=types.EmbedContentConfig(
-            task_type="RETRIEVAL_DOCUMENT",
-            output_dimensionality=768,
-        ),
-    )
-    if not response.embeddings:
-        raise RuntimeError("Embedding API returned empty response.")
-    values = response.embeddings[0].values
-    if values is None:
-        raise RuntimeError("Embedding API returned None values.")
-    return values
-
-
-async def _generate_query_embedding(text: str) -> list[float]:
-    """Generate a 768-dim query embedding via Gemini."""
-    client = get_genai_client()
-    response = await client.aio.models.embed_content(
-        model=settings.embedding_model,
-        contents=text,
-        config=types.EmbedContentConfig(
-            task_type="RETRIEVAL_QUERY",
+            task_type=task_type,
             output_dimensionality=768,
         ),
     )
@@ -133,7 +115,7 @@ async def hybrid_search(
     were matched and the distribution of results.
     """
     try:
-        embedding = await _generate_query_embedding(query)
+        embedding = await _generate_embedding(query, task_type="RETRIEVAL_QUERY")
     except Exception as exc:
         return HybridSearchError(error=f"Embedding generation failed: {exc}")
 
@@ -289,7 +271,7 @@ async def prepare_embedding(
     embedding_text = build_embedding_text(doc)
 
     try:
-        embedding = await generate_document_embedding(embedding_text)
+        embedding = await _generate_embedding(embedding_text, task_type="RETRIEVAL_DOCUMENT")
     except Exception as exc:
         return PrepareError(error=f"Embedding generation failed: {exc}")
 

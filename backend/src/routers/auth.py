@@ -4,6 +4,7 @@ import asyncio
 from datetime import UTC, datetime
 
 import bcrypt
+import pymongo.errors
 from fastapi import APIRouter, Depends, HTTPException
 
 from src.dependencies import jwt_auth
@@ -42,12 +43,10 @@ async def register(
     )
     try:
         await user.insert()
-    except Exception as e:
-        if "duplicate key" in str(e).lower():
-            raise HTTPException(
-                status_code=409, detail="Email already registered"
-            ) from e
-        raise
+    except pymongo.errors.DuplicateKeyError:
+        raise HTTPException(
+            status_code=409, detail="Email already registered"
+        ) from None
     token = issue_jwt(str(user.id), email, body.name, None, None)
     return LoginResponse(
         token=token,

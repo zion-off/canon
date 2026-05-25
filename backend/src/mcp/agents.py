@@ -65,6 +65,9 @@ using hybrid search.
 5. Limit to 10 results.
 6. Return results including _id, name, description, status, tags, and metadata.
 
+Use ``emit_checkpoint`` after the vector search completes, describing what
+query patterns were matched and the distribution of results.
+
 Never hallucinate node IDs. Only reference IDs from actual query results.\
 """
 
@@ -89,6 +92,9 @@ organizational knowledge graph.
 4. Project: _id, name, description, status, tags, metadata, supersedes, \
    supersededBy, and connected nodes with hops.
 5. Return the full traversal results.
+
+Use ``emit_checkpoint`` after the graph traversal completes, summarizing
+the number of nodes found and the depth of connections discovered.
 
 If no identifiable entities are found or no matching nodes exist, report that \
 explicitly and return empty results. Do not fabricate node IDs.\
@@ -134,6 +140,9 @@ properly structured memory nodes and persist them.
 5. If ``meta.supersedes_id_str`` is set, call ``update-many`` to deprecate:
    filter: ``{{"_id": "<superseded_id>"}}``
    update: ``{{"$set": {{"status": "deprecated", "supersededBy": "<new_id>"}}}}``
+
+Use ``emit_checkpoint`` after step 2 (once the embedding is prepared) and
+again after step 5 (once all writes and relationship updates are committed).
 
 ## Output Schema
 
@@ -311,7 +320,7 @@ def _get_semantic_retriever() -> Agent:
             description="Perceives relevant organizational knowledge through hybrid search. "
             "Call with a query to find semantically and textually related memory nodes.",
             instruction=SEMANTIC_RETRIEVER_INSTRUCTION,
-            tools=[_build_mongo_read_toolset(), embed_query_tool],
+            tools=[_build_mongo_read_toolset(), embed_query_tool, emit_checkpoint_tool],
             output_key="retrieval_results",
             after_tool_callback=log_tool_usage,
         )
@@ -328,7 +337,7 @@ def _get_graph_explorer() -> Agent:
             "understand what connects to a specific node — its neighbors, "
             "dependents, related knowledge, and organizational context.",
             instruction=GRAPH_EXPLORER_INSTRUCTION,
-            tools=[_build_mongo_read_toolset()],
+            tools=[_build_mongo_read_toolset(), emit_checkpoint_tool],
             output_key="graph_results",
             after_tool_callback=log_tool_usage,
         )
@@ -349,6 +358,7 @@ def _get_memory_writer() -> Agent:
                 _build_mongo_read_toolset(),
                 _build_mongo_write_toolset(),
                 prepare_embedding_tool,
+                emit_checkpoint_tool,
             ],
             output_key="write_result",
             output_schema=MemoryNodeOutput,

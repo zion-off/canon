@@ -41,7 +41,7 @@ export function SessionCard({ session }: SessionCardProps) {
             <span className={`inline-block h-2 w-2 rounded-full ${statusColor(session.status)}`} />
             <span className="font-medium text-canon-text">{session.title}</span>
           </div>
-          <span className="text-sm text-canon-text-dim">
+          <span className="text-sm text-canon-text-dim" suppressHydrationWarning>
             {formatRelativeTime(session.lastRunAt ?? session.updatedAt)}
           </span>
         </div>

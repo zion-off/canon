@@ -1,11 +1,10 @@
 services:
   mongo:
-    image: mongo:7
+    container_name: canon-mongo
+    image: mongodb/mongodb-atlas-local:latest
     restart: unless-stopped
     volumes:
       - mongo-data:/data/db
-    environment:
-      MONGO_INITDB_DATABASE: canon
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -15,12 +14,23 @@ services:
       - "27017:27017"
 
   backend:
+    container_name: canon-backend
     build:
       context: ./backend
       dockerfile: Dockerfile
-    restart: unless-stopped
+    restart: no
     ports:
       - "8000:8000"
+    develop:
+      watch:
+        - action: sync
+          path: ./backend
+          target: /app
+          ignore:
+            - __pycache__/
+            - .venv/
+        - action: rebuild
+          path: ./backend/pyproject.toml
     environment:
       - MONGODB_URI=${MONGODB_URI:-mongodb://mongo:27017/canon}
       - JWT_SECRET=${JWT_SECRET}
@@ -33,14 +43,23 @@ services:
         condition: service_healthy
 
   frontend:
+    container_name: canon-frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
-    restart: unless-stopped
+    restart: no
     ports:
       - "3000:3000"
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend
+          target: /app
+          ignore:
+            - node_modules/
+            - .next/
+        - action: rebuild
+          path: ./frontend/package.json
     environment:
       - API_URL=${API_URL:-http://backend:8000}
     depends_on:

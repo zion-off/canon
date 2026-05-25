@@ -10,5 +10,4 @@ docker-compose*.yml
 README.md
 *.md
 .next
-pnpm-lock.yaml
 tsconfig.tsbuildinfo

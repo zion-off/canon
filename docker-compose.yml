@@ -19,11 +19,14 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    restart: no
+    restart: unless-stopped
     ports:
       - "8000:8000"
     volumes:
       - ~/.config/gcloud/application_default_credentials.json:/gcp/credentials.json:ro
+      - ./backend:/app
+      - /app/.venv
+      - /app/__pycache__
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/gcp/credentials.json
       - MONGODB_URI=${MONGODB_URI:-mongodb://mongo:27017/canon}
@@ -31,16 +34,6 @@ services:
       - CANON_REASONING_MODEL=${CANON_REASONING_MODEL:-gemini-3.1-pro}
       - CANON_FAST_MODEL=${CANON_FAST_MODEL:-gemini-3.1-flash}
       - CANON_EMBEDDING_MODEL=${CANON_EMBEDDING_MODEL:-text-embedding-004}
-    develop:
-      watch:
-        - action: sync
-          path: ./backend
-          target: /app
-          ignore:
-            - __pycache__/
-            - .venv/
-        - action: rebuild
-          path: ./backend/pyproject.toml
     depends_on:
       mongo:
         condition: service_healthy
@@ -50,19 +43,13 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    restart: no
+    restart: unless-stopped
     ports:
       - "3000:3000"
-    develop:
-      watch:
-        - action: sync
-          path: ./frontend
-          target: /app
-          ignore:
-            - node_modules/
-            - .next/
-        - action: rebuild
-          path: ./frontend/package.json
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
     environment:
       - API_URL=${API_URL:-http://backend:8000}
       - JWT_SECRET=${JWT_SECRET}

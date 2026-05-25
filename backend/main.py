@@ -10,10 +10,10 @@ from __future__ import annotations
 
 import contextlib
 import logging
-import sys
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 import src.services.event_feed as event_feed_module
 from src.mcp.server import mcp
@@ -24,8 +24,6 @@ from src.routers.sessions import router as sessions_router
 from src.routers.teams import router as teams_router
 from src.services.event_feed import AgentEventFeed
 from src.services.mongo import MongoProvider
-
-sys.tracebacklimit = 0
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +73,19 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(Exception)
+async def _unexpected_exception_handler(
+    request: Request, exc: Exception
+) -> JSONResponse:
+    """Log the full traceback and return a sanitized 500 response."""
+    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+    )
+
 
 app.mount("/mcp", mcp.streamable_http_app())
 

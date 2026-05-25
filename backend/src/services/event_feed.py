@@ -5,7 +5,6 @@ from __future__ import annotations
 from asyncio import Queue
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
-from typing import Any
 
 from bson import ObjectId
 
@@ -23,7 +22,7 @@ class AgentEventFeed:
     """
 
     def __init__(self) -> None:
-        self._subscribers: dict[str, list[Queue[dict[str, Any]]]] = {}
+        self._subscribers: dict[str, list[Queue[AgentEvent]]] = {}
         self._sequences: dict[str, int] = {}  # run_id → current sequence
 
     async def broadcast(
@@ -46,7 +45,7 @@ class AgentEventFeed:
         if event.timestamp is None:
             event.timestamp = datetime.now(UTC).isoformat()
 
-        # Serialize to dict for persistence and fan-out
+        # Serialize to dict for persistence
         event_dict = event.model_dump(by_alias=True)
 
         # Persist for replay
@@ -59,17 +58,17 @@ class AgentEventFeed:
         )
         await doc.insert()
 
-        # Fan out to live subscribers
+        # Fan out AgentEvent objects to live subscribers
         key = f"{tenant_id}:{session_id}"
         for queue in self._subscribers.get(key, []):
-            await queue.put(event_dict)
+            await queue.put(event)
 
     async def subscribe(
         self, tenant_id: str, session_id: str
-    ) -> AsyncIterator[dict[str, Any]]:
+    ) -> AsyncIterator[AgentEvent]:
         """Subscribe to live events for a session."""
         key = f"{tenant_id}:{session_id}"
-        queue: Queue[dict[str, Any]] = Queue()
+        queue: Queue[AgentEvent] = Queue()
 
         if key not in self._subscribers:
             self._subscribers[key] = []
@@ -93,7 +92,7 @@ class AgentEventFeed:
         tenant_id: str,
         session_id: str,
         after_sequence: int = 0,
-    ) -> list[dict[str, Any]]:
+    ) -> list[AgentEvent]:
         """Replay stored events from a sequence number."""
         tenant_oid = ObjectId(tenant_id)
         events = (
@@ -108,5 +107,8 @@ class AgentEventFeed:
             .to_list(length=1000)
         )
         return [
-            e.model_dump(by_alias=True, exclude={"tenant_id", "_id"}) for e in events
+            AgentEvent.model_validate(
+                e.model_dump(by_alias=True, exclude={"tenant_id", "_id"})
+            )
+            for e in events
         ]

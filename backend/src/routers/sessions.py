@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from collections.abc import AsyncIterator
 
 from bson import ObjectId
@@ -41,12 +40,10 @@ async def _sse_stream(
     """Shared SSE generator: replays stored events then streams live ones."""
     stored = await event_feed.replay(tenant_id, session_id, after_sequence)
     for evt in stored:
-        event_id = evt.get("sequence", 0)
-        yield f"id: {event_id}\ndata: {json.dumps(evt, default=str)}\n\n"
+        yield f"id: {evt.sequence}\ndata: {evt.model_dump_json(by_alias=True)}\n\n"
 
     async for evt in event_feed.subscribe(tenant_id, session_id):
-        event_id = evt.get("sequence", 0)
-        yield f"id: {event_id}\ndata: {json.dumps(evt, default=str)}\n\n"
+        yield f"id: {evt.sequence}\ndata: {evt.model_dump_json(by_alias=True)}\n\n"
 
 
 # ---------------------------------------------------------------------------

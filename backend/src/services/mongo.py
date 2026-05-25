@@ -166,8 +166,8 @@ class MongoProvider:
                             "content": [
                                 {"type": "string", "analyzer": "lucene.standard"}
                             ],
-                            "tags": [{"type": "string", "tokenization": "none"}],
-                            "status": [{"type": "string", "tokenization": "none"}],
+                            "tags": [{"type": "string", "analyzer": "lucene.keyword"}],
+                            "status": [{"type": "string", "analyzer": "lucene.keyword"}],
                         },
                     },
                 },

@@ -6,14 +6,11 @@ Composes FastAPI and FastMCP into a single ASGI application:
 - Lifespan wires up MongoDB, AgentEventFeed, and ADK agent subprocesses
 """
 
-import sys
-
-sys.tracebacklimit = 0
-
 from __future__ import annotations
 
 import contextlib
 import logging
+import sys
 
 import uvicorn
 from fastapi import FastAPI
@@ -27,6 +24,8 @@ from src.routers.sessions import router as sessions_router
 from src.routers.teams import router as teams_router
 from src.services.event_feed import AgentEventFeed
 from src.services.mongo import MongoProvider
+
+sys.tracebacklimit = 0
 
 logger = logging.getLogger(__name__)
 

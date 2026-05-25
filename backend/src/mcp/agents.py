@@ -23,8 +23,8 @@ from src.config import settings
 from src.mcp.constants import AgentName, TempState
 from src.mcp.tools import (
     emit_checkpoint_tool,
+    hybrid_search_tool,
     prepare_embedding_tool,
-    vector_search_tool,
 )
 
 MEMORY_NODE_SCHEMA = """\
@@ -307,7 +307,7 @@ def _get_semantic_retriever() -> Agent:
             description="Perceives relevant organizational knowledge through hybrid search. "
             "Call with a query to find semantically and textually related memory nodes.",
             instruction=SEMANTIC_RETRIEVER_INSTRUCTION,
-            tools=[vector_search_tool, emit_checkpoint_tool],
+            tools=[hybrid_search_tool, emit_checkpoint_tool],
             output_key="retrieval_results",
             after_tool_callback=log_tool_usage,
         )

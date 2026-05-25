@@ -1,9 +1,9 @@
 """ADK agent tools for the Canon memory graph.
 
-Provides tools that agents use for vector search, embedding generation,
+Provides tools that agents use for hybrid search, embedding generation,
 document preparation, and reasoning checkpoints.
 
-Semantic retrieval (vector_search) generates embeddings and calls the
+Semantic retrieval (hybrid_search) generates embeddings and calls the
 MongoDB MCP server's aggregate tool internally — the LLM never sees
 raw vectors. All other database operations go through the MongoDB MCP
 server directly via agent tool bindings.
@@ -366,5 +366,5 @@ async def emit_checkpoint(
 # ─── Tool Instances ──────────────────────────────────────────────────────────
 
 prepare_embedding_tool = FunctionTool(func=prepare_embedding)
-vector_search_tool = FunctionTool(func=hybrid_search)
+hybrid_search_tool = FunctionTool(func=hybrid_search)
 emit_checkpoint_tool = FunctionTool(func=emit_checkpoint)

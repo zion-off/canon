@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/actions/auth";
 import { AppHeader } from "@/components/layout/AppHeader";
-import { ROUTE_LOGIN, ROUTE_ONBOARDING } from "@/lib/constants";
+import { ROUTE_LOGIN } from "@/lib/constants";
 
 export default async function AppLayout({
   children,
@@ -12,10 +12,6 @@ export default async function AppLayout({
 
   if (!user) {
     redirect(ROUTE_LOGIN);
-  }
-
-  if (user.tenantId === null) {
-    redirect(ROUTE_ONBOARDING);
   }
 
   return (

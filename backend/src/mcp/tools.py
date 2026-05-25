@@ -1,7 +1,11 @@
 """ADK agent tools for the Canon memory graph.
 
-Provides tools that agents use to persist structured memory nodes,
-generate embeddings, and emit reasoning checkpoints.
+Provides tools that agents use to generate embeddings for memory nodes,
+prepare documents for persistence, and emit reasoning checkpoints.
+
+All database operations go through the MongoDB MCP server —
+this module only handles validation, embedding generation, and document
+preparation.
 """
 
 from __future__ import annotations
@@ -13,24 +17,9 @@ from bson import ObjectId
 from google.adk.tools.function_tool import FunctionTool
 from google.adk.tools.tool_context import ToolContext
 from google.genai import types
-from motor.motor_asyncio import AsyncIOMotorClient
-from pymongo.errors import DuplicateKeyError
 
 from src.config import settings
 from src.mcp.utils import get_genai_client
-
-# ─── Lazy Singletons ─────────────────────────────────────────────────────────
-
-_mongo_client: AsyncIOMotorClient | None = None
-
-
-def _get_mongo_client() -> AsyncIOMotorClient:
-    """Return a lazily-initialized MongoDB client singleton."""
-    global _mongo_client  # noqa: PLW0603
-    if _mongo_client is None:
-        _mongo_client = AsyncIOMotorClient(settings.mongodb_uri)
-    return _mongo_client
-
 
 # ─── Embedding Utilities ─────────────────────────────────────────────────────
 
@@ -134,17 +123,18 @@ async def embed_query(text: str) -> dict[str, list[float]]:
 # ─── Core Agent Tools ────────────────────────────────────────────────────────
 
 
-async def canonize_node(
+async def prepare_embedding(
     document: dict[str, Any],
     rationale: str,
     related_existing_ids: list[str],
     tool_context: ToolContext,
-) -> dict[str, str]:
-    """Persist a structured memory node to the Canon knowledge graph.
+) -> dict[str, Any]:
+    """Validate and precompute an embedding for a memory node.
 
-    Creates a new node in the memory_nodes collection with full validation,
-    embedding generation, bidirectional edge management, and supersession
-    handling.
+    Validates the document, generates a retrieval-optimized embedding, and
+    returns a fully prepared document ready for insertion via the MongoDB MCP
+    server's ``insert-many`` tool. Persistence is handled by the memory_writer
+    subagent using MCP ``insert-many`` and ``update-many`` tools.
 
     Args:
         document: The memory node data. Must include 'name', 'description',
@@ -157,8 +147,9 @@ async def canonize_node(
             Must have state["app:tenant_id"] set.
 
     Returns:
-        A dictionary with 'status', 'node_id', and 'name' on success,
-        or 'error' on validation/persistence failure.
+        A dictionary with 'document' (the prepared document ready for
+        insertion) and metadata about relationships to form, or 'error'
+        on validation/failure.
     """
     tenant_id = ObjectId(tool_context.state["app:tenant_id"])
     document["tenantId"] = tenant_id
@@ -209,53 +200,26 @@ async def canonize_node(
 
     document["embedding"] = embedding
 
-    # Insert into MongoDB
-    client = _get_mongo_client()
-    db = client[settings.database_name]
-    collection = db["memory_nodes"]
-
-    try:
-        result = await collection.insert_one(document)
-    except DuplicateKeyError:
-        return {
-            "error": f"A node named '{document['name']}' already exists for this tenant."
-        }
-
-    node_id = result.inserted_id
-
-    # Update bidirectional edges on related nodes (scoped by tenantId)
-    if related_object_ids:
-        await collection.update_many(
-            {"_id": {"$in": related_object_ids}, "tenantId": tenant_id},
-            {
-                "$addToSet": {"relatedEntityIds": node_id},
-                "$set": {"updatedAt": now},
-            },
-        )
-
-    # Mark superseded node as deprecated
+    # Serialize ObjectId fields to hex strings and dates to ISO strings
+    # so the returned dict is JSON-serializable for ADK framework.
+    document["tenantId"] = str(tenant_id)
+    document["relatedEntityIds"] = [str(o) for o in related_entity_object_ids]
+    document["createdAt"] = now.isoformat()
+    document["updatedAt"] = now.isoformat()
     if supersedes_id:
-        await collection.update_one(
-            {"_id": supersedes_id, "tenantId": tenant_id},
-            {
-                "$set": {
-                    "status": "deprecated",
-                    "supersededBy": node_id,
-                    "updatedAt": now,
-                },
-            },
-        )
+        document["supersedes"] = str(supersedes_id)
+    if "supersededBy" in document:
+        del document["supersededBy"]
 
-    # Store result in tool context state
-    tool_context.state["temp:last_write"] = {
-        "node_id": str(node_id),
-        "name": document["name"],
+    meta = {
+        "supersedes_id_str": str(supersedes_id) if supersedes_id else None,
+        "related_existing_id_strs": [str(o) for o in related_object_ids],
     }
 
     return {
-        "status": "written",
-        "node_id": str(node_id),
-        "name": document["name"],
+        "status": "ready",
+        "document": document,
+        "meta": meta,
     }
 
 
@@ -280,6 +244,6 @@ async def emit_checkpoint(message: str, tool_context: ToolContext) -> dict[str, 
 
 # ─── Tool Instances ──────────────────────────────────────────────────────────
 
-canonize_node_tool = FunctionTool(func=canonize_node)
+prepare_embedding_tool = FunctionTool(func=prepare_embedding)
 embed_query_tool = FunctionTool(func=embed_query)
 emit_checkpoint_tool = FunctionTool(func=emit_checkpoint)

@@ -21,9 +21,9 @@ from pydantic import BaseModel, Field
 
 from src.config import settings
 from src.mcp.tools import (
-    canonize_node_tool,
     embed_query_tool,
     emit_checkpoint_tool,
+    prepare_embedding_tool,
 )
 
 MEMORY_NODE_SCHEMA = """\
@@ -40,7 +40,7 @@ MEMORY_NODE_SCHEMA = """\
 - supersededBy: ObjectId | null (the node that replaced this one — null if current)
 - tags: string[]
 - embedding: float[768] (generated synchronously — never write directly)
-- embeddingText: string (constructed by canonize_node — never write directly)
+- embeddingText: string (constructed by prepare_embedding — never write directly)
 - createdAt: ISODate
 - updatedAt: ISODate
 - metadata: object (freeform — agent writes whatever organizational context is useful)
@@ -98,26 +98,76 @@ explicitly and return empty results. Do not fabricate node IDs.\
 
 MEMORY_WRITER_INSTRUCTION = f"""\
 You are Canon's memory formation. Your job is to convert observations into \
-properly structured memory nodes and persist them.
+properly structured memory nodes and persist them through the MongoDB MCP server.
 
 {MEMORY_NODE_SCHEMA}
 
-## How to Structure
+## Tools
 
-1. Write a concise but complete name, description, and content.
-2. Set status based on the observation context (active, in_progress, resolved, etc.).
-3. If this observation supersedes an existing node, set supersedes to that node's _id.
-4. Populate relatedEntityIds with the _id values of existing nodes from the related \
-   context that should be linked.
-5. Populate metadata with whatever organizational context is meaningful (freeform).
-6. Set tags for discoverability.
-7. Call canonize_node with:
-   - document: the full structured node
+- **prepare_embedding** — validates the document, generates a 768-dim vector.
+  Returns ``document`` (ready for insertion) and ``meta`` (with relationship
+  and supersession info).
+- **MCP insert-many** — inserts an array of documents. Parameters: ``database``,
+  ``collection``, ``documents`` (array).
+- **MCP update-many** — updates documents matching a filter. Parameters:
+  ``database``, ``collection``, ``filter``, ``update``.
+- **MCP find / aggregate / count** — read-back tools for discovery queries
+  before writing.
+
+## The ``database`` parameter is always ``"canon"``.
+
+## EJSON for ObjectId Fields
+
+The MCP server understands MongoDB EJSON format. Any field representing an
+ObjectId (``_id``, ``tenantId``, ``relatedEntityIds``, ``supersedes``,
+``supersededBy``) must be wrapped as ``{{"$oid": "<24-char-hex>"}}`` in
+filters and documents. Example:
+
+- Filter by _id: ``{{"_id": {{"$oid": "abc123def456abc123def456"}}}}``
+- Array field value: ``{{"relatedEntityIds": [{{"$oid": "..."}}]}}``
+
+The ``prepare_embedding`` tool returns these as plain hex strings. You must
+wrap them in ``$oid`` when using them in MCP tool parameters.
+
+## Write Flow
+
+1. Build the node document with name, description, content, status, tags,
+   metadata, and optionally the hex string ``supersedes`` and hex-string array
+   ``relatedEntityIds``.
+
+2. Call ``prepare_embedding`` with:
+   - document: the full node
    - rationale: why this node should exist
-   - related_existing_ids: IDs of existing nodes whose relatedEntityIds should be \
-     updated to include the new node (bidirectional edges)
+   - related_existing_ids: existing node hex IDs to link bidirectionally
 
-Do NOT set embeddingText or embedding — canonize_node constructs these automatically.\
+3. Insert via ``insert-many`` with database ``"canon"``, collection
+   ``"memory_nodes"``, and documents as a single-element array containing the
+   returned ``document`` (wrapping ObjectId fields in ``$oid``). The response
+   text contains the inserted IDs — record the first one as the new node's
+   ``_id``.
+
+4. If ``meta.related_existing_id_strs`` is non-empty, call ``update-many`` for
+   each related ID to add the new node's ``_id`` to their ``relatedEntityIds``:
+   filter: ``{{"_id": {{"$oid": "<existing_id>"}}}}``
+   update: ``{{"$addToSet": {{"relatedEntityIds": {{"$oid": "<new_id>"}}}} }}``
+
+5. If ``meta.supersedes_id_str`` is set, call ``update-many`` to deprecate:
+   filter: ``{{"_id": {{"$oid": "<superseded_id>"}}}}``
+   update: ``{{"$set": {{"status": "deprecated", "supersededBy": {{"$oid": "<new_id>"}} }} }}``
+
+## Output Schema
+
+Your structured output must include:
+- ``name``: the node name
+- ``description``: one-paragraph summary
+- ``status``: the node's status
+- ``tags``: discoverability tags
+- ``node_id``: the hex ``_id`` returned from ``insert-many``
+- ``relationships_formed``: number of ``update-many`` calls made (one per
+  related existing ID in step 4, plus 1 if step 5 was executed)
+
+Do NOT set embeddingText, embedding, createdAt, or updatedAt — \
+prepare_embedding handles those.\
 """
 
 ORCHESTRATOR_INSTRUCTION = """\
@@ -230,6 +280,7 @@ _semantic_retriever: Agent | None = None
 _graph_explorer: Agent | None = None
 _memory_writer: Agent | None = None
 _read_toolset: McpToolset | None = None
+_write_toolset: McpToolset | None = None
 
 
 def _build_mongo_read_toolset() -> McpToolset:
@@ -250,6 +301,25 @@ def _build_mongo_read_toolset() -> McpToolset:
         tool_filter=["find", "aggregate", "count"],
     )
     return _read_toolset
+
+
+def _build_mongo_write_toolset() -> McpToolset:
+    global _write_toolset
+    if _write_toolset is not None:
+        return _write_toolset
+    _write_toolset = McpToolset(
+        connection_params=StdioConnectionParams(
+            server_params=StdioServerParameters(
+                command="npx",
+                args=["-y", "mongodb-mcp-server"],
+                env={
+                    "MDB_MCP_CONNECTION_STRING": settings.mongodb_uri,
+                },
+            ),
+        ),
+        tool_filter=["insert-many", "update-many"],
+    )
+    return _write_toolset
 
 
 def _get_semantic_retriever() -> Agent:
@@ -295,7 +365,11 @@ def _get_memory_writer() -> Agent:
             "relationships, and persists to the knowledge graph. Call with the "
             "observation and any related context from prior retrieval.",
             instruction=MEMORY_WRITER_INSTRUCTION,
-            tools=[_build_mongo_read_toolset(), canonize_node_tool],
+            tools=[
+                _build_mongo_read_toolset(),
+                _build_mongo_write_toolset(),
+                prepare_embedding_tool,
+            ],
             output_key="write_result",
             output_schema=MemoryNodeOutput,
             after_tool_callback=log_tool_usage,
@@ -335,3 +409,5 @@ async def cleanup_agents() -> None:
     """Close MCP subprocess connections. Called at container shutdown."""
     if _read_toolset is not None:
         await _read_toolset.close()
+    if _write_toolset is not None:
+        await _write_toolset.close()

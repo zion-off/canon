@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { jwtVerify } from "jose";
 import { COOKIE_NAME, PUBLIC_PATHS, ROUTE_LOGIN, ROUTE_ONBOARDING } from "@/lib/constants";
+import { JWT_SECRET } from "@/lib/config";
 
 interface JwtPayload {
   sub: string;
@@ -11,18 +13,7 @@ interface JwtPayload {
   exp: number;
 }
 
-function decodeJwtPayload(token: string): JwtPayload | null {
-  try {
-    const segments = token.split(".");
-    if (segments.length !== 3) return null;
-    const decoded = atob(segments[1].replace(/-/g, "+").replace(/_/g, "/"));
-    return JSON.parse(decoded) as JwtPayload;
-  } catch {
-    return null;
-  }
-}
-
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (PUBLIC_PATHS.includes(pathname)) {
@@ -35,17 +26,18 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(ROUTE_LOGIN, request.url));
   }
 
-  const payload = decodeJwtPayload(token);
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const jwtPayload = payload as unknown as JwtPayload;
 
-  if (!payload || payload.exp * 1000 < Date.now()) {
+    if (jwtPayload.tenantId === null && pathname !== ROUTE_ONBOARDING) {
+      return NextResponse.redirect(new URL(ROUTE_ONBOARDING, request.url));
+    }
+
+    return NextResponse.next();
+  } catch {
     return NextResponse.redirect(new URL(ROUTE_LOGIN, request.url));
   }
-
-  if (payload.tenantId === null && pathname !== ROUTE_ONBOARDING) {
-    return NextResponse.redirect(new URL(ROUTE_ONBOARDING, request.url));
-  }
-
-  return NextResponse.next();
 }
 
 export const config = {

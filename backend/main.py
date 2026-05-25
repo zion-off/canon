@@ -14,7 +14,6 @@ import sys
 
 import uvicorn
 from fastapi import FastAPI
-from starlette.routing import Mount
 
 from src.mcp.server import mcp
 from src.routers.auth import router as auth_router
@@ -33,33 +32,34 @@ logger = logging.getLogger(__name__)
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan — connect services, initialize agents, tear down."""
-    mongo = MongoProvider()
-    await mongo.connect()
-    app.state.mongo = mongo
+    async with mcp.session_manager.run():
+        mongo = MongoProvider()
+        await mongo.connect()
+        app.state.mongo = mongo
 
-    event_feed = AgentEventFeed()
-    app.state.event_feed = event_feed
+        event_feed = AgentEventFeed()
+        app.state.event_feed = event_feed
 
-    # Defer agent initialization — requires Gemini API key and ADK agents
-    try:
-        from src.mcp.agents import cleanup_agents, initialize_agents
+        # Defer agent initialization — requires Gemini API key and ADK agents
+        try:
+            from src.mcp.agents import cleanup_agents, initialize_agents
 
-        await initialize_agents()
-        logger.info("Canon ADK agents initialized")
-    except Exception:
-        logger.exception("Agent initialization failed — MCP tool calls will error")
+            await initialize_agents()
+            logger.info("Canon ADK agents initialized")
+        except Exception:
+            logger.exception("Agent initialization failed — MCP tool calls will error")
 
-    yield
+        yield
 
-    try:
-        from src.mcp.agents import cleanup_agents
+        try:
+            from src.mcp.agents import cleanup_agents
 
-        await cleanup_agents()
-    except Exception:
-        pass
+            await cleanup_agents()
+        except Exception:
+            pass
 
-    await mongo.disconnect()
-    logger.info("MongoDB disconnected")
+        await mongo.disconnect()
+        logger.info("MongoDB disconnected")
 
 
 app = FastAPI(
@@ -69,7 +69,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.routes.append(Mount("/mcp", app=mcp.streamable_http_app()))
+app.mount("/mcp", mcp.streamable_http_app())
 
 # REST API routers
 app.include_router(auth_router, prefix="/api/v1")

@@ -1,12 +1,10 @@
 """Centralized application configuration via Pydantic Settings.
 
 All environment variable reads are consolidated here. Import ``settings``
-for the validated, cached singleton instance.
+for the validated settings instance.
 """
 
 from __future__ import annotations
-
-from functools import lru_cache
 
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -57,18 +55,5 @@ class Settings(BaseSettings):
     jwt_expiry_days: int = 7
 
 
-@lru_cache(maxsize=1)
-def get_settings() -> Settings:
-    """Return cached settings singleton."""
-    return Settings()  # type: ignore[call-arg]
-
-
-class _SettingsProxy:
-    """Lazy proxy that defers Settings instantiation until first attribute access."""
-
-    def __getattr__(self, name: str) -> object:
-        return getattr(get_settings(), name)
-
-
-# Module-level convenience alias for simple attribute access.
-settings: Settings = _SettingsProxy()  # type: ignore[assignment]
+# Eagerly instantiated — resolves .env on first import.
+settings = Settings()  # type: ignore[call-arg]

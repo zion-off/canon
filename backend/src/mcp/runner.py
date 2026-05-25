@@ -14,6 +14,7 @@ from src.config import settings
 from src.mcp.agents import build_orchestrator
 from src.mcp.plugin import ReasoningFeedPlugin
 from src.mcp.utils import get_genai_client
+from src.models.documents import TenantDocument
 from src.models.schemas import AgentEvent
 
 if TYPE_CHECKING:
@@ -37,11 +38,12 @@ async def run_agent(
     workflow continuity (the ADK agent can reference prior context), but no
     server-side session state persists between HTTP requests.
     """
-    tenant = await db.tenants.find_one({"_id": ObjectId(tenant_id)})
+    tenant = await TenantDocument.get(ObjectId(tenant_id))
     if not tenant:
         return "Error: tenant not found."
 
-    # Upsert session document
+    # Atomically upsert session and increment runCount.
+    # Uses the Motor escape hatch to preserve the atomic $inc + $setOnInsert.
     session_doc = await db.sessions.find_one_and_update(
         {"sessionId": session_id},
         {
@@ -75,13 +77,11 @@ async def run_agent(
         state={
             "app:tenant_id": tenant_id,
             "app:user_id": user_id,
-            "app:org_name": tenant["name"],
+            "app:org_name": tenant.name,
             "app:session_id": session_id,
             "app:run_id": run_id,
-            "app:max_graph_depth": tenant.get("settings", {}).get("maxGraphDepth", 2),
-            "app:embedding_model": tenant.get(
-                "embeddingModel", settings.embedding_model
-            ),
+            "app:max_graph_depth": tenant.settings.get("maxGraphDepth", 2),
+            "app:embedding_model": tenant.embedding_model,
         },
     )
 
@@ -184,8 +184,7 @@ async def run_agent(
             response=final_response,
         )
         await db.sessions.update_one(
-            {"sessionId": session_id},
-            {"$set": {"summary": updated_summary}},
+            {"sessionId": session_id}, {"$set": {"summary": updated_summary}}
         )
 
     event_feed.cleanup_run(run_id)

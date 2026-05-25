@@ -5,9 +5,9 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from hashlib import sha256
 
-from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import Field
 
+from src.models.documents import ApiTokenDocument
 from src.models.schemas import MongoModel
 
 
@@ -21,9 +21,6 @@ class TenantContext(MongoModel):
 class TenantResolver:
     """Resolves tenant identity from authentication tokens."""
 
-    def __init__(self, db: AsyncIOMotorDatabase) -> None:
-        self._db = db
-
     async def resolve(self, raw_token: str) -> TenantContext | None:
         """Resolve a raw token string to a TenantContext.
 
@@ -31,15 +28,16 @@ class TenantResolver:
         and updates lastUsedAt on successful resolution.
         """
         token_hash = sha256(raw_token.encode()).hexdigest()
-        record = await self._db.api_tokens.find_one({"tokenHash": token_hash})
+        api_token = await ApiTokenDocument.find_one({"token_hash": token_hash})
 
-        if not record:
+        if not api_token:
             return None
 
-        await self._db.api_tokens.update_one(
-            {"_id": record["_id"]},
-            {"$set": {"lastUsedAt": datetime.now(UTC)}},
+        await ApiTokenDocument.find_one({"_id": api_token.id}).set(
+            {ApiTokenDocument.last_used_at: datetime.now(UTC)}
         )
 
-        record.setdefault("userId", record["tenantId"])
-        return TenantContext.model_validate(record)
+        data = api_token.model_dump(by_alias=True)
+        # Fallback for old records without userId
+        data.setdefault("userId", data.get("tenantId"))
+        return TenantContext.model_validate(data)

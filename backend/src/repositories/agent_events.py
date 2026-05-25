@@ -5,14 +5,12 @@ from __future__ import annotations
 from typing import Any
 
 from bson import ObjectId
-from motor.motor_asyncio import AsyncIOMotorDatabase
+
+from src.models.documents import AgentEventDocument
 
 
 class AgentEventRepository:
     """Handles persistence of agent reasoning events."""
-
-    def __init__(self, db: AsyncIOMotorDatabase) -> None:
-        self._db = db
 
     async def insert(
         self,
@@ -23,14 +21,14 @@ class AgentEventRepository:
         event: dict[str, Any],
     ) -> None:
         """Insert a single agent event into the agent_events collection."""
-        doc = {
-            "tenantId": ObjectId(tenant_id),
-            "userId": user_id,
-            "sessionId": session_id,
-            "runId": run_id,
+        doc = AgentEventDocument.model_construct(
+            tenant_id=ObjectId(tenant_id),
+            user_id=user_id,
+            session_id=session_id,
+            run_id=run_id,
             **event,
-        }
-        await self._db.agent_events.insert_one(doc)
+        )
+        await doc.insert()
 
     async def list_after(
         self,
@@ -39,12 +37,18 @@ class AgentEventRepository:
         after_sequence: int = 0,
     ) -> list[dict[str, Any]]:
         """List events after a given sequence number for replay."""
-        cursor = self._db.agent_events.find(
-            {
-                "tenantId": ObjectId(tenant_id),
-                "sessionId": session_id,
-                "sequence": {"$gt": after_sequence},
-            },
-            {"_id": 0, "tenantId": 0},
-        ).sort("sequence", 1)
-        return await cursor.to_list(length=1000)
+        tenant_oid = ObjectId(tenant_id)
+        events = (
+            await AgentEventDocument.find(
+                {
+                    "tenant_id": tenant_oid,
+                    "session_id": session_id,
+                    "sequence": {"$gt": after_sequence},
+                }
+            )
+            .sort("sequence")
+            .to_list(length=1000)
+        )
+        return [
+            e.model_dump(by_alias=True, exclude={"tenant_id", "_id"}) for e in events
+        ]

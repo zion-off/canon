@@ -5,9 +5,9 @@ from datetime import UTC, datetime
 
 import bcrypt
 from fastapi import APIRouter, Depends, HTTPException
-from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from src.dependencies import get_db, jwt_auth
+from src.dependencies import jwt_auth
+from src.models.documents import UserDocument
 from src.models.schemas import (
     JwtPayload,
     LoginRequest,
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=LoginResponse)
 async def register(
-    body: RegisterRequest, db: AsyncIOMotorDatabase = Depends(get_db)
+    body: RegisterRequest,
 ) -> LoginResponse:
     """Create account, return JWT. No auth required."""
     email = body.email.strip().lower()
@@ -31,52 +31,51 @@ async def register(
         await asyncio.to_thread(bcrypt.hashpw, body.password.encode(), bcrypt.gensalt())
     ).decode()
     now = datetime.now(UTC)
-    user = {
-        "email": email,
-        "name": body.name,
-        "passwordHash": password_hash,
-        "tenantId": None,
-        "role": None,
-        "createdAt": now,
-        "updatedAt": now,
-    }
+    user = UserDocument.model_construct(
+        email=email,
+        name=body.name,
+        password_hash=password_hash,
+        tenant_id=None,
+        role=None,
+        created_at=now,
+        updated_at=now,
+    )
     try:
-        result = await db.users.insert_one(user)
+        await user.insert()
     except Exception as e:
         if "duplicate key" in str(e).lower():
             raise HTTPException(
                 status_code=409, detail="Email already registered"
             ) from e
         raise
-    token = issue_jwt(str(result.inserted_id), email, body.name, None, None)
-    user["_id"] = result.inserted_id
+    token = issue_jwt(str(user.id), email, body.name, None, None)
     return LoginResponse(
         token=token,
-        user=UserResponse.model_validate(user),
+        user=UserResponse.model_validate(user.model_dump(by_alias=True)),
     )
 
 
 @router.post("/login", response_model=LoginResponse)
 async def login(
-    body: LoginRequest, db: AsyncIOMotorDatabase = Depends(get_db)
+    body: LoginRequest,
 ) -> LoginResponse:
     """Validate credentials, return JWT."""
-    user = await db.users.find_one({"email": body.email.strip().lower()})
+    user = await UserDocument.find_one({"email": body.email.strip().lower()})
     if not user or not await asyncio.to_thread(
-        bcrypt.checkpw, body.password.encode(), user["passwordHash"].encode()
+        bcrypt.checkpw, body.password.encode(), user.password_hash.encode()
     ):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    tenant_id = str(user["tenantId"]) if user.get("tenantId") else None
+    tenant_id = str(user.tenant_id) if user.tenant_id else None
     token = issue_jwt(
-        str(user["_id"]),
-        user["email"],
-        user["name"],
+        str(user.id),
+        user.email,
+        user.name,
         tenant_id,
-        user.get("role"),
+        user.role,
     )
     return LoginResponse(
         token=token,
-        user=UserResponse.model_validate(user),
+        user=UserResponse.model_validate(user.model_dump(by_alias=True)),
     )
 
 

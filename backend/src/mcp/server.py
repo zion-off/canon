@@ -50,7 +50,7 @@ async def _build_context(ctx: Context) -> _RequestContext:
 
     auth_header = request.headers.get("Authorization", "")
     token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
-    resolver = TenantResolver(db)
+    resolver = TenantResolver()
     tenant_ctx = await resolver.resolve(token)
 
     if not tenant_ctx:
@@ -126,9 +126,10 @@ async def get_org_state(ctx: Context | None = None) -> str:
     if ctx is None:
         raise RuntimeError("Context required — FastMCP should inject it automatically.")
     request_ctx = await _build_context(ctx)
+    tenant_oid = ObjectId(request_ctx.tenant_id)
     nodes = await request_ctx.db.memory_nodes.find(
         {
-            "tenantId": ObjectId(request_ctx.tenant_id),
+            "tenantId": tenant_oid,
             "status": {"$in": ["active", "in_progress"]},
         },
         {"_id": 0, "embedding": 0, "embeddingText": 0},
@@ -148,10 +149,11 @@ async def get_org_momentum(ctx: Context | None = None) -> str:
         raise RuntimeError("Context required — FastMCP should inject it automatically.")
     request_ctx = await _build_context(ctx)
     cutoff = datetime.now(UTC) - timedelta(days=30)
+    tenant_oid = ObjectId(request_ctx.tenant_id)
     nodes = (
         await request_ctx.db.memory_nodes.find(
             {
-                "tenantId": ObjectId(request_ctx.tenant_id),
+                "tenantId": tenant_oid,
                 "updatedAt": {"$gte": cutoff},
             },
             {"_id": 0, "embedding": 0, "embeddingText": 0},

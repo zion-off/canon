@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI):
     await mongo.connect()
     app.state.mongo = mongo
 
-    event_feed = AgentEventFeed(event_repo=AgentEventRepository(mongo.db))
+    event_feed = AgentEventFeed(event_repo=AgentEventRepository())
     app.state.event_feed = event_feed
 
     # Defer agent initialization — requires Gemini API key and ADK agents

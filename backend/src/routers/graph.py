@@ -19,8 +19,9 @@ async def get_graph(
     if not user.tenant_id:
         raise HTTPException(status_code=400, detail="No team associated")
 
+    tenant_oid = ObjectId(user.tenant_id)
     nodes = await db.memory_nodes.find(
-        {"tenantId": ObjectId(user.tenant_id)},
+        {"tenantId": tenant_oid},
         {"embedding": 0, "content": 0},
     ).to_list(length=2000)
 

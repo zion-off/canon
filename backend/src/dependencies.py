@@ -56,8 +56,7 @@ async def api_token_auth(
     Resolves the bearer token to a TenantContext via SHA-256 lookup.
     Raises 401 if the token is invalid.
     """
-    db = request.app.state.mongo.db
-    resolver = TenantResolver(db)
+    resolver = TenantResolver()
     ctx = await resolver.resolve(credentials.credentials)
     if not ctx:
         raise HTTPException(status_code=401, detail="Invalid API token")

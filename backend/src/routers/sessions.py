@@ -8,9 +8,9 @@ from collections.abc import AsyncIterator
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from src.dependencies import api_token_auth, get_db, get_event_feed, jwt_auth
+from src.dependencies import api_token_auth, get_event_feed, jwt_auth
+from src.models.documents import AgentEventDocument, SessionDocument
 from src.models.schemas import AgentEvent, JwtPayload, SessionResponse
 from src.services.event_feed import AgentEventFeed
 from src.services.tenant_resolver import TenantContext
@@ -57,46 +57,51 @@ async def _sse_stream(
 @router.get("")
 async def list_sessions(
     user: JwtPayload = Depends(jwt_auth),
-    db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> list[SessionResponse]:
     """List sessions for the authenticated user's tenant."""
-    tenant_id = _require_tenant_id(user)
-    cursor = (
-        db.sessions.find({"tenantId": ObjectId(tenant_id)})
-        .sort("lastRunAt", -1)
+    tenant_oid = ObjectId(_require_tenant_id(user))
+    sessions = (
+        await SessionDocument.find({"tenantId": tenant_oid})
+        .sort("-lastRunAt")
         .limit(20)
+        .to_list()
     )
-    return [SessionResponse.model_validate(doc) async for doc in cursor]
+    return [
+        SessionResponse.model_validate(s.model_dump(by_alias=True)) for s in sessions
+    ]
 
 
 @router.get("/{session_id}")
 async def get_session(
     session_id: str,
     user: JwtPayload = Depends(jwt_auth),
-    db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> SessionResponse:
     """Get a single session by sessionId."""
-    tenant_id = _require_tenant_id(user)
-    doc = await db.sessions.find_one(
-        {"sessionId": session_id, "tenantId": ObjectId(tenant_id)}
+    tenant_oid = ObjectId(_require_tenant_id(user))
+    session = await SessionDocument.find_one(
+        {"sessionId": session_id, "tenantId": tenant_oid}
     )
-    if not doc:
+    if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    return SessionResponse.model_validate(doc)
+    return SessionResponse.model_validate(session.model_dump(by_alias=True))
 
 
 @router.get("/{session_id}/events")
 async def list_session_events(
     session_id: str,
     user: JwtPayload = Depends(jwt_auth),
-    db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> list[AgentEvent]:
     """List all events for a session, ordered by sequence."""
-    tenant_id = _require_tenant_id(user)
-    cursor = db.agent_events.find(
-        {"sessionId": session_id, "tenantId": ObjectId(tenant_id)}
-    ).sort("sequence", 1)
-    return [AgentEvent.model_validate(doc) async for doc in cursor]
+    tenant_oid = ObjectId(_require_tenant_id(user))
+    events = (
+        await AgentEventDocument.find(
+            AgentEventDocument.session_id == session_id,
+            AgentEventDocument.tenant_id == tenant_oid,
+        )
+        .sort("sequence")
+        .to_list()
+    )
+    return [AgentEvent.model_validate(e.model_dump(by_alias=True)) for e in events]
 
 
 @router.get("/{session_id}/stream")
@@ -123,31 +128,39 @@ async def stream_session_events(
 async def harness_list_sessions(
     tenant_id: str,
     ctx: TenantContext = Depends(api_token_auth),
-    db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> list[SessionResponse]:
     """List sessions for a tenant (harness access)."""
     _validate_tenant_access(tenant_id, ctx)
-    cursor = (
-        db.sessions.find({"tenantId": ObjectId(tenant_id)})
-        .sort("lastRunAt", -1)
+    tenant_oid = ObjectId(tenant_id)
+    sessions = (
+        await SessionDocument.find({"tenant_id": tenant_oid})
+        .sort("-lastRunAt")
         .limit(20)
+        .to_list()
     )
-    return [SessionResponse.model_validate(doc) async for doc in cursor]
+    return [
+        SessionResponse.model_validate(s.model_dump(by_alias=True)) for s in sessions
+    ]
 
 
 @harness_router.get("/sessions/{session_id}/events")
 async def harness_list_session_events(
-    tenant_id: str,
     session_id: str,
+    tenant_id: str,
     ctx: TenantContext = Depends(api_token_auth),
-    db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> list[AgentEvent]:
     """List events for a session (harness access)."""
     _validate_tenant_access(tenant_id, ctx)
-    cursor = db.agent_events.find(
-        {"sessionId": session_id, "tenantId": ObjectId(tenant_id)}
-    ).sort("sequence", 1)
-    return [AgentEvent.model_validate(doc) async for doc in cursor]
+    tenant_oid = ObjectId(tenant_id)
+    events = (
+        await AgentEventDocument.find(
+            AgentEventDocument.session_id == session_id,
+            AgentEventDocument.tenant_id == tenant_oid,
+        )
+        .sort("sequence")
+        .to_list()
+    )
+    return [AgentEvent.model_validate(e.model_dump(by_alias=True)) for e in events]
 
 
 @harness_router.get("/sessions/{session_id}/stream")

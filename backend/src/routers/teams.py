@@ -12,6 +12,11 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from src.config import settings
 from src.dependencies import get_db, jwt_auth
+from src.models.documents import (
+    ApiTokenDocument,
+    InviteDocument,
+    TenantDocument,
+)
 from src.models.schemas import (
     CreateInviteResponse,
     CreateTeamRequest,
@@ -50,15 +55,15 @@ async def create_team(
     user_id = user.sub
     slug = _slugify(body.name)
 
-    tenant = {
-        "name": body.name,
-        "slug": slug,
-        "embeddingModel": settings.embedding_model,
-        "createdAt": datetime.now(UTC),
-        "settings": {"maxGraphDepth": 2},
-    }
-    result = await db.tenants.insert_one(tenant)
-    tenant_id = result.inserted_id
+    tenant = TenantDocument.model_construct(
+        name=body.name,
+        slug=slug,
+        embedding_model=settings.embedding_model,
+        created_at=datetime.now(UTC),
+        settings={"maxGraphDepth": 2},
+    )
+    await tenant.insert()
+    tenant_id = tenant.id
 
     await db.users.update_one(
         {"_id": ObjectId(user_id)},
@@ -73,23 +78,21 @@ async def create_team(
 
     # Generate default API token
     raw_token = f"ct_{secrets.token_urlsafe(32)}"
-    await db.api_tokens.insert_one(
-        {
-            "tenantId": tenant_id,
-            "userId": user_id,
-            "tokenHash": _hash_token(raw_token),
-            "label": "Default",
-            "createdAt": datetime.now(UTC),
-            "lastUsedAt": None,
-        }
-    )
+    await ApiTokenDocument.model_construct(
+        tenant_id=tenant_id,
+        user_id=user_id,
+        token_hash=_hash_token(raw_token),
+        label="Default",
+        created_at=datetime.now(UTC),
+        last_used_at=None,
+    ).insert()
 
     token = issue_jwt(user_id, user.email, user.name, str(tenant_id), "owner")
 
     return CreateTeamResponse(
         token=token,
         rawApiToken=raw_token,
-        team=TeamResponse(id=str(tenant_id), name=body.name, slug=slug),
+        team=TeamResponse.model_validate(tenant.model_dump(by_alias=True)),
     )
 
 
@@ -102,15 +105,15 @@ async def join_team(
     """Join an existing team via invite code."""
     now = datetime.now(UTC)
 
-    invite = await db.invites.find_one({"code": body.code})
+    invite = await InviteDocument.find_one({"code": body.code})
     if not invite:
         raise HTTPException(status_code=400, detail="Invalid invite code")
-    if invite["expiresAt"] < now:
+    if invite.expires_at < now:
         raise HTTPException(status_code=400, detail="Invite code has expired")
-    if invite["usesRemaining"] <= 0:
+    if invite.uses_remaining <= 0:
         raise HTTPException(status_code=400, detail="Invite code has no remaining uses")
 
-    tenant_id = invite["tenantId"]
+    tenant_id = invite.tenant_id
     user_id = user.sub
 
     await db.users.update_one(
@@ -119,25 +122,25 @@ async def join_team(
     )
 
     await db.invites.update_one(
-        {"_id": invite["_id"]},
+        {"_id": invite.id},
         {"$inc": {"usesRemaining": -1}},
     )
 
-    tenant = await db.tenants.find_one({"_id": tenant_id})
+    tenant = await TenantDocument.get(tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Team not found")
+
     token = issue_jwt(user_id, user.email, user.name, str(tenant_id), "member")
 
     return JoinTeamResponse(
         token=token,
-        team=TeamResponse.model_validate(tenant),
+        team=TeamResponse.model_validate(tenant.model_dump(by_alias=True)),
     )
 
 
 @router.post("/invite", response_model=CreateInviteResponse)
 async def create_invite(
     user: JwtPayload = Depends(jwt_auth),
-    db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CreateInviteResponse:
     """Create an invite code (owner only)."""
     if user.role != "owner":
@@ -151,16 +154,14 @@ async def create_invite(
     code = secrets.token_hex(4)
     expires_at = now + timedelta(days=7)
 
-    await db.invites.insert_one(
-        {
-            "tenantId": ObjectId(user.tenant_id),
-            "code": code,
-            "createdBy": ObjectId(user.sub),
-            "usesRemaining": 10,
-            "expiresAt": expires_at,
-            "createdAt": now,
-        }
-    )
+    await InviteDocument.model_construct(
+        tenant_id=ObjectId(user.tenant_id),
+        code=code,
+        created_by=ObjectId(user.sub),
+        uses_remaining=10,
+        expires_at=expires_at,
+        created_at=now,
+    ).insert()
 
     return CreateInviteResponse(code=code, expiresAt=expires_at.isoformat())
 
@@ -186,7 +187,6 @@ async def list_tokens(
 async def create_token(
     body: CreateTokenRequest,
     user: JwtPayload = Depends(jwt_auth),
-    db: AsyncIOMotorDatabase = Depends(get_db),
 ) -> CreateTokenResponse:
     """Create a new API token (owner only)."""
     if user.role != "owner":
@@ -200,16 +200,14 @@ async def create_token(
     now = datetime.now(UTC)
     raw_token = f"ct_{secrets.token_urlsafe(32)}"
 
-    await db.api_tokens.insert_one(
-        {
-            "tenantId": ObjectId(user.tenant_id),
-            "userId": user.sub,
-            "tokenHash": _hash_token(raw_token),
-            "label": body.label,
-            "createdAt": now,
-            "lastUsedAt": None,
-        }
-    )
+    await ApiTokenDocument.model_construct(
+        tenant_id=ObjectId(user.tenant_id),
+        user_id=user.sub,
+        token_hash=_hash_token(raw_token),
+        label=body.label,
+        created_at=now,
+        last_used_at=None,
+    ).insert()
 
     return CreateTokenResponse(
         token=raw_token, label=body.label, createdAt=now.isoformat()

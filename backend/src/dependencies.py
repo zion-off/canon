@@ -5,7 +5,7 @@ from __future__ import annotations
 import jwt as pyjwt
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from pymongo.asynchronous.database import AsyncDatabase
 
 from src.config import settings
 from src.models.schemas import JwtPayload
@@ -15,7 +15,7 @@ from src.services.tenant_resolver import TenantContext, TenantResolver
 bearer_scheme = HTTPBearer()
 
 
-async def get_db(request: Request) -> AsyncIOMotorDatabase:
+async def get_db(request: Request) -> AsyncDatabase:
     """Database dependency — available to all routes."""
     return request.app.state.mongo.db
 

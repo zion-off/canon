@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, cast
 
 from beanie import init_beanie
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
-from pymongo import ASCENDING, DESCENDING, TEXT, IndexModel
+from pymongo import ASCENDING, DESCENDING, TEXT, AsyncMongoClient, IndexModel
+from pymongo.asynchronous.database import AsyncDatabase
 
 from src.config import settings
 from src.models.documents import (
@@ -20,9 +19,6 @@ from src.models.documents import (
     UserDocument,
 )
 
-if TYPE_CHECKING:
-    from pymongo.asynchronous.database import AsyncDatabase
-
 logger = logging.getLogger(__name__)
 
 
@@ -31,13 +27,17 @@ class MongoProvider:
 
     def __init__(self, uri: str | None = None) -> None:
         self._uri = uri or settings.mongodb_uri
-        self._client: AsyncIOMotorClient | None = None
+        self._client: AsyncMongoClient | None = None
+        self._db: AsyncDatabase | None = None
 
     async def connect(self) -> None:
         """Initialize the MongoDB client and register Beanie document models."""
-        self._client = AsyncIOMotorClient(self._uri)
+        from pymongo import AsyncMongoClient
+
+        self._client = AsyncMongoClient(self._uri)
+        self._db = self._client["canon"]
         await init_beanie(
-            database=cast("AsyncDatabase", self.db),
+            database=self._db,
             document_models=[
                 UserDocument,
                 TenantDocument,
@@ -192,11 +192,11 @@ class MongoProvider:
     async def disconnect(self) -> None:
         """Close the MongoDB client connection."""
         if self._client:
-            self._client.close()
+            await self._client.close()
 
     @property
-    def db(self) -> AsyncIOMotorDatabase:
+    def db(self) -> AsyncDatabase:
         """Return the canon database instance."""
-        if self._client is None:
+        if self._db is None:
             raise RuntimeError("MongoProvider is not connected. Call connect() first.")
-        return self._client["canon"]
+        return self._db

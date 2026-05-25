@@ -364,7 +364,7 @@ def build_orchestrator() -> Agent:
             AgentTool(_get_semantic_retriever()),
             AgentTool(_get_graph_explorer()),
             AgentTool(_get_memory_writer()),
-            GoogleSearchTool,
+            GoogleSearchTool(),
             emit_checkpoint_tool,
         ],
     )

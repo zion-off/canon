@@ -114,6 +114,14 @@ async def join_team(
     tenant_id = invite.tenant_id
     user_id = user.sub
 
+    # Atomic conditional decrement first — if this fails, we don't assign the user
+    result = await InviteDocument.find_one(
+        InviteDocument.id == invite.id,
+        InviteDocument.uses_remaining > 0,
+    ).inc({InviteDocument.uses_remaining: -1})
+    if result.modified_count == 0:
+        raise HTTPException(status_code=400, detail="Invite code has no remaining uses")
+
     await UserDocument.find_one({"_id": ObjectId(user_id)}).set(
         {
             UserDocument.tenant_id: tenant_id,
@@ -121,14 +129,6 @@ async def join_team(
             UserDocument.updated_at: now,
         }
     )
-
-    # Atomic conditional decrement — prevents overbooking under concurrency
-    result = await InviteDocument.find_one(
-        InviteDocument.id == invite.id,
-        InviteDocument.uses_remaining > 0,
-    ).inc({InviteDocument.uses_remaining: -1})
-    if result.modified_count == 0:
-        raise HTTPException(status_code=400, detail="Invite code has no remaining uses")
 
     tenant = await TenantDocument.get(tenant_id)
     if not tenant:

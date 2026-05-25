@@ -284,8 +284,6 @@ async def prepare_embedding(
         A PrepareSuccess with the prepared document and relationship metadata,
         or a PrepareError on validation or generation failure.
     """
-    tenant_id = ObjectId(tool_context.state[SessionState.TENANT_ID])
-
     try:
         doc = MemoryNodeInput.model_validate(document)
     except Exception as exc:
@@ -323,7 +321,6 @@ async def prepare_embedding(
         "status": doc.status,
         "tags": doc.tags,
         "metadata": doc.metadata,
-        "tenantId": str(tenant_id),
         "relatedEntityIds": [str(o) for o in related_entity_object_ids],
         "createdAt": now.isoformat(),
         "updatedAt": now.isoformat(),

@@ -31,15 +31,11 @@ function pairToolCallEvents(events: IdentifiedEvent[]): DisplayItem[] {
       pendingPairs.set(event.payload.invocation_id, result.length);
       result.push(pair);
     } else if (event.type === EVENT_TYPE.TOOL_CALL_COMPLETED) {
-      if (event.payload.tool_name === TOOL_NAME.EMIT_CHECKPOINT) continue;
       const idx = pendingPairs.get(event.payload.invocation_id);
       if (idx !== undefined) {
         const existing = result[idx] as ToolCallPair;
         result[idx] = { ...existing, completed: event };
         pendingPairs.delete(event.payload.invocation_id);
-      } else {
-        // Orphaned completed event with no matching started — render it standalone
-        result.push(event);
       }
     } else {
       result.push(event);

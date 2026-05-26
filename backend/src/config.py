@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     # ─── Database Configuration ────────────────────────────────────────────
     database_name: str = "canon"
 
+    # ─── Environment ─────────────────────────────────────────────────────
+    environment: str = "production"
+
     # ─── JWT Configuration ───────────────────────────────────────────────
     jwt_algorithm: str = "HS256"
     jwt_expiry_days: int = 7

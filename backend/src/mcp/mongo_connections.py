@@ -100,9 +100,7 @@ async def shutdown() -> None:
                 _ConnectionState._in_flight,
             )
             try:
-                await asyncio.wait_for(
-                    _ConnectionState._drained.wait(), timeout=5.0
-                )
+                await asyncio.wait_for(_ConnectionState._drained.wait(), timeout=5.0)
             except TimeoutError:
                 log.warning(
                     "mongo_connections: drain timed out with %d in-flight",

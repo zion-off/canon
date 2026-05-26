@@ -21,10 +21,14 @@ logging.basicConfig(
     force=True,
 )
 
+import atexit
+import os
+
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from src.config import settings
 from src.mcp.server import mcp
 from src.routers.auth import router as auth_router
 from src.routers.graph import router as graph_router
@@ -33,6 +37,13 @@ from src.routers.sessions import router as sessions_router
 from src.routers.teams import router as teams_router
 from src.services.event_feed import AgentEventFeed, init_feed
 from src.services.mongo import MongoProvider
+
+if settings.environment == "development":
+
+    def _kill_orphan_mcp_subprocesses():
+        os.system("pkill -f mongodb-mcp-server 2>/dev/null")
+
+    atexit.register(_kill_orphan_mcp_subprocesses)
 
 logger = logging.getLogger(__name__)
 

@@ -23,7 +23,7 @@ function groupEventsIntoRuns(events: IdentifiedEvent[]): RunBucket[] {
   const buckets = new Map<string, IdentifiedEvent[]>();
 
   for (const event of events) {
-    const key = event.runId ?? "_unknown";
+    const key = event.runId;
     const existing = buckets.get(key);
     if (existing) {
       existing.push(event);

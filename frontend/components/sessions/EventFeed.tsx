@@ -1,18 +1,16 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import type { AgentEvent } from "@/lib/schemas/sessions";
+import type { AgentEvent, IdentifiedEvent } from "@/lib/schemas/sessions";
 import { useEventStream } from "@/hooks/useEventStream";
 import { RunGroup } from "./RunGroup";
-import { EVENT_TYPE } from "@/lib/constants";
+import { EVENT_TYPE, DISPLAY_KIND } from "@/lib/constants";
 
 interface EventFeedProps {
   sessionId: string;
   initialEvents: AgentEvent[];
   isLive: boolean;
 }
-
-export type IdentifiedEvent = AgentEvent & { stableId: number };
 
 interface RunBucket {
   runIndex: number;
@@ -50,14 +48,18 @@ function groupEventsIntoRuns(events: IdentifiedEvent[]): RunBucket[] {
   return runs;
 }
 
+function toIdentifiedEvent(event: AgentEvent, stableId: number): IdentifiedEvent {
+  return { ...event, kind: DISPLAY_KIND.EVENT, stableId };
+}
+
 export function EventFeed({ sessionId, initialEvents, isLive }: EventFeedProps) {
   const stableIdRef = useRef(initialEvents.length);
   const assignId = useCallback((event: AgentEvent): IdentifiedEvent => {
-    return { ...event, stableId: stableIdRef.current++ };
+    return toIdentifiedEvent(event, stableIdRef.current++);
   }, []);
 
   const [events, setEvents] = useState<IdentifiedEvent[]>(() =>
-    initialEvents.map((e, i) => ({ ...e, stableId: i })),
+    initialEvents.map((e, i) => toIdentifiedEvent(e, i)),
   );
   const feedEndRef = useRef<HTMLDivElement>(null);
   const [live, setLive] = useState(isLive);

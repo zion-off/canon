@@ -48,3 +48,8 @@ export const EVENT_TYPE = {
   REASONING_CHECKPOINT: "reasoning_checkpoint",
   FINAL_RESPONSE: "final_response",
 } as const;
+
+export const DISPLAY_KIND = {
+  EVENT: "event",
+  TOOL_CALL_PAIR: "tool_call_pair",
+} as const;

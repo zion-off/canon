@@ -14,14 +14,14 @@ from src.config import settings
 from src.constants import Status
 from src.mcp.agent_platform import CanonModel
 from src.mcp.agents import build_orchestrator
-from src.mcp.ambient_context import AmbientContextPlugin
 from src.mcp.constants import (
     AgentName,
     EventType,
     SessionState,
     ToolName,
 )
-from src.mcp.plugin import ReasoningFeedPlugin
+from src.mcp.plugins.ambient_context import AmbientContextPlugin
+from src.mcp.plugins.reasoning_feed import ReasoningFeedPlugin
 from src.models.documents import SessionDocument, TenantDocument
 from src.models.schemas import AgentEvent
 

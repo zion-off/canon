@@ -240,4 +240,3 @@ Write only the updated summary — no preamble, no explanation. Ruthlessly compr
 
     summary = await CanonModel.generate_text(settings.fast_model, prompt)
     return summary or ""
-

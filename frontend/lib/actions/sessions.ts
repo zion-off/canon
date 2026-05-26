@@ -10,6 +10,10 @@ export async function listSessions(): Promise<SessionResponse[]> {
   return apiFetch(API_V1_SESSIONS, z.array(SessionResponseSchema));
 }
 
+export async function listMySessions(): Promise<SessionResponse[]> {
+  return apiFetch(`${API_V1_SESSIONS}?scope=me`, z.array(SessionResponseSchema));
+}
+
 export async function getSession(sessionId: string): Promise<SessionResponse> {
   return apiFetch(`${API_V1_SESSIONS}/${sessionId}`, SessionResponseSchema);
 }

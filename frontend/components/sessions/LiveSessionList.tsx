@@ -9,37 +9,67 @@ import { SessionRow } from "./SessionRow";
 const colHeader =
   "font-condensed font-bold text-xs uppercase tracking-[0.08em] text-canon-text-secondary";
 
+const tabBase =
+  "font-condensed font-bold text-xs uppercase tracking-[0.08em] cursor-pointer pb-2 border-b-2 transition-colors";
+const tabActive = "text-canon-text border-canon-text";
+const tabInactive = "text-canon-text-secondary border-transparent hover:text-canon-text";
+
 interface LiveSessionListProps {
-  initialSessions: SessionResponse[];
+  mySessions: SessionResponse[];
+  teamSessions: SessionResponse[];
+  currentUserId: string;
 }
 
-export function LiveSessionList({ initialSessions }: LiveSessionListProps) {
-  const [sessions, setSessions] = useState(initialSessions);
+function mergeSessions(prev: SessionResponse[], incoming: SessionResponse): SessionResponse[] {
+  const idx = prev.findIndex((s) => s.sessionId === incoming.sessionId);
+  if (idx === -1) return [incoming, ...prev];
+  const copy = [...prev];
+  copy[idx] = incoming;
+  return copy;
+}
 
-  const onSession = useCallback((data: unknown) => {
-    const parsed = SessionResponseSchema.safeParse(data);
-    if (!parsed.success) return;
-    const incoming = parsed.data;
-    setSessions((prev) => {
-      const idx = prev.findIndex((s) => s.sessionId === incoming.sessionId);
-      if (idx === -1) return [incoming, ...prev];
-      const copy = [...prev];
-      copy[idx] = incoming;
-      return copy;
-    });
-  }, []);
+export function LiveSessionList({ mySessions, teamSessions, currentUserId }: LiveSessionListProps) {
+  const [activeTab, setActiveTab] = useState<"yours" | "team">("yours");
+  const [myState, setMyState] = useState(mySessions);
+  const [teamState, setTeamState] = useState(teamSessions);
+
+  const onSession = useCallback(
+    (data: unknown) => {
+      const parsed = SessionResponseSchema.safeParse(data);
+      if (!parsed.success) return;
+      const incoming = parsed.data;
+
+      setTeamState((prev) => mergeSessions(prev, incoming));
+      if (incoming.userId === currentUserId) {
+        setMyState((prev) => mergeSessions(prev, incoming));
+      }
+    },
+    [currentUserId],
+  );
 
   useEventSource(() => "/api/sessions/stream", onSession, true);
 
+  const sessions = activeTab === "yours" ? myState : teamState;
+
   return (
     <>
-      <div className="h-10 flex items-center border-b border-canon-border -mx-5 px-5">
-        <span className="font-condensed font-bold text-xs uppercase tracking-[0.08em] text-canon-text">
-          Sessions
-        </span>
-        <span className="ml-3 font-condensed font-bold text-xs uppercase tracking-[0.08em] text-canon-text-secondary">
-          {sessions.length} total
-        </span>
+      <div className="flex items-center gap-4 border-b border-canon-border -mx-5 px-5">
+        <button
+          type="button"
+          className={`${tabBase} ${activeTab === "yours" ? tabActive : tabInactive}`}
+          onClick={() => setActiveTab("yours")}
+        >
+          Yours
+          <span className="ml-1.5 text-canon-text-secondary">{myState.length}</span>
+        </button>
+        <button
+          type="button"
+          className={`${tabBase} ${activeTab === "team" ? tabActive : tabInactive}`}
+          onClick={() => setActiveTab("team")}
+        >
+          Team
+          <span className="ml-1.5 text-canon-text-secondary">{teamState.length}</span>
+        </button>
       </div>
 
       {sessions.length === 0 ? (

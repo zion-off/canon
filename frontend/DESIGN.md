@@ -61,11 +61,11 @@ Applied on top of any surface:
 
 Three typefaces. Base font size: `17px` on `<html>`.
 
-| Role      | Family         | Source                                                                     | Weights |
-| --------- | -------------- | -------------------------------------------------------------------------- | ------- |
-| Condensed | ROM Condensed  | `https://type.cargo.site/files/CargoROMCondensedVariable.woff2` (variable) | 100–900 |
-| Regular   | ROM            | `https://type.cargo.site/files/CargoROMVariable.woff2` (variable)          | 100–900 |
-| Mono      | Gaisyr Mono    | `https://type.cargo.site/files/CargoGaisyrMono-Book.woff2`                 | 400     |
+| Role      | Family        | Source                                                                     | Weights |
+| --------- | ------------- | -------------------------------------------------------------------------- | ------- |
+| Condensed | ROM Condensed | `https://type.cargo.site/files/CargoROMCondensedVariable.woff2` (variable) | 100–900 |
+| Regular   | ROM           | `https://type.cargo.site/files/CargoROMVariable.woff2` (variable)          | 100–900 |
+| Mono      | Gaisyr Mono   | `https://type.cargo.site/files/CargoGaisyrMono-Book.woff2`                 | 400     |
 
 ### Scale
 

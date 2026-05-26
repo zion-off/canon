@@ -7,6 +7,8 @@ from src.models.schemas._base import MongoModel
 
 class SessionResponse(MongoModel):
     session_id: str = Field(alias="sessionId")
+    tenant_id: str = Field(default="", alias="tenantId")
+    user_id: str = Field(default="", alias="userId")
     title: str = Field(default="")
     summary: str | None = None
     run_count: int = Field(default=0, alias="runCount")

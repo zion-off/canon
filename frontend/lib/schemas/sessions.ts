@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const SessionResponseSchema = z.object({
   sessionId: z.string(),
+  tenantId: z.string(),
+  userId: z.string(),
   title: z.string(),
   summary: z.string().nullable(),
   runCount: z.number().int(),

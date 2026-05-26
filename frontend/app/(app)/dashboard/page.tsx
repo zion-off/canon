@@ -1,12 +1,18 @@
-import { listSessions } from "@/lib/actions/sessions";
+import { listSessions, listMySessions } from "@/lib/actions/sessions";
+import { getCurrentUser } from "@/lib/actions/auth";
 import { LiveSessionList } from "@/components/sessions/LiveSessionList";
 
 export default async function DashboardPage() {
-  const sessions = await listSessions();
+  const user = await getCurrentUser();
+  const [mySessions, teamSessions] = await Promise.all([listMySessions(), listSessions()]);
 
   return (
     <div className="pt-10 pb-16">
-      <LiveSessionList initialSessions={sessions} />
+      <LiveSessionList
+        mySessions={mySessions}
+        teamSessions={teamSessions}
+        currentUserId={user?.userId ?? ""}
+      />
     </div>
   );
 }

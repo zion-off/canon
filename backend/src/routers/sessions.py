@@ -23,13 +23,15 @@ harness_router = APIRouter(prefix="/tenants/{tenant_id}", tags=["harness-session
 # ---------------------------------------------------------------------------
 
 
-async def _list_sessions(tenant_id: str) -> list[SessionResponse]:
+async def _list_sessions(
+    tenant_id: str, *, user_id: str | None = None
+) -> list[SessionResponse]:
     tenant_oid = ObjectId(tenant_id)
+    criteria: list = [SessionDocument.tenant_id == tenant_oid]
+    if user_id:
+        criteria.append(SessionDocument.user_id == user_id)
     sessions = (
-        await SessionDocument.find(SessionDocument.tenant_id == tenant_oid)
-        .sort("-lastRunAt")
-        .limit(20)
-        .to_list()
+        await SessionDocument.find(*criteria).sort("-lastRunAt").limit(20).to_list()
     )
     return [
         SessionResponse.model_validate(s.model_dump(by_alias=True)) for s in sessions
@@ -99,8 +101,12 @@ def _check_tenant_match(path_tenant_id: str, ctx: TenantContext) -> None:
 @router.get("")
 async def list_sessions(
     user: JwtPayload = Depends(jwt_auth),
+    scope: str = Query(default="team"),
 ) -> list[SessionResponse]:
-    return await _list_sessions(_jwt_tenant_id(user))
+    tenant_id = _jwt_tenant_id(user)
+    if scope == "me":
+        return await _list_sessions(tenant_id, user_id=user.sub)
+    return await _list_sessions(tenant_id)
 
 
 async def _sessions_sse_stream(

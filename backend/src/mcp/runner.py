@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
@@ -239,5 +240,9 @@ Latest response: {response[:1000]}
 
 Write only the updated summary — no preamble, no explanation. Ruthlessly compress."""
 
-    summary = await CanonModel.generate_text(settings.fast_model, prompt)
-    return summary or ""
+    try:
+        summary = await CanonModel.generate_text(settings.fast_model, prompt)
+        return summary or ""
+    except Exception:
+        logging.getLogger(__name__).exception("Session summary generation failed")
+        return ""

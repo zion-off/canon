@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -262,9 +263,13 @@ Request: {request[:500]}
 
 Title:"""
 
-    title = await CanonModel.generate_text(settings.fast_model, prompt)
-    if title:
-        return title.strip()
+    try:
+        title = await CanonModel.generate_text(settings.fast_model, prompt)
+        if title:
+            return title.strip()
+    except Exception:
+        logging.getLogger(__name__).exception("Title generation failed")
+
     return request[:100]
 
 

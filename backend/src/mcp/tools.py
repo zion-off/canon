@@ -146,8 +146,8 @@ async def hybrid_search(
             "$rankFusion": {
                 "input": {
                     "pipelines": {
-                        "vector": vector_search_stage,
-                        "text": text_search_stage,
+                        "vector": [vector_search_stage],
+                        "text": [text_search_stage],
                     }
                 },
                 "rankFusion": {

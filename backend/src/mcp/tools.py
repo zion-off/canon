@@ -240,7 +240,7 @@ async def hybrid_search(
 
 
 async def canonize_node(
-    document: dict[str, Any],
+    document: MemoryNodeInput,
     rationale: str,
     related_existing_ids: list[str],
     tool_context: ToolContext,
@@ -269,11 +269,14 @@ async def canonize_node(
         CanonizeSuccess with node_id and relationships_formed, or CanonizeError.
     """
     log = logging.getLogger(__name__)
-    try:
-        doc = MemoryNodeInput.model_validate(document)
-    except Exception as exc:
-        log.warning("canonize_node: validation failed | error=%s", exc)
-        return CanonizeError(error=f"Invalid document: {exc}")
+    if isinstance(document, dict):
+        try:
+            doc = MemoryNodeInput.model_validate(document)
+        except Exception as exc:
+            log.warning("canonize_node: validation failed | error=%s", exc)
+            return CanonizeError(error=f"Invalid document: {exc}")
+    else:
+        doc = document
 
     if len(doc.related_entity_ids) > 100:
         return CanonizeError(error="relatedEntityIds exceeds maximum of 100 entries.")

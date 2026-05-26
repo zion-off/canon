@@ -13,39 +13,34 @@ interface EventFeedProps {
 }
 
 interface RunBucket {
+  runId: string;
   runIndex: number;
   events: IdentifiedEvent[];
   timestamp: string | null;
 }
 
 function groupEventsIntoRuns(events: IdentifiedEvent[]): RunBucket[] {
-  const runs: RunBucket[] = [];
-  let currentRun: IdentifiedEvent[] = [];
-  let runCounter = 0;
-  let currentTimestamp: string | null = null;
+  const buckets = new Map<string, IdentifiedEvent[]>();
 
   for (const event of events) {
-    if (event.type === EVENT_TYPE.RUN_STARTED) {
-      if (currentRun.length > 0) {
-        runs.push({ runIndex: runCounter, events: currentRun, timestamp: currentTimestamp });
-      }
-      runCounter++;
-      currentTimestamp = event.timestamp;
-      currentRun = [event];
+    const key = event.runId ?? "_unknown";
+    const existing = buckets.get(key);
+    if (existing) {
+      existing.push(event);
     } else {
-      if (runCounter === 0) {
-        runCounter = 1;
-        currentTimestamp = event.timestamp;
-      }
-      currentRun.push(event);
+      buckets.set(key, [event]);
     }
   }
 
-  if (currentRun.length > 0) {
-    runs.push({ runIndex: runCounter, events: currentRun, timestamp: currentTimestamp });
-  }
-
-  return runs;
+  return Array.from(buckets.entries()).map(([runId, runEvents], index) => ({
+    runId,
+    runIndex: index + 1,
+    events: runEvents,
+    timestamp:
+      runEvents.find((e) => e.type === EVENT_TYPE.RUN_STARTED)?.timestamp ??
+      runEvents[0]?.timestamp ??
+      null,
+  }));
 }
 
 function toIdentifiedEvent(event: AgentEvent, stableId: number): IdentifiedEvent {
@@ -113,7 +108,7 @@ export function EventFeed({ sessionId, initialEvents, isLive }: EventFeedProps) 
 
       {runs.map((run) => (
         <RunGroup
-          key={run.runIndex}
+          key={run.runId}
           runIndex={run.runIndex}
           events={run.events}
           timestamp={run.timestamp}

@@ -60,6 +60,9 @@ class AgentEventBase(MongoModel):
     author: str | None = None
     sequence: int | None = None
     timestamp: str | None = None
+    run_id: str | None = Field(
+        default=None, validation_alias="runId", serialization_alias="runId"
+    )
     is_final: bool = Field(
         default=False, validation_alias="isFinal", serialization_alias="isFinal"
     )

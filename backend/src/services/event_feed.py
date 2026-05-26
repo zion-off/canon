@@ -71,16 +71,17 @@ class AgentEventFeed:
         now = datetime.now(UTC)
         if event.timestamp is None:
             event.timestamp = now.isoformat()
+        if event.run_id is None:
+            event.run_id = run_id
 
         # Serialize to dict for persistence
         event_dict = event.model_dump()
 
-        # Persist for replay
+        # Persist for replay; run_id flows in via event_dict
         doc = AgentEventDocument.model_construct(
             tenant_id=ObjectId(tenant_id),
             user_id=user_id,
             session_id=session_id,
-            run_id=run_id,
             created_at=now,
             **event_dict,
         )

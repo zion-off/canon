@@ -19,6 +19,7 @@ const baseEventFields = {
   author: z.string().nullable(),
   sequence: z.number().int().nullable(),
   timestamp: z.string().nullable(),
+  runId: z.string().nullable(),
   isFinal: z.boolean(),
 };
 

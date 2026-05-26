@@ -1,7 +1,14 @@
 "use client";
 
 import type { ToolCallPair } from "@/lib/schemas/sessions";
+import { AGENT_DISPLAY_NAMES, TOOL_DISPLAY_NAMES } from "@/lib/constants";
 import { formatTimestamp } from "@/lib/date-utils";
+
+const STATUS_DISPLAY: Record<string, string> = {
+  ok: "Done",
+  success: "Done",
+  error: "Failed",
+};
 
 interface ToolCallTimelineProps {
   pair: ToolCallPair;
@@ -9,9 +16,12 @@ interface ToolCallTimelineProps {
 
 export function ToolCallTimeline({ pair }: ToolCallTimelineProps) {
   const { started, completed } = pair;
-  const toolName = started.payload.tool_name;
+  const toolName = TOOL_DISPLAY_NAMES[started.payload.tool_name] ?? started.payload.tool_name;
+  const authorName = started.author
+    ? (AGENT_DISPLAY_NAMES[started.author] ?? started.author)
+    : null;
   const isPending = completed === null;
-  const isSuccess = completed?.payload.status === "success";
+  const isSuccess = completed?.payload.status === "ok" || completed?.payload.status === "success";
 
   return (
     <div>
@@ -25,9 +35,9 @@ export function ToolCallTimeline({ pair }: ToolCallTimelineProps) {
           <div className="flex items-baseline justify-between gap-4">
             <div className="flex items-baseline gap-2 min-w-0">
               <span className="text-sm font-medium text-canon-text">{toolName}</span>
-              {started.author && (
+              {authorName && (
                 <span className="text-xs text-canon-text-disabled font-condensed">
-                  {started.author}
+                  {authorName}
                 </span>
               )}
             </div>
@@ -70,7 +80,7 @@ export function ToolCallTimeline({ pair }: ToolCallTimelineProps) {
                     isSuccess ? "text-canon-success" : "text-canon-error"
                   }`}
                 >
-                  {completed.payload.status}
+                  {STATUS_DISPLAY[completed.payload.status] ?? completed.payload.status}
                 </span>
                 {completed.timestamp && (
                   <span

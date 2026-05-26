@@ -53,3 +53,34 @@ export const DISPLAY_KIND = {
   EVENT: "event",
   TOOL_CALL_PAIR: "tool_call_pair",
 } as const;
+
+export const TOOL_NAME = {
+  EMIT_CHECKPOINT: "emit_checkpoint",
+  HYBRID_SEARCH: "hybrid_search",
+  FIND: "find",
+  AGGREGATE: "aggregate",
+  COUNT: "count",
+  CANONIZE_NODE: "canonize_node",
+} as const;
+
+export const AGENT_NAME = {
+  ORCHESTRATOR: "canon_orchestrator",
+  SEMANTIC_RETRIEVER: "semantic_retriever",
+  GRAPH_EXPLORER: "graph_explorer",
+} as const;
+
+export const TOOL_DISPLAY_NAMES: Record<string, string> = {
+  [TOOL_NAME.HYBRID_SEARCH]: "Searching memory",
+  [TOOL_NAME.FIND]: "Querying graph",
+  [TOOL_NAME.AGGREGATE]: "Traversing relationships",
+  [TOOL_NAME.COUNT]: "Counting records",
+  [TOOL_NAME.CANONIZE_NODE]: "Forming memory",
+  [AGENT_NAME.SEMANTIC_RETRIEVER]: "Memory search",
+  [AGENT_NAME.GRAPH_EXPLORER]: "Graph exploration",
+};
+
+export const AGENT_DISPLAY_NAMES: Record<string, string> = {
+  [AGENT_NAME.ORCHESTRATOR]: "Canon",
+  [AGENT_NAME.SEMANTIC_RETRIEVER]: "Memory Search",
+  [AGENT_NAME.GRAPH_EXPLORER]: "Graph Explorer",
+};

@@ -3,7 +3,7 @@
 import type { IdentifiedEvent, DisplayItem, ToolCallPair } from "@/lib/schemas/sessions";
 import { EventItem } from "./EventItem";
 import { formatDateTime } from "@/lib/date-utils";
-import { EVENT_TYPE, DISPLAY_KIND } from "@/lib/constants";
+import { EVENT_TYPE, DISPLAY_KIND, TOOL_NAME } from "@/lib/constants";
 
 interface RunGroupProps {
   runIndex: number;
@@ -20,6 +20,7 @@ function pairToolCallEvents(events: IdentifiedEvent[]): DisplayItem[] {
 
   for (const event of events) {
     if (event.type === EVENT_TYPE.TOOL_CALL_STARTED) {
+      if (event.payload.tool_name === TOOL_NAME.EMIT_CHECKPOINT) continue;
       const pair: ToolCallPair = {
         kind: DISPLAY_KIND.TOOL_CALL_PAIR,
         stableId: event.stableId,
@@ -30,6 +31,7 @@ function pairToolCallEvents(events: IdentifiedEvent[]): DisplayItem[] {
       pendingPairs.set(event.payload.invocation_id, result.length);
       result.push(pair);
     } else if (event.type === EVENT_TYPE.TOOL_CALL_COMPLETED) {
+      if (event.payload.tool_name === TOOL_NAME.EMIT_CHECKPOINT) continue;
       const idx = pendingPairs.get(event.payload.invocation_id);
       if (idx !== undefined) {
         const existing = result[idx] as ToolCallPair;

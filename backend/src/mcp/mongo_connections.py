@@ -7,11 +7,12 @@ single source of truth for MongoDB MCP server connection parameters.
 
 Lifecycle is managed by the application lifespan:
     startup() → open subprocess + initialize session
-    shutdown() → close session + terminate subprocess
+    shutdown() → drain in-flight ops → close session + terminate subprocess
 """
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import logging
 from typing import Any
@@ -32,6 +33,10 @@ class _ConnectionState:
     # finalize (and close transports) when __aexit__ runs at shutdown.
     read_ctx: Any = None
     session_ctx: Any = None
+    _shutting_down = asyncio.Event()
+    _in_flight = 0
+    _lock = asyncio.Lock()
+    _drained = asyncio.Event()
 
 
 def get_read_params() -> StdioServerParameters:
@@ -65,6 +70,9 @@ async def startup() -> None:
     """Start the persistent read-only MCP subprocess and initialize the session."""
     log = logging.getLogger(__name__)
     log.info("mongo_connections: starting read-only MCP subprocess")
+    _ConnectionState._shutting_down.clear()
+    _ConnectionState._drained.clear()
+    _ConnectionState._in_flight = 0
     params = get_read_params()
     _ConnectionState.read_ctx = stdio_client(params)
     read, write = await _ConnectionState.read_ctx.__aenter__()
@@ -76,9 +84,31 @@ async def startup() -> None:
 
 
 async def shutdown() -> None:
-    """Close the persistent session and terminate the subprocess."""
+    """Close the persistent session and terminate the subprocess.
+
+    Signals in-flight operations to stop and drains them before teardown
+    to avoid ASGI errors during hot reload.
+    """
     log = logging.getLogger(__name__)
     log.info("mongo_connections: shutting down MCP subprocess")
+    _ConnectionState._shutting_down.set()
+
+    async with _ConnectionState._lock:
+        if _ConnectionState._in_flight > 0:
+            log.info(
+                "mongo_connections: draining %d in-flight operation(s)",
+                _ConnectionState._in_flight,
+            )
+            try:
+                await asyncio.wait_for(
+                    _ConnectionState._drained.wait(), timeout=5.0
+                )
+            except TimeoutError:
+                log.warning(
+                    "mongo_connections: drain timed out with %d in-flight",
+                    _ConnectionState._in_flight,
+                )
+
     if _ConnectionState.session_ctx is not None:
         await _ConnectionState.session_ctx.__aexit__(None, None, None)
         _ConnectionState.session_ctx = None
@@ -95,6 +125,9 @@ async def _reconnect_read_session() -> ClientSession:
     """Tear down the existing read session/transport and start a fresh one."""
     log = logging.getLogger(__name__)
     log.warning("mongo_connections: read session lost, reconnecting")
+
+    if _ConnectionState._shutting_down.is_set():
+        raise RuntimeError("MongoMCP session is shutting down")
 
     if _ConnectionState.session_ctx is not None:
         with contextlib.suppress(Exception):
@@ -135,9 +168,15 @@ async def call_aggregate(collection: str, pipeline: list[dict[str, Any]]) -> Any
     Raises:
         RuntimeError: If the session cannot be started or reconnected.
     """
+    if _ConnectionState._shutting_down.is_set():
+        raise RuntimeError("MongoMCP session is shutting down")
+
     session = _ConnectionState.read_session
     if session is None:
         raise RuntimeError("MongoMCP read session not started")
+
+    async with _ConnectionState._lock:
+        _ConnectionState._in_flight += 1
 
     log = logging.getLogger(__name__)
     log.debug(
@@ -146,24 +185,30 @@ async def call_aggregate(collection: str, pipeline: list[dict[str, Any]]) -> Any
         len(pipeline),
     )
 
-    for attempt in range(2):
-        try:
-            return await session.call_tool(
-                "aggregate",
-                {
-                    "collection": collection,
-                    "database": "canon",
-                    "pipeline": pipeline,
-                },
-            )
-        except (BrokenPipeError, ConnectionResetError, OSError) as exc:
-            if attempt == 0:
-                log.warning(
-                    "mongo_connections: aggregate failed (attempt 1/2) | error=%s",
-                    exc,
+    try:
+        for attempt in range(2):
+            try:
+                return await session.call_tool(
+                    "aggregate",
+                    {
+                        "collection": collection,
+                        "database": "canon",
+                        "pipeline": pipeline,
+                    },
                 )
-                session = await _reconnect_read_session()
-            else:
-                raise RuntimeError(
-                    f"MongoMCP aggregate failed after reconnect: {exc}"
-                ) from exc
+            except (BrokenPipeError, ConnectionResetError, OSError) as exc:
+                if attempt == 0:
+                    log.warning(
+                        "mongo_connections: aggregate failed (attempt 1/2) | error=%s",
+                        exc,
+                    )
+                    session = await _reconnect_read_session()
+                else:
+                    raise RuntimeError(
+                        f"MongoMCP aggregate failed after reconnect: {exc}"
+                    ) from exc
+    finally:
+        async with _ConnectionState._lock:
+            _ConnectionState._in_flight -= 1
+            if _ConnectionState._in_flight == 0:
+                _ConnectionState._drained.set()

@@ -17,9 +17,8 @@ import contextlib
 import logging
 from typing import Any
 
-from mcp.client.stdio import StdioServerParameters, stdio_client
-
 from mcp import ClientSession
+from mcp.client.stdio import StdioServerParameters, stdio_client
 from src.config import settings
 
 

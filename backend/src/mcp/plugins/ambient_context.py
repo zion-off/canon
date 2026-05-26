@@ -53,7 +53,7 @@ class AmbientContextPlugin(BasePlugin):
         tool_args: dict[str, Any],
         tool_context: ToolContext,
     ) -> dict | None:
-        if tool.name not in ToolName.ALL:
+        if tool.name not in ToolName.READ_ONLY:
             return None
 
         tenant_id = tool_context.state.get(SessionState.TENANT_ID)
@@ -80,12 +80,6 @@ class AmbientContextPlugin(BasePlugin):
         elif tool.name == ToolName.AGGREGATE:
             max_depth = tool_context.state.get(SessionState.MAX_GRAPH_DEPTH, 2)
             self._inject_into_pipeline(tool_args, ejson_tenant, max_depth)
-
-        elif tool.name == ToolName.INSERT_MANY:
-            self._inject_into_documents(tool_args, ejson_tenant)
-
-        elif tool.name == ToolName.UPDATE_MANY:
-            self._inject_into_filter(tool_args, ejson_tenant)
 
         return None
 
@@ -133,17 +127,6 @@ class AmbientContextPlugin(BasePlugin):
             filt = {}
             tool_args["filter"] = filt
         filt["tenantId"] = ejson_tenant
-
-    @staticmethod
-    def _inject_into_documents(
-        tool_args: dict[str, Any],
-        ejson_tenant: dict[str, str],
-    ) -> None:
-        documents = tool_args.get("documents")
-        if isinstance(documents, list):
-            for doc in documents:
-                if isinstance(doc, dict):
-                    doc["tenantId"] = ejson_tenant
 
     @staticmethod
     def _inject_into_pipeline(

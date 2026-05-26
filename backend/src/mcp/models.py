@@ -12,10 +12,9 @@ from pydantic import BaseModel, Field
 
 
 class MemoryNodeInput(BaseModel):
-    """The memory node fields the LLM specifies when calling prepare_embedding.
+    """The memory node fields the LLM specifies when calling canonize_node.
 
-    All ID fields are plain hex strings — the EJSON wrapping happens
-    in AmbientContextPlugin before the values reach the MongoDB MCP server.
+    All ID fields are plain hex strings — ObjectId coercion happens in the tool.
     """
 
     name: str
@@ -52,25 +51,21 @@ class HybridSearchError(BaseModel):
 type HybridSearchResult = HybridSearchSuccess | HybridSearchError
 
 
-class RelationshipMeta(BaseModel):
-    """Metadata about relationships to form after document insertion."""
+class CanonizeSuccess(BaseModel):
+    """Successful memory node persistence."""
 
-    supersedes_id_str: str | None = Field(default=None)
-    related_existing_id_strs: list[str] = Field(default_factory=list)
-
-
-class PrepareSuccess(BaseModel):
-    """Successful document preparation."""
-
-    status: Literal["ready"] = "ready"
-    document: dict[str, Any]
-    meta: RelationshipMeta
+    status: Literal["written"] = "written"
+    node_id: str
+    name: str
+    relationships_formed: int
 
 
-class PrepareError(BaseModel):
-    """Failed document preparation."""
+class CanonizeError(BaseModel):
+    """Failed memory node persistence."""
 
     error: str
 
 
-type PrepareResult = PrepareSuccess | PrepareError
+type CanonizeResult = CanonizeSuccess | CanonizeError
+
+

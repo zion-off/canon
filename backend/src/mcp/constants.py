@@ -51,22 +51,17 @@ class AgentName:
     ORCHESTRATOR: Final = "canon_orchestrator"
     SEMANTIC_RETRIEVER: Final = "semantic_retriever"
     GRAPH_EXPLORER: Final = "graph_explorer"
-    MEMORY_WRITER: Final = "memory_writer"
 
 
 class ToolName:
-    """MongoDB MCP server tool names."""
+    """MongoDB MCP server tool names (read-only subset used by retrieval agents)."""
 
     FIND: Final = "find"
     COUNT: Final = "count"
     AGGREGATE: Final = "aggregate"
-    INSERT_MANY: Final = "insert-many"
-    UPDATE_MANY: Final = "update-many"
     EMIT_CHECKPOINT: Final = "emit_checkpoint"
 
     READ_ONLY: Final[frozenset[str]] = frozenset({FIND, AGGREGATE, COUNT})
-    WRITE: Final[frozenset[str]] = frozenset({INSERT_MANY, UPDATE_MANY})
-    ALL: Final[frozenset[str]] = READ_ONLY | WRITE
 
 
 class Database:

@@ -1,12 +1,13 @@
 """ADK agent tools for the Canon memory graph.
 
-Provides tools that agents use for hybrid search, embedding generation,
-document preparation, and reasoning checkpoints.
+Provides tools that agents use for hybrid search, memory persistence,
+and reasoning checkpoints.
 
-Semantic retrieval (hybrid_search) generates embeddings and calls the
-MongoDB MCP server's aggregate tool internally — the LLM never sees
-raw vectors. All other database operations go through the MongoDB MCP
-server directly via agent tool bindings.
+- hybrid_search: generates embeddings and executes $rankFusion via the
+  shared read-only MCP session — the LLM never handles raw vectors.
+- canonize_node: validates, embeds, and persists a memory node via Beanie,
+  wiring bidirectional edges and cascading supersession in one operation.
+- emit_checkpoint: records reasoning milestones for the Reasoning Feed.
 """
 
 from __future__ import annotations
@@ -16,25 +17,25 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
-from bson import ObjectId
+from beanie.odm.fields import PydanticObjectId
 from google.adk.tools.function_tool import FunctionTool
 from google.adk.tools.tool_context import ToolContext
-from mcp.types import TextContent
 
+from mcp.types import TextContent
 from src.config import settings
 from src.mcp.agent_platform import CanonModel
 from src.mcp.constants import SessionState, TempState
 from src.mcp.models import (
+    CanonizeError,
+    CanonizeResult,
+    CanonizeSuccess,
     HybridSearchError,
     HybridSearchResult,
     HybridSearchSuccess,
     MemoryNodeInput,
-    PrepareError,
-    PrepareResult,
-    PrepareSuccess,
-    RelationshipMeta,
 )
 from src.mcp.mongo_connections import call_aggregate
+from src.models.documents import MemoryNodeDocument
 
 # ─── Embedding Utilities ─────────────────────────────────────────────────────
 
@@ -238,57 +239,65 @@ async def hybrid_search(
 # ─── Core Agent Tools ────────────────────────────────────────────────────────
 
 
-async def prepare_embedding(
+async def canonize_node(
     document: dict[str, Any],
     rationale: str,
     related_existing_ids: list[str],
     tool_context: ToolContext,
-) -> PrepareResult:
-    """Validate and precompute an embedding for a memory node.
+) -> CanonizeResult:
+    """Persist an observation as a structured memory node in the knowledge graph.
 
-    Validates the document, generates a retrieval-optimized embedding, and
-    returns a fully prepared document ready for insertion via the MongoDB MCP
-    server's ``insert-many`` tool. Persistence is handled by the memory_writer
-    subagent using MCP ``insert-many`` and ``update-many`` tools.
+    Validates the document, generates an embedding, inserts the node, wires
+    bidirectional edges on related existing nodes, and cascades supersession
+    if this node replaces a predecessor — all in one atomic operation.
+
+    Do NOT set embeddingText, embedding, createdAt, updatedAt, or tenantId —
+    those are injected by this tool.
 
     Args:
-        document: The memory node data matching the MemoryNodeInput schema.
-        rationale: Explanation of why this node is being created or updated.
-        related_existing_ids: List of existing node IDs (as hex strings) that
-            this node should be linked to bidirectionally.
-        tool_context: ADK tool context providing access to agent state.
+        document: Memory node fields — name (str), description (str),
+            content (str), status (active|deprecated|in_progress|resolved|completed),
+            tags (list[str]), metadata (dict), and optionally relatedEntityIds
+            (list of hex IDs to link from this node) and supersedes (hex ID of
+            the node this one replaces).
+        rationale: Why this node should exist.
+        related_existing_ids: Hex IDs of existing nodes whose relatedEntityIds
+            should be updated to include this new node (reverse edges).
+        tool_context: ADK tool context — injected automatically, do not pass.
 
     Returns:
-        A PrepareSuccess with the prepared document and relationship metadata,
-        or a PrepareError on validation or generation failure.
+        CanonizeSuccess with node_id and relationships_formed, or CanonizeError.
     """
     log = logging.getLogger(__name__)
     try:
         doc = MemoryNodeInput.model_validate(document)
     except Exception as exc:
-        log.warning("prepare_embedding: validation failed | error=%s", exc)
-        return PrepareError(error=f"Invalid document: {exc}")
+        log.warning("canonize_node: validation failed | error=%s", exc)
+        return CanonizeError(error=f"Invalid document: {exc}")
 
     if len(doc.related_entity_ids) > 100:
-        return PrepareError(error="relatedEntityIds exceeds maximum of 100 entries.")
+        return CanonizeError(error="relatedEntityIds exceeds maximum of 100 entries.")
+
+    tenant_id_str = tool_context.state.get(SessionState.TENANT_ID)
+    if not tenant_id_str:
+        return CanonizeError(error="No tenant context in session state.")
 
     try:
-        related_object_ids = [ObjectId(rid) for rid in related_existing_ids]
-        related_entity_object_ids = [ObjectId(rid) for rid in doc.related_entity_ids]
-    except Exception:
-        return PrepareError(error="Invalid ObjectId in related IDs.")
+        tenant_oid = PydanticObjectId(tenant_id_str)
+        related_entity_oids = [PydanticObjectId(rid) for rid in doc.related_entity_ids]
+        related_existing_oids = [PydanticObjectId(rid) for rid in related_existing_ids]
+    except Exception as exc:
+        return CanonizeError(error=f"Invalid ObjectId: {exc}")
 
-    supersedes_id: ObjectId | None = None
+    supersedes_oid: PydanticObjectId | None = None
     if doc.supersedes:
         try:
-            supersedes_id = ObjectId(doc.supersedes)
-        except Exception:
-            return PrepareError(error="Invalid ObjectId in supersedes.")
+            supersedes_oid = PydanticObjectId(doc.supersedes)
+        except Exception as exc:
+            return CanonizeError(error=f"Invalid ObjectId in supersedes: {exc}")
 
-    # Build the insertion-ready document.
     now = datetime.now(tz=UTC)
     embedding_text = build_embedding_text(doc)
-
     try:
         embedding = await CanonModel.embed(
             embedding_text,
@@ -296,35 +305,61 @@ async def prepare_embedding(
             model=settings.embedding_model,
         )
     except Exception as exc:
-        log.warning("prepare_embedding: embedding generation failed | error=%s", exc)
-        return PrepareError(error=f"Embedding generation failed: {exc}")
+        log.warning("canonize_node: embedding failed | error=%s", exc)
+        return CanonizeError(error=f"Embedding generation failed: {exc}")
 
-    prepared: dict[str, Any] = {
-        "name": doc.name,
-        "description": doc.description,
-        "content": doc.content,
-        "status": doc.status,
-        "tags": doc.tags,
-        "metadata": doc.metadata,
-        "relatedEntityIds": [str(o) for o in related_entity_object_ids],
-        "createdAt": {"$date": now.isoformat()},
-        "updatedAt": {"$date": now.isoformat()},
-        "supersedes": str(supersedes_id) if supersedes_id else None,
-        "embeddingText": embedding_text,
-        "embedding": embedding,
-    }
-
-    meta = RelationshipMeta(
-        supersedes_id_str=str(supersedes_id) if supersedes_id else None,
-        related_existing_id_strs=[str(o) for o in related_object_ids],
+    node_doc = MemoryNodeDocument(
+        tenantId=tenant_oid,
+        name=doc.name,
+        description=doc.description,
+        content=doc.content,
+        status=doc.status,
+        tags=doc.tags,
+        metadata=doc.metadata,
+        relatedEntityIds=related_entity_oids,
+        supersedes=supersedes_oid,
+        embeddingText=embedding_text,
+        embedding=embedding,
+        createdAt=now,
+        updatedAt=now,
     )
+    try:
+        await node_doc.insert()
+    except Exception as exc:
+        if "duplicate key" in str(exc).lower():
+            return CanonizeError(error=f"A node named '{doc.name}' already exists for this tenant.")
+        log.warning("canonize_node: insert failed | name=%s error=%s", doc.name, exc)
+        return CanonizeError(error=f"Insert failed: {exc}")
 
-    log.debug(
-        "prepare_embedding: success | node=%s embedding_dims=%d",
+    new_id = node_doc.id
+    relationships_formed = 0
+
+    # Update reverse edges on related existing nodes.
+    if related_existing_oids:
+        await MemoryNodeDocument.find(
+            {"_id": {"$in": related_existing_oids}, "tenantId": tenant_oid}
+        ).update_many({"$addToSet": {"relatedEntityIds": new_id}, "$set": {"updatedAt": now}})
+        relationships_formed += len(related_existing_oids)
+
+    # Cascade supersession — mark predecessor as deprecated.
+    if supersedes_oid:
+        await MemoryNodeDocument.find(
+            {"_id": supersedes_oid, "tenantId": tenant_oid}
+        ).update_many({"$set": {"supersededBy": new_id, "status": "deprecated", "updatedAt": now}})
+        relationships_formed += 1
+
+    log.info(
+        "canonize_node: written | name=%s node_id=%s relationships=%d rationale=%.80s",
         doc.name,
-        len(embedding),
+        new_id,
+        relationships_formed,
+        rationale,
     )
-    return PrepareSuccess(status="ready", document=prepared, meta=meta)
+    return CanonizeSuccess(
+        node_id=str(new_id),
+        name=doc.name,
+        relationships_formed=relationships_formed,
+    )
 
 
 async def emit_checkpoint(message: str, tool_context: ToolContext) -> dict[str, str]:
@@ -355,6 +390,6 @@ async def emit_checkpoint(message: str, tool_context: ToolContext) -> dict[str, 
 
 # ─── Tool Instances ──────────────────────────────────────────────────────────
 
-prepare_embedding_tool = FunctionTool(func=prepare_embedding)
+canonize_node_tool = FunctionTool(func=canonize_node)
 hybrid_search_tool = FunctionTool(func=hybrid_search)
 emit_checkpoint_tool = FunctionTool(func=emit_checkpoint)

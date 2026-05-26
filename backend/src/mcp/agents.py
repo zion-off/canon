@@ -1,7 +1,8 @@
 """Canon ADK agent definitions.
 
-Defines the orchestrator and its sub-agents (semantic_retriever,
-graph_explorer, memory_writer) with their instructions and tool bindings.
+Defines the orchestrator and its sub-agents (semantic_retriever, graph_explorer)
+with their instructions and tool bindings. Memory persistence is handled directly
+by the orchestrator via the canonize_node FunctionTool.
 """
 
 from __future__ import annotations
@@ -17,16 +18,15 @@ from google.adk.tools.google_search_tool import GoogleSearchTool
 from google.adk.tools.mcp_tool import McpToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
 from google.adk.tools.tool_context import ToolContext  # noqa: F401 — used by callbacks
-from pydantic import BaseModel, Field
 
 from src.config import settings
 from src.mcp.agent_platform import CanonModel
 from src.mcp.constants import AgentName, TempState
-from src.mcp.mongo_connections import get_read_params, get_write_params
+from src.mcp.mongo_connections import get_read_params
 from src.mcp.tools import (
+    canonize_node_tool,
     emit_checkpoint_tool,
     hybrid_search_tool,
-    prepare_embedding_tool,
 )
 
 MEMORY_NODE_SCHEMA = """\
@@ -89,64 +89,6 @@ If no identifiable entities are found or no matching nodes exist, report that \
 explicitly and return empty results. Do not fabricate node IDs.\
 """
 
-MEMORY_WRITER_INSTRUCTION = f"""\
-You are Canon's memory formation. Your job is to convert observations into \
-properly structured memory nodes and persist them.
-
-{MEMORY_NODE_SCHEMA}
-
-## Tools
-
-- **prepare_embedding** — validates the document, generates a 768-dim vector.
-  Returns ``document`` (ready for insertion) and ``meta`` (with relationship
-  and supersession info).
-- **MCP insert-many** — inserts document(s) into a collection.
-- **MCP update-many** — updates documents matching a filter.
-- **MCP find / aggregate / count** — read-back tools for discovery queries
-  before writing.
-
-## Write Flow
-
-1. Build the node document with name, description, content, status, tags,
-   metadata, and optionally ``supersedes`` (hex string of the node being
-   replaced) and ``relatedEntityIds`` (hex strings of nodes to link to).
-
-2. Call ``prepare_embedding`` with:
-   - document: the full node
-   - rationale: why this node should exist
-   - related_existing_ids: existing node hex IDs to link bidirectionally
-
-3. Insert via ``insert-many`` into collection ``"memory_nodes"`` with
-   documents as a single-element array containing the returned ``document``.
-   The response text contains the inserted IDs — record the first one as
-   the new node's ``_id``.
-
-4. If ``meta.related_existing_id_strs`` is non-empty, call ``update-many`` for
-   each related ID to add the new node's ``_id`` to their ``relatedEntityIds``:
-   filter: ``{{"_id": "<existing_id>"}}``
-   update: ``{{"$addToSet": {{"relatedEntityIds": "<new_id>"}}}}``
-
-5. If ``meta.supersedes_id_str`` is set, call ``update-many`` to deprecate:
-   filter: ``{{"_id": "<superseded_id>"}}``
-   update: ``{{"$set": {{"status": "deprecated", "supersededBy": "<new_id>"}}}}``
-
-Use ``emit_checkpoint`` after step 2 (once the embedding is prepared) and
-again after step 5 (once all writes and relationship updates are committed).
-
-## Output Schema
-
-Your structured output must include:
-- ``name``: the node name
-- ``description``: one-paragraph summary
-- ``status``: the node's status
-- ``tags``: discoverability tags
-- ``node_id``: the hex ``_id`` returned from ``insert-many``
-- ``relationships_formed``: number of ``update-many`` calls made (one per
-  related existing ID in step 4, plus 1 if step 5 was executed)
-
-Do NOT set embeddingText, embedding, createdAt, or updatedAt — \
-prepare_embedding handles those.\
-"""
 
 ORCHESTRATOR_INSTRUCTION = """\
 You are Canon — an organizational reasoning system. You hold the operational \
@@ -164,8 +106,10 @@ not departments to coordinate.
   Finds relevant knowledge through hybrid semantic and keyword search.
 - **graph_explorer**: Trace how things connect. Follows relationships between \
   nodes to understand dependencies, impact, and organizational structure.
-- **memory_writer**: Form new memories. Structures observations into \
-  persistent, searchable knowledge nodes with proper relationships.
+- **canonize_node**: Persist an observation as a memory node. Call with the \
+  document (name, description, content, status, tags, metadata, and optionally \
+  relatedEntityIds and supersedes), your rationale, and any related existing \
+  node IDs to link bidirectionally. Returns node_id and relationships_formed.
 - **emit_checkpoint**: Make your reasoning visible. Marks milestones so the \
   Reasoning Feed shows how you arrived at your conclusions.
 
@@ -215,21 +159,6 @@ For saves, confirm what was persisted and what relationships were established.
 
 Never fabricate information not sourced from your capabilities.\
 """
-
-
-class MemoryNodeOutput(BaseModel):
-    """Structured output from memory_writer — guarantees type-safe node data."""
-
-    name: str = Field(description="Concise node name")
-    description: str = Field(description="One-paragraph summary")
-    status: str = Field(
-        description="active, deprecated, in_progress, resolved, completed"
-    )
-    tags: list[str] = Field(description="Discoverability tags")
-    node_id: str = Field(description="The persisted node's _id")
-    relationships_formed: int = Field(
-        description="Number of bidirectional edges created"
-    )
 
 
 async def log_tool_usage(
@@ -282,9 +211,7 @@ def _summarize_tool_args(args: dict[str, Any]) -> str:
 
 _semantic_retriever: Agent | None = None
 _graph_explorer: Agent | None = None
-_memory_writer: Agent | None = None
 _read_toolset: McpToolset | None = None
-_write_toolset: McpToolset | None = None
 
 
 def _build_mongo_read_toolset() -> McpToolset:
@@ -298,19 +225,6 @@ def _build_mongo_read_toolset() -> McpToolset:
         tool_filter=["find", "aggregate", "count"],
     )
     return _read_toolset
-
-
-def _build_mongo_write_toolset() -> McpToolset:
-    global _write_toolset
-    if _write_toolset is not None:
-        return _write_toolset
-    _write_toolset = McpToolset(
-        connection_params=StdioConnectionParams(
-            server_params=get_write_params(),
-        ),
-        tool_filter=["insert-many", "update-many"],
-    )
-    return _write_toolset
 
 
 def _get_semantic_retriever() -> Agent:
@@ -346,39 +260,16 @@ def _get_graph_explorer() -> Agent:
     return _graph_explorer
 
 
-def _get_memory_writer() -> Agent:
-    global _memory_writer
-    if _memory_writer is None:
-        _memory_writer = Agent(
-            name=AgentName.MEMORY_WRITER,
-            model=CanonModel.create(settings.reasoning_model),
-            description="Crystallizes observations into structured memory nodes, resolves "
-            "relationships, and persists to the knowledge graph. Call with the "
-            "observation and any related context from prior retrieval.",
-            instruction=MEMORY_WRITER_INSTRUCTION,
-            tools=[
-                _build_mongo_read_toolset(),
-                _build_mongo_write_toolset(),
-                prepare_embedding_tool,
-                emit_checkpoint_tool,
-            ],
-            output_key="write_result",
-            output_schema=MemoryNodeOutput,
-            after_tool_callback=log_tool_usage,
-        )
-    return _memory_writer
-
-
 def build_orchestrator() -> Agent:
     """Construct the orchestrator agent for a single request."""
     tools: list = [
         AgentTool(_get_semantic_retriever()),
         AgentTool(_get_graph_explorer()),
-        AgentTool(_get_memory_writer()),
+        canonize_node_tool,
+        emit_checkpoint_tool,
     ]
     if False and settings.reasoning_model.startswith("gemini"):  # noqa: SIM223
         tools.append(GoogleSearchTool())
-    tools.append(emit_checkpoint_tool)
 
     return Agent(
         name=AgentName.ORCHESTRATOR,
@@ -397,12 +288,9 @@ async def initialize_agents() -> None:
     """
     _get_semantic_retriever()
     _get_graph_explorer()
-    _get_memory_writer()
 
 
 async def cleanup_agents() -> None:
     """Close MCP subprocess connections. Called at container shutdown."""
     if _read_toolset is not None:
         await _read_toolset.close()
-    if _write_toolset is not None:
-        await _write_toolset.close()

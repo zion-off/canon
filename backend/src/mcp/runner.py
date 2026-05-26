@@ -267,8 +267,8 @@ async def run_agent(
             SessionResponse.model_validate(updated_session.model_dump(by_alias=True)),
         )
 
-    event_feed.cleanup_run(run_id)
-    log.debug("run_agent: cleaned up sequence tracking | run=%s", run_id)
+    event_feed.cleanup_session(session_id)
+    log.debug("run_agent: cleaned up sequence tracking | session=%s", session_id)
 
     log.info(
         "run_agent: complete | session=%s run=%s events=%d",

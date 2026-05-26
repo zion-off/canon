@@ -42,8 +42,8 @@ class AgentEventFeed:
 
     def __init__(self) -> None:
         self._subscribers: dict[str, list[Queue[AgentEvent]]] = {}
-        self._sequences: dict[str, int] = {}  # run_id → current sequence
-        self._locks: dict[str, Lock] = {}  # run_id → sequence lock
+        self._sequences: dict[str, int] = {}  # session_id → current sequence
+        self._locks: dict[str, Lock] = {}  # session_id → sequence lock
         self._session_subscribers: dict[str, list[Queue[SessionResponse]]] = {}
 
     async def broadcast(
@@ -58,14 +58,14 @@ class AgentEventFeed:
 
         Assigns sequence number and timestamp if not already present.
         """
-        # Assign sequence (monotonically increasing per run, atomic)
-        lock = self._locks.get(run_id)
+        # Assign sequence (monotonically increasing per session, atomic)
+        lock = self._locks.get(session_id)
         if lock is None:
             lock = Lock()
-            self._locks[run_id] = lock
+            self._locks[session_id] = lock
         async with lock:
-            seq = self._sequences.get(run_id, 0) + 1
-            self._sequences[run_id] = seq
+            seq = self._sequences.get(session_id, 0) + 1
+            self._sequences[session_id] = seq
             if event.sequence is None:
                 event.sequence = seq
         now = datetime.now(UTC)
@@ -132,10 +132,10 @@ class AgentEventFeed:
                     len(self._subscribers[key]),
                 )
 
-    def cleanup_run(self, run_id: str) -> None:
-        """Remove sequence tracking for a completed run."""
-        self._sequences.pop(run_id, None)
-        self._locks.pop(run_id, None)
+    def cleanup_session(self, session_id: str) -> None:
+        """Remove sequence tracking for a completed session."""
+        self._sequences.pop(session_id, None)
+        self._locks.pop(session_id, None)
 
     async def broadcast_session(self, tenant_id: str, session: SessionResponse) -> None:
         """Notify tenant-level subscribers of a new or updated session."""

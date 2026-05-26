@@ -24,11 +24,7 @@ export function EventItem({ item }: EventItemProps) {
       return <RunSeparator label="Run completed" />;
 
     case EVENT_TYPE.SUBAGENT_INVOKED:
-      return (
-        <div className="py-1 pl-4">
-          <span className="text-xs text-canon-text-secondary">▶ {item.payload.agent_name}</span>
-        </div>
-      );
+      return null;
 
     case EVENT_TYPE.REASONING_CHECKPOINT:
       return (
@@ -49,27 +45,35 @@ export function EventItem({ item }: EventItemProps) {
 
     case EVENT_TYPE.FINAL_RESPONSE:
       return (
-        <div className="border-l-4 border-l-canon-accent bg-canon-surface-raised px-5 py-4">
-          <div className="flex items-center justify-between">
-            <span className="font-condensed font-bold text-xs uppercase tracking-wider text-canon-accent">
-              Final Response
-            </span>
-            {item.timestamp && (
-              <span suppressHydrationWarning className="text-xs text-canon-text-secondary">
-                {formatTimestamp(item.timestamp)}
-              </span>
-            )}
+        <div className="flex gap-3">
+          <div className="pt-1.5">
+            <div className="w-2 h-2 rounded-full bg-canon-accent shrink-0" />
           </div>
-          <div className="mt-3">
-            {isJsonContent(item.payload.text) ? (
-              <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-sm text-canon-text">
-                {item.payload.text}
-              </pre>
-            ) : (
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-canon-text">
-                {item.payload.text}
-              </p>
-            )}
+          <div className="pb-1 min-w-0 flex-1">
+            <div className="flex items-baseline justify-between gap-4">
+              <span className="font-condensed font-bold text-xs uppercase tracking-wider text-canon-accent">
+                Final Response
+              </span>
+              {item.timestamp && (
+                <span
+                  suppressHydrationWarning
+                  className="shrink-0 text-xs text-canon-text-disabled"
+                >
+                  {formatTimestamp(item.timestamp)}
+                </span>
+              )}
+            </div>
+            <div className="mt-1">
+              {isJsonContent(item.payload.text) ? (
+                <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-sm text-canon-text">
+                  {item.payload.text}
+                </pre>
+              ) : (
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-canon-text">
+                  {item.payload.text}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       );

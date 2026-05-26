@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:20-slim AS node
+FROM node:24-slim AS node
 
 FROM python:3.14-slim
 

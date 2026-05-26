@@ -23,7 +23,7 @@ from src.mcp.constants import (
 from src.mcp.plugins.ambient_context import AmbientContextPlugin
 from src.mcp.plugins.reasoning_feed import ReasoningFeedPlugin
 from src.models.documents import SessionDocument, TenantDocument
-from src.models.schemas import AgentEvent
+from src.models.schemas import AgentEvent, SessionResponse
 
 if TYPE_CHECKING:
     from src.services.event_feed import AgentEventFeed
@@ -71,6 +71,12 @@ async def run_agent(
         await session.save()
 
     session_summary = session.summary
+
+    # Notify live subscribers that a session was created or updated
+    await event_feed.broadcast_session(
+        tenant_id,
+        SessionResponse.model_validate(session.model_dump(by_alias=True)),
+    )
 
     orchestrator = build_orchestrator()
 
@@ -189,6 +195,16 @@ async def run_agent(
         )
         await SessionDocument.find_one(SessionDocument.session_id == session_id).set(
             {SessionDocument.summary: updated_summary}
+        )
+
+    # Notify subscribers of updated session state (summary, run_count)
+    updated_session = await SessionDocument.find_one(
+        SessionDocument.session_id == session_id
+    )
+    if updated_session:
+        await event_feed.broadcast_session(
+            tenant_id,
+            SessionResponse.model_validate(updated_session.model_dump(by_alias=True)),
         )
 
     event_feed.cleanup_run(run_id)

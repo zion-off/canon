@@ -103,6 +103,25 @@ async def list_sessions(
     return await _list_sessions(_jwt_tenant_id(user))
 
 
+async def _sessions_sse_stream(
+    event_feed: AgentEventFeed,
+    tenant_id: str,
+) -> AsyncIterator[str]:
+    async for session in event_feed.subscribe_sessions(tenant_id):
+        yield f"data: {session.model_dump_json(by_alias=True)}\n\n"
+
+
+@router.get("/stream")
+async def stream_sessions(
+    user: JwtPayload = Depends(jwt_auth),
+    event_feed: AgentEventFeed = Depends(get_event_feed),
+) -> StreamingResponse:
+    return StreamingResponse(
+        _sessions_sse_stream(event_feed, _jwt_tenant_id(user)),
+        media_type="text/event-stream",
+    )
+
+
 @router.get("/{session_id}")
 async def get_session(
     session_id: str,

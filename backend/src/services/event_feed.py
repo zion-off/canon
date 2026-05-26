@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from bson import ObjectId
 
 from src.models.documents import AgentEventDocument
-from src.models.schemas import AgentEvent
+from src.models.schemas import AgentEvent, SessionResponse
 
 
 class _FeedState:
@@ -43,6 +43,7 @@ class AgentEventFeed:
         self._subscribers: dict[str, list[Queue[AgentEvent]]] = {}
         self._sequences: dict[str, int] = {}  # run_id → current sequence
         self._locks: dict[str, Lock] = {}  # run_id → sequence lock
+        self._session_subscribers: dict[str, list[Queue[SessionResponse]]] = {}
 
     async def broadcast(
         self,
@@ -113,6 +114,30 @@ class AgentEventFeed:
         """Remove sequence tracking for a completed run."""
         self._sequences.pop(run_id, None)
         self._locks.pop(run_id, None)
+
+    async def broadcast_session(self, tenant_id: str, session: SessionResponse) -> None:
+        """Notify tenant-level subscribers of a new or updated session."""
+        for queue in self._session_subscribers.get(tenant_id, []):
+            await queue.put(session)
+
+    async def subscribe_sessions(
+        self, tenant_id: str
+    ) -> AsyncIterator[SessionResponse]:
+        """Subscribe to session updates for a tenant."""
+        queue: Queue[SessionResponse] = Queue()
+
+        if tenant_id not in self._session_subscribers:
+            self._session_subscribers[tenant_id] = []
+        self._session_subscribers[tenant_id].append(queue)
+
+        try:
+            while True:
+                session = await queue.get()
+                yield session
+        finally:
+            self._session_subscribers[tenant_id].remove(queue)
+            if not self._session_subscribers[tenant_id]:
+                del self._session_subscribers[tenant_id]
 
     async def replay(
         self,

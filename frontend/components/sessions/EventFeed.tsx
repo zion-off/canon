@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import type { AgentEvent } from "@/lib/schemas/sessions";
 import { useEventStream } from "@/hooks/useEventStream";
 import { RunGroup } from "./RunGroup";
@@ -67,6 +67,9 @@ export function EventFeed({ sessionId, initialEvents, isLive }: EventFeedProps) 
   const handleNewEvent = useCallback(
     (event: AgentEvent) => {
       setEvents((prev) => [...prev, assignId(event)]);
+      if (event.type === EVENT_TYPE.RUN_STARTED) {
+        setLive(true);
+      }
       if (event.type === EVENT_TYPE.RUN_COMPLETED) {
         setLive(false);
       }
@@ -74,7 +77,12 @@ export function EventFeed({ sessionId, initialEvents, isLive }: EventFeedProps) 
     [assignId],
   );
 
-  useEventStream(sessionId, handleNewEvent, live);
+  const initialMaxSeq = useMemo(
+    () => Math.max(0, ...initialEvents.map((e) => e.sequence ?? 0)),
+    [initialEvents],
+  );
+
+  useEventStream(sessionId, handleNewEvent, true, initialMaxSeq);
 
   useEffect(() => {
     feedEndRef.current?.scrollIntoView({ behavior: "smooth" });

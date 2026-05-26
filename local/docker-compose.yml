@@ -1,6 +1,7 @@
 services:
   mongo:
     container_name: canon-mongo
+    hostname: mongodb
     image: mongodb/mongodb-atlas-local:latest
     tty: true
     restart: unless-stopped
@@ -8,10 +9,10 @@ services:
       - mongo-data:/data/db
       - mongo-configdb:/data/configdb
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping') && rs.status().myState === 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 30
     ports:
       - "27117:27017"
 

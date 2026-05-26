@@ -64,13 +64,55 @@ class CanonModel:
         return VertexGemini(model=model_name)
 
     @staticmethod
-    def genai_client() -> genai.Client:
-        """Return a genai.Client for direct API calls.
+    async def generate_text(model_name: str, prompt: str) -> str | None:
+        """Generate text directly (no agent). Returns ``None`` if no text produced.
 
-        Session summarization and other lightweight text generation use this.
-        Only available when using Vertex AI (the default).
+        Uses Vertex AI by default, or the remote provider's
+        ``/v1/chat/completions`` endpoint when API key + base are configured.
         """
-        return _GenaiClient.get()
+        if settings.llm_api_key and settings.llm_api_base:
+            return await CanonModel._generate_text_remote(model_name, prompt)
+        return await CanonModel._generate_text_vertexai(model_name, prompt)
+
+    @staticmethod
+    async def _generate_text_vertexai(model_name: str, prompt: str) -> str | None:
+        from google.genai import types
+
+        client = _GenaiClient.get()
+        result = await client.aio.models.generate_content(
+            model=f"models/{model_name}",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.3,
+                max_output_tokens=512,
+            ),
+        )
+        if not result.text:
+            return None
+        return result.text.strip()
+
+    @staticmethod
+    async def _generate_text_remote(model_name: str, prompt: str) -> str | None:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                f"{settings.llm_api_base}/chat/completions",
+                json={
+                    "model": model_name,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.3,
+                    "max_tokens": 512,
+                },
+                headers={
+                    "Authorization": f"Bearer {settings.llm_api_key}",
+                    "Content-Type": "application/json",
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            choices = data.get("choices", [])
+            if not choices:
+                return None
+            return choices[0]["message"]["content"].strip()
 
     @staticmethod
     async def embed(text: str, *, task_type: str, model: str) -> list[float]:

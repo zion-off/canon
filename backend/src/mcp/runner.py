@@ -224,11 +224,5 @@ Latest response: {response[:1000]}
 
 Write only the updated summary — no preamble, no explanation. Ruthlessly compress."""
 
-    client = CanonModel.genai_client()
-    result = await client.aio.models.generate_content(
-        model=f"models/{settings.fast_model}",
-        contents=prompt,
-    )
-    if not result.text:
-        return ""
-    return result.text.strip()
+    summary = await CanonModel.generate_text(settings.fast_model, prompt)
+    return summary or ""

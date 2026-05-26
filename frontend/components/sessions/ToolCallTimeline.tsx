@@ -23,13 +23,21 @@ export function ToolCallTimeline({ pair }: ToolCallTimelineProps) {
         </div>
         <div className="pb-3 min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-4">
-            <span className="text-sm font-medium text-canon-text">{toolName}</span>
+            <div className="flex items-baseline gap-2 min-w-0">
+              <span className="text-sm font-medium text-canon-text">{toolName}</span>
+              {started.author && (
+                <span className="text-xs text-canon-text-disabled font-condensed">
+                  {started.author}
+                </span>
+              )}
+            </div>
             {started.timestamp && (
               <span suppressHydrationWarning className="shrink-0 text-xs text-canon-text-disabled">
                 {formatTimestamp(started.timestamp)}
               </span>
             )}
           </div>
+
           {Object.keys(started.payload.args).length > 0 && (
             <pre className="mt-1 overflow-x-auto whitespace-pre-wrap font-mono text-xs text-canon-text-secondary">
               {JSON.stringify(started.payload.args, null, 2)}

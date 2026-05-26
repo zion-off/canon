@@ -28,12 +28,14 @@ class FinalResponsePayload(BaseModel):
 
 class SubagentInvokedPayload(BaseModel):
     agent_name: str
+    agent_invocation_id: str
 
 
 class ToolCallStartedPayload(BaseModel):
     tool_name: str
     args: dict[str, Any]
     invocation_id: str
+    agent_invocation_id: str | None = None
 
 
 class ToolCallCompletedPayload(BaseModel):
@@ -42,6 +44,7 @@ class ToolCallCompletedPayload(BaseModel):
     result: Any
     status: str
     invocation_id: str
+    agent_invocation_id: str | None = None
 
 
 # ── Base event ────────────────────────────────────────────────────────────────

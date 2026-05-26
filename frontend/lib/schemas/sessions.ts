@@ -38,12 +38,14 @@ export const FinalResponsePayloadSchema = z.object({
 
 export const SubagentInvokedPayloadSchema = z.object({
   agent_name: z.string(),
+  agent_invocation_id: z.string(),
 });
 
 export const ToolCallStartedPayloadSchema = z.object({
   tool_name: z.string(),
   args: z.record(z.unknown()),
   invocation_id: z.string(),
+  agent_invocation_id: z.string().nullable(),
 });
 
 export const ToolCallCompletedPayloadSchema = z.object({
@@ -52,6 +54,7 @@ export const ToolCallCompletedPayloadSchema = z.object({
   result: z.unknown(),
   status: z.string(),
   invocation_id: z.string(),
+  agent_invocation_id: z.string().nullable(),
 });
 
 // ── Per-event schemas ─────────────────────────────────────────────────────────

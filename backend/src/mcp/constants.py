@@ -31,6 +31,9 @@ class TempState:
 
     CHECKPOINTS: Final = "temp:checkpoints"
     TOOL_LOGS: Final = "temp:tool_logs"
+    # Format strings — call .format(tool_name=...) / .format(agent_name=...)
+    TOOL_INV_ID: Final = "temp:tool_invocation_id:{tool_name}"
+    AGENT_INV_ID: Final = "temp:agent_invocation_id:{agent_name}"
 
 
 class EventType:

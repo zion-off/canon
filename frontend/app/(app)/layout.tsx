@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/actions/auth";
 import { AppHeader } from "@/components/layout/AppHeader";
-import { ROUTE_LOGIN } from "@/lib/constants";
+import { ROUTE_LOGOUT } from "@/lib/constants";
 
 export default async function AppLayout({
   children,
@@ -11,7 +11,7 @@ export default async function AppLayout({
   const user = await getCurrentUser();
 
   if (!user) {
-    redirect(ROUTE_LOGIN);
+    redirect(ROUTE_LOGOUT);
   }
 
   return (

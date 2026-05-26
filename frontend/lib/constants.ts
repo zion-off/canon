@@ -21,6 +21,7 @@ export const ROUTE_ONBOARDING = "/onboarding" as const;
 export const ROUTE_ONBOARDING_SETUP = "/onboarding/setup" as const;
 export const ROUTE_GRAPH = "/graph" as const;
 export const ROUTE_SETTINGS = "/settings" as const;
+export const ROUTE_LOGOUT = "/api/logout" as const;
 
 export const PUBLIC_PATHS: readonly string[] = [ROUTE_ROOT, ROUTE_LOGIN, ROUTE_REGISTER];
 

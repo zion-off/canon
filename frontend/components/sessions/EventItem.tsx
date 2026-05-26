@@ -22,9 +22,7 @@ export function EventItem({ event }: EventItemProps) {
     case EVENT_TYPE.SUBAGENT_INVOKED:
       return (
         <div className="py-1 pl-4">
-          <span className="text-xs text-canon-text-secondary">
-            ▶ {event.payload.agent_name}
-          </span>
+          <span className="text-xs text-canon-text-secondary">▶ {event.payload.agent_name}</span>
         </div>
       );
 

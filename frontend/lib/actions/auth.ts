@@ -71,11 +71,7 @@ export async function getCurrentUser(): Promise<MeResponse | null> {
   });
 
   if (!res.ok) {
-    if (res.status === 401) {
-      await logout();
-      return null;
-    }
-    await handleErrorResponse(res);
+    return null;
   }
 
   return MeResponseSchema.parse(await res.json());

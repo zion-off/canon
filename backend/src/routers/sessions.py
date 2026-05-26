@@ -19,8 +19,8 @@ from src.models.schemas import (
 from src.services.event_feed import AgentEventFeed
 from src.services.tenant_resolver import TenantContext
 
-router = APIRouter(prefix="/sessions", tags=["sessions"])
-harness_router = APIRouter(prefix="/tenants/{tenant_id}", tags=["harness-sessions"])
+router = APIRouter(tags=["sessions"])
+harness_router = APIRouter(tags=["harness-sessions"])
 
 
 # ---------------------------------------------------------------------------

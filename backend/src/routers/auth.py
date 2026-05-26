@@ -19,7 +19,7 @@ from src.models.schemas import (
 )
 from src.services.jwt import issue_jwt
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(tags=["auth"])
 
 
 @router.post("/register", response_model=LoginResponse)

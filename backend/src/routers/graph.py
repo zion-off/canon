@@ -10,7 +10,7 @@ from src.models.schemas import GraphLink, GraphNode, GraphResponse, JwtPayload
 router = APIRouter(tags=["graph"])
 
 
-@router.get("/graph", response_model=GraphResponse)
+@router.get("", response_model=GraphResponse)
 async def get_graph(
     user: JwtPayload = Depends(jwt_auth),
 ) -> GraphResponse:

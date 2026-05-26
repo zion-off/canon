@@ -118,11 +118,11 @@ async def _unexpected_exception_handler(
 app.mount("/mcp", mcp.streamable_http_app())
 
 # REST API routers
-app.include_router(auth_router, prefix="/api/v1")
-app.include_router(teams_router, prefix="/api/v1")
-app.include_router(sessions_router, prefix="/api/v1")
-app.include_router(harness_router, prefix="/api/v1")
-app.include_router(graph_router, prefix="/api/v1")
+app.include_router(auth_router, prefix="/api/v1/auth")
+app.include_router(teams_router, prefix="/api/v1/teams")
+app.include_router(sessions_router, prefix="/api/v1/sessions")
+app.include_router(harness_router, prefix="/api/v1/tenants/{tenant_id}")
+app.include_router(graph_router, prefix="/api/v1/graph")
 
 
 @app.get("/health", tags=["meta"])

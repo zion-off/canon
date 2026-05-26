@@ -33,7 +33,7 @@ from src.models.schemas import (
 )
 from src.services.jwt import issue_jwt
 
-router = APIRouter(prefix="/teams", tags=["teams"])
+router = APIRouter(tags=["teams"])
 
 
 def _hash_token(raw: str) -> str:

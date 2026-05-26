@@ -10,7 +10,12 @@ from fastapi.responses import StreamingResponse
 
 from src.dependencies import api_token_auth, get_event_feed, jwt_auth
 from src.models.documents import AgentEventDocument, SessionDocument
-from src.models.schemas import AgentEvent, JwtPayload, SessionResponse
+from src.models.schemas import (
+    AgentEvent,
+    JwtPayload,
+    SessionResponse,
+    agent_event_from_document,
+)
 from src.services.event_feed import AgentEventFeed
 from src.services.tenant_resolver import TenantContext
 
@@ -48,7 +53,12 @@ async def _list_events(tenant_id: str, session_id: str) -> list[AgentEvent]:
         .sort("sequence")
         .to_list()
     )
-    return [AgentEvent.model_validate(e.model_dump(by_alias=True)) for e in events]
+    return [
+        agent_event_from_document(
+            e.model_dump(by_alias=True, exclude={"tenant_id", "id"})
+        )
+        for e in events
+    ]
 
 
 async def _sse_stream(

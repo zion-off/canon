@@ -16,14 +16,21 @@ from src.mcp.agent_platform import CanonModel
 from src.mcp.agents import build_orchestrator
 from src.mcp.constants import (
     AgentName,
-    EventType,
     SessionState,
     ToolName,
 )
 from src.mcp.plugins.ambient_context import AmbientContextPlugin
 from src.mcp.plugins.reasoning_feed import ReasoningFeedPlugin
 from src.models.documents import SessionDocument, TenantDocument
-from src.models.schemas import AgentEvent, SessionResponse
+from src.models.schemas import (
+    FinalResponseEvent,
+    FinalResponsePayload,
+    ReasoningCheckpointEvent,
+    ReasoningCheckpointPayload,
+    RunCompletedEvent,
+    RunStartedEvent,
+    SessionResponse,
+)
 
 if TYPE_CHECKING:
     from src.services.event_feed import AgentEventFeed
@@ -153,12 +160,7 @@ async def run_agent(
         user_id=user_id,
         session_id=session_id,
         run_id=run_id,
-        event=AgentEvent(
-            type=EventType.RUN_STARTED,
-            author=AgentName.ORCHESTRATOR,
-            content=None,
-            is_final=False,
-        ),
+        event=RunStartedEvent(author=AgentName.ORCHESTRATOR),
     )
 
     # Run orchestrator — the ReasoningFeedPlugin handles lifecycle events
@@ -190,11 +192,9 @@ async def run_agent(
                     user_id=user_id,
                     session_id=session_id,
                     run_id=run_id,
-                    event=AgentEvent(
-                        type=EventType.REASONING_CHECKPOINT,
+                    event=ReasoningCheckpointEvent(
                         author=AgentName.ORCHESTRATOR,
-                        content=checkpoint_msg,
-                        is_final=False,
+                        payload=ReasoningCheckpointPayload(message=checkpoint_msg),
                     ),
                 )
 
@@ -216,11 +216,10 @@ async def run_agent(
             user_id=user_id,
             session_id=session_id,
             run_id=run_id,
-            event=AgentEvent(
-                type=EventType.FINAL_RESPONSE,
+            event=FinalResponseEvent(
                 author=AgentName.ORCHESTRATOR,
-                content=final_response,
                 is_final=True,
+                payload=FinalResponsePayload(text=final_response),
             ),
         )
         log.info(
@@ -237,12 +236,7 @@ async def run_agent(
         user_id=user_id,
         session_id=session_id,
         run_id=run_id,
-        event=AgentEvent(
-            type=EventType.RUN_COMPLETED,
-            author=AgentName.ORCHESTRATOR,
-            content=None,
-            is_final=False,
-        ),
+        event=RunCompletedEvent(author=AgentName.ORCHESTRATOR),
     )
 
     # Update session summary for continuity

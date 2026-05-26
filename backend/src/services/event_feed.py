@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from bson import ObjectId
 
 from src.models.documents import AgentEventDocument
-from src.models.schemas import AnyAgentEvent, SessionResponse, agent_event_from_document
+from src.models.schemas import AgentEvent, SessionResponse, agent_event_from_document
 
 
 class _FeedState:
@@ -41,7 +41,7 @@ class AgentEventFeed:
     """
 
     def __init__(self) -> None:
-        self._subscribers: dict[str, list[Queue[AnyAgentEvent]]] = {}
+        self._subscribers: dict[str, list[Queue[AgentEvent]]] = {}
         self._sequences: dict[str, int] = {}  # run_id → current sequence
         self._locks: dict[str, Lock] = {}  # run_id → sequence lock
         self._session_subscribers: dict[str, list[Queue[SessionResponse]]] = {}
@@ -52,7 +52,7 @@ class AgentEventFeed:
         user_id: str,
         session_id: str,
         run_id: str,
-        event: AnyAgentEvent,
+        event: AgentEvent,
     ) -> None:
         """Broadcast an event to subscribers and persist to agent_events.
 
@@ -101,10 +101,10 @@ class AgentEventFeed:
 
     async def subscribe(
         self, tenant_id: str, session_id: str
-    ) -> AsyncIterator[AnyAgentEvent]:
+    ) -> AsyncIterator[AgentEvent]:
         """Subscribe to live events for a session."""
         key = f"{tenant_id}:{session_id}"
-        queue: Queue[AnyAgentEvent] = Queue()
+        queue: Queue[AgentEvent] = Queue()
 
         if key not in self._subscribers:
             self._subscribers[key] = []
@@ -166,7 +166,7 @@ class AgentEventFeed:
         tenant_id: str,
         session_id: str,
         after_sequence: int = 0,
-    ) -> list[AnyAgentEvent]:
+    ) -> list[AgentEvent]:
         """Replay stored events from a sequence number."""
         tenant_oid = ObjectId(tenant_id)
         documents = (

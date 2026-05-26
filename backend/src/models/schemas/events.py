@@ -59,13 +59,13 @@ class ToolCallCompletedPayload(BaseModel):
 # ── Base event ────────────────────────────────────────────────────────────────
 
 
-class AgentEvent(MongoModel):
+class AgentEventBase(MongoModel):
     """Envelope fields shared by every event type.
 
     ``type`` is intentionally absent here so subclasses can declare it as a
     ``Literal`` without triggering invariant-override errors. Every concrete
     subclass defines ``type`` and a typed ``payload``.
-    Prefer ``AnyAgentEvent`` for all annotations; use this base only for
+    Prefer ``AgentEvent`` for all annotations; use this base only for
     isinstance checks and internal helpers that don't need to access ``type``.
     """
 
@@ -80,44 +80,44 @@ class AgentEvent(MongoModel):
 # ── Typed event subclasses ────────────────────────────────────────────────────
 
 
-class RunStartedEvent(AgentEvent):
+class RunStartedEvent(AgentEventBase):
     type: Literal["run_started"] = "run_started"
     payload: RunStartedPayload = Field(default_factory=RunStartedPayload)
 
 
-class RunCompletedEvent(AgentEvent):
+class RunCompletedEvent(AgentEventBase):
     type: Literal["run_completed"] = "run_completed"
     payload: RunCompletedPayload = Field(default_factory=RunCompletedPayload)
 
 
-class ReasoningCheckpointEvent(AgentEvent):
+class ReasoningCheckpointEvent(AgentEventBase):
     type: Literal["reasoning_checkpoint"] = "reasoning_checkpoint"
     payload: ReasoningCheckpointPayload
 
 
-class FinalResponseEvent(AgentEvent):
+class FinalResponseEvent(AgentEventBase):
     type: Literal["final_response"] = "final_response"
     payload: FinalResponsePayload
 
 
-class SubagentInvokedEvent(AgentEvent):
+class SubagentInvokedEvent(AgentEventBase):
     type: Literal["subagent_invoked"] = "subagent_invoked"
     payload: SubagentInvokedPayload
 
 
-class ToolCallStartedEvent(AgentEvent):
+class ToolCallStartedEvent(AgentEventBase):
     type: Literal["tool_call_started"] = "tool_call_started"
     payload: ToolCallStartedPayload
 
 
-class ToolCallCompletedEvent(AgentEvent):
+class ToolCallCompletedEvent(AgentEventBase):
     type: Literal["tool_call_completed"] = "tool_call_completed"
     payload: ToolCallCompletedPayload
 
 
 # ── Discriminated union ───────────────────────────────────────────────────────
 
-AnyAgentEvent = Annotated[
+AgentEvent = Annotated[
     RunStartedEvent
     | RunCompletedEvent
     | ReasoningCheckpointEvent
@@ -131,7 +131,7 @@ AnyAgentEvent = Annotated[
 
 # ── Document → event factory ──────────────────────────────────────────────────
 
-_EVENT_REGISTRY: dict[str, type[AgentEvent]] = {
+_EVENT_REGISTRY: dict[str, type[AgentEventBase]] = {
     "run_started": RunStartedEvent,
     "run_completed": RunCompletedEvent,
     "reasoning_checkpoint": ReasoningCheckpointEvent,
@@ -142,7 +142,7 @@ _EVENT_REGISTRY: dict[str, type[AgentEvent]] = {
 }
 
 
-def agent_event_from_document(doc: dict[str, Any]) -> AnyAgentEvent:
+def agent_event_from_document(doc: dict[str, Any]) -> AgentEvent:
     """Reconstruct a typed event from a stored MongoDB document dict.
 
     Handles legacy documents (pre-structured-payload) that carry ``content``

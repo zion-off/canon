@@ -150,10 +150,8 @@ async def hybrid_search(
                         "text": [text_search_stage],
                     }
                 },
-                "rankFusion": {
-                    "weights": {"vector": 1.5, "text": 1.0},
-                    "normalization": "minmax",
-                },
+                "weights": {"vector": 1.5, "text": 1.0},
+                "normalization": "minmax",
             }
         },
         {"$limit": limit},

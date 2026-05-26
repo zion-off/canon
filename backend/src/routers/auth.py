@@ -8,7 +8,7 @@ import pymongo.errors
 from fastapi import APIRouter, Depends, HTTPException
 
 from src.dependencies import jwt_auth
-from src.models.documents import UserDocument
+from src.models.documents import TenantDocument, UserDocument
 from src.models.schemas import (
     JwtPayload,
     LoginRequest,
@@ -80,11 +80,21 @@ async def login(
 
 @router.get("/me", response_model=MeResponse)
 async def me(user: JwtPayload = Depends(jwt_auth)) -> MeResponse:
-    """Current user from JWT."""
+    """Current user, verified against database."""
+    user_doc = await UserDocument.get(user.sub)
+    if not user_doc:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    tenant_id = str(user_doc.tenant_id) if user_doc.tenant_id else None
+    if tenant_id:
+        tenant = await TenantDocument.get(user_doc.tenant_id)
+        if not tenant:
+            raise HTTPException(status_code=401, detail="Tenant not found")
+
     return MeResponse(
         userId=user.sub,
-        email=user.email,
-        name=user.name,
-        tenantId=user.tenant_id,
-        role=user.role,
+        email=user_doc.email,
+        name=user_doc.name,
+        tenantId=tenant_id,
+        role=user_doc.role,
     )

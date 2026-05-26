@@ -47,16 +47,6 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("CANON_EMBEDDING_MODEL", "embedding_model"),
     )
 
-    # ─── LLM Provider Configuration ──────────────────────────────────────
-    llm_api_key: str | None = Field(
-        default=None,
-        validation_alias=AliasChoices("CANON_LLM_API_KEY", "llm_api_key"),
-    )
-    llm_api_base: str | None = Field(
-        default=None,
-        validation_alias=AliasChoices("CANON_LLM_API_BASE", "llm_api_base"),
-    )
-
     # ─── Database Configuration ────────────────────────────────────────────
     database_name: str = "canon"
 

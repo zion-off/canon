@@ -39,6 +39,7 @@ services:
       - CANON_REASONING_MODEL=${CANON_REASONING_MODEL:-gemini-3.1-pro}
       - CANON_FAST_MODEL=${CANON_FAST_MODEL:-gemini-3.1-flash}
       - CANON_EMBEDDING_MODEL=${CANON_EMBEDDING_MODEL:-text-embedding-004}
+      - COLUMNS=${COLUMNS}
     depends_on:
       mongo:
         condition: service_healthy

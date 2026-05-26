@@ -17,6 +17,7 @@ dependencies = [
     "pydantic-settings>=2.8.0",
     "pyjwt>=2.10.0",
     "httpx>=0.28.0",
+    "rich>=15.0.0",
     "sse-starlette>=2.2.0",
     "beanie>=2.0.0",
 ]
@@ -34,6 +35,9 @@ target-version = "py314"
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM"]
 ignore = ["E501", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"main.py" = ["E402"]
 
 [tool.ruff.format]
 quote-style = "double"

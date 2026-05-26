@@ -26,19 +26,19 @@ interface MemoryGraphClientProps {
 }
 
 function statusColor(status: string, supersededBy: string | null): string {
-  if (supersededBy) return "#9CA3AF";
+  if (supersededBy) return "#444444";
   switch (status) {
     case STATUS.ACTIVE:
-      return "#3B82F6";
+      return "#d4d4d4";
     case STATUS.IN_PROGRESS:
-      return "#F59E0B";
+      return "#c9951a";
     case STATUS.DEPRECATED:
-      return "#9CA3AF";
+      return "#444444";
     case STATUS.RESOLVED:
     case STATUS.COMPLETED:
-      return "#10B981";
+      return "#3d9e6a";
     default:
-      return "#64748B";
+      return "#737373";
   }
 }
 
@@ -57,7 +57,7 @@ function renderNode(
   if (isHighlighted) {
     ctx.beginPath();
     ctx.arc(x, y, radius + 4, 0, 2 * Math.PI);
-    ctx.strokeStyle = "rgba(59, 130, 246, 0.6)";
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
     ctx.lineWidth = 2 / globalScale;
     ctx.stroke();
   }
@@ -66,7 +66,7 @@ function renderNode(
   if (isRecent) {
     ctx.beginPath();
     ctx.arc(x, y, radius + 3, 0, 2 * Math.PI);
-    ctx.fillStyle = "rgba(59, 130, 246, 0.15)";
+    ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
     ctx.fill();
   }
 
@@ -82,7 +82,7 @@ function renderNode(
     ctx.font = `${11 / globalScale}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    ctx.fillStyle = "rgba(226, 232, 240, 0.85)";
+    ctx.fillStyle = "rgba(212, 212, 212, 0.85)";
     ctx.fillText(label, x, y + radius + 2 / globalScale);
   }
 }
@@ -266,7 +266,7 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
             nodeLabel=""
             width={width}
             height={height}
-            backgroundColor="#080810"
+            backgroundColor="#111111"
             cooldownTicks={100}
             d3AlphaDecay={0.02}
             d3VelocityDecay={0.3}
@@ -275,18 +275,18 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
           {/* Custom tooltip */}
           {hoveredNode && (
             <div
-              className="pointer-events-none absolute z-50 max-w-64 rounded-md border border-canon-border bg-canon-surface px-3 py-2 shadow-lg"
+              className="pointer-events-none absolute z-50 max-w-64 border border-canon-border bg-canon-surface px-3 py-2"
               style={{
                 left: tooltipPos.x + 12,
                 top: tooltipPos.y - 8,
               }}
             >
               <p className="text-sm font-medium text-canon-text">{hoveredNode.name}</p>
-              <p className="mt-0.5 text-xs text-canon-text-dim">
+              <p className="mt-0.5 text-xs text-canon-text-secondary">
                 {hoveredNode.status} · {hoveredNode.connections} connections
               </p>
               {hoveredNode.tags.length > 0 && (
-                <p className="mt-1 text-xs text-canon-muted">
+                <p className="mt-1 text-xs text-canon-text-secondary">
                   {hoveredNode.tags.slice(0, 3).join(", ")}
                 </p>
               )}

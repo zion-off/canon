@@ -31,11 +31,7 @@ function groupEventsIntoRuns(events: IdentifiedEvent[]): RunBucket[] {
   for (const event of events) {
     if (event.type === EVENT_TYPE.RUN_STARTED) {
       if (currentRun.length > 0) {
-        runs.push({
-          runIndex: runCounter,
-          events: currentRun,
-          timestamp: currentTimestamp,
-        });
+        runs.push({ runIndex: runCounter, events: currentRun, timestamp: currentTimestamp });
       }
       runCounter++;
       currentTimestamp = event.timestamp;
@@ -50,11 +46,7 @@ function groupEventsIntoRuns(events: IdentifiedEvent[]): RunBucket[] {
   }
 
   if (currentRun.length > 0) {
-    runs.push({
-      runIndex: runCounter,
-      events: currentRun,
-      timestamp: currentTimestamp,
-    });
+    runs.push({ runIndex: runCounter, events: currentRun, timestamp: currentTimestamp });
   }
 
   return runs;
@@ -92,8 +84,8 @@ export function EventFeed({ sessionId, initialEvents, isLive }: EventFeedProps) 
 
   if (events.length === 0) {
     return (
-      <div className="rounded-lg border border-canon-border bg-canon-surface px-6 py-12 text-center">
-        <p className="text-canon-text-dim">
+      <div className="border-b border-canon-border px-6 py-12 text-center">
+        <p className="text-canon-text-secondary">
           No events recorded yet. Events will appear here when the session receives activity.
         </p>
       </div>
@@ -104,11 +96,10 @@ export function EventFeed({ sessionId, initialEvents, isLive }: EventFeedProps) 
     <div className="space-y-2">
       {live && (
         <div className="flex items-center gap-2 pb-2">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+          <span className="inline-block h-2 w-2 bg-canon-success" />
+          <span className="font-condensed font-bold text-xs uppercase tracking-wider text-canon-success">
+            Live
           </span>
-          <span className="text-xs font-medium text-emerald-400">Live</span>
         </div>
       )}
 

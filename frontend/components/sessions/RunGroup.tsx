@@ -20,8 +20,10 @@ export function RunGroup({ runIndex, events, timestamp }: RunGroupProps) {
         <span className="text-sm font-medium text-canon-text">Run {runIndex}</span>
         {timestamp && (
           <>
-            <span className="text-canon-muted">·</span>
-            <span className="text-xs text-canon-muted">{formatDateTime(timestamp)}</span>
+            <span className="text-canon-text-secondary">·</span>
+            <span suppressHydrationWarning className="text-xs text-canon-text-secondary">
+              {formatDateTime(timestamp)}
+            </span>
           </>
         )}
       </div>

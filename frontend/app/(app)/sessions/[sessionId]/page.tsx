@@ -21,6 +21,8 @@ function isSessionLive(events: { type: string }[]): boolean {
   return lastRunStartedIndex > lastRunCompletedIndex;
 }
 
+const labelClass = "font-condensed font-bold text-xs uppercase tracking-[0.08em]";
+
 export default async function SessionDetailPage({ params }: SessionDetailPageProps) {
   const { sessionId } = await params;
   const [session, events] = await Promise.all([getSession(sessionId), getSessionEvents(sessionId)]);
@@ -28,18 +30,26 @@ export default async function SessionDetailPage({ params }: SessionDetailPagePro
   const isLive = isSessionLive(events);
 
   return (
-    <div className="space-y-6">
-      <Link
-        href={ROUTE_DASHBOARD}
-        className="inline-flex items-center gap-1 text-sm text-canon-text-dim transition-colors hover:text-canon-text"
-      >
-        ← Sessions
-      </Link>
+    <div>
+      <div className="h-10 flex items-center gap-3 border-b border-canon-border -mx-5 px-5">
+        <Link
+          href={ROUTE_DASHBOARD}
+          className={`${labelClass} text-canon-text-secondary hover:text-canon-text transition-colors`}
+        >
+          Sessions
+        </Link>
+        <span className={`${labelClass} text-canon-text-disabled`}>·</span>
+        <span className={`${labelClass} text-canon-text truncate`}>{session.title}</span>
+      </div>
 
-      <header>
-        <h1 className="font-syne text-2xl font-bold text-canon-text">{session.title}</h1>
-        {session.summary && <p className="mt-1 text-sm text-canon-text-dim">{session.summary}</p>}
-      </header>
+      <div className="pt-8 pb-4">
+        <h1 className="font-condensed font-bold text-[2.5rem] leading-none text-canon-text">
+          {session.title}
+        </h1>
+        {session.summary && (
+          <p className="mt-2 text-sm text-canon-text-secondary">{session.summary}</p>
+        )}
+      </div>
 
       <EventFeed sessionId={sessionId} initialEvents={events} isLive={isLive} />
     </div>

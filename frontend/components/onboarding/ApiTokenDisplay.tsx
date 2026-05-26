@@ -7,8 +7,8 @@ interface ApiTokenDisplayProps {
   token: string;
 }
 
-function mcpConfig(token: string, fileHint: string) {
-  return `// ${fileHint}\n${JSON.stringify(
+function mcpConfig(token: string) {
+  return JSON.stringify(
     {
       mcpServers: {
         canon: {
@@ -19,49 +19,34 @@ function mcpConfig(token: string, fileHint: string) {
     },
     null,
     2,
-  )}`;
+  );
 }
+
+const labelClass =
+  "font-condensed font-bold text-xs uppercase tracking-[0.08em] text-canon-text-secondary";
 
 export function ApiTokenDisplay({ token }: ApiTokenDisplayProps) {
   return (
-    <div className="space-y-5">
-      <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-4 py-3">
-        <p className="text-sm font-medium text-amber-400">
-          Save this token — it won&apos;t be shown again
-        </p>
-      </div>
+    <div className="space-y-6">
+      <p className={`${labelClass} text-canon-warning`}>
+        Save this token — it won&apos;t be shown again
+      </p>
 
-      <div>
-        <p className="text-xs font-medium text-canon-text-dim mb-2 uppercase tracking-wide">
-          API Token
-        </p>
-        <div className="relative">
-          <pre className="bg-canon-surface-2 border border-canon-border rounded-lg p-4 overflow-x-auto">
-            <code className="text-sm font-mono text-canon-text break-all">{token}</code>
-          </pre>
-          <CopyButton text={token} className="absolute top-2 right-2" />
+      <div className="space-y-2">
+        <p className={labelClass}>API Token</p>
+        <div className="flex items-center border-b border-canon-border pb-2">
+          <code className="flex-1 text-sm font-mono text-canon-text truncate">{token}</code>
+          <CopyButton text={token} className="shrink-0 pl-3" />
         </div>
       </div>
 
-      <div>
-        <p className="text-xs font-medium text-canon-text-dim mb-2 uppercase tracking-wide">
-          MCP Configuration
-        </p>
-        <pre className="bg-canon-surface-2 border border-canon-border rounded-lg p-4 overflow-x-auto">
-          <code className="text-xs font-mono text-canon-text">
-            {mcpConfig(token, ".cursor/mcp.json")}
-          </code>
-        </pre>
-      </div>
-
-      <div>
-        <p className="text-xs font-medium text-canon-text-dim mb-2 uppercase tracking-wide">
-          MCP Configuration — Gemini CLI
-        </p>
-        <pre className="rounded-lg border border-canon-border bg-canon-surface-2 p-4 overflow-x-auto">
-          <code className="text-xs font-mono text-canon-text">
-            {mcpConfig(token, ".gemini/settings.json")}
-          </code>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <p className={labelClass}>MCP Config</p>
+          <CopyButton text={mcpConfig(token)} />
+        </div>
+        <pre className="bg-canon-surface p-4 overflow-x-auto">
+          <code className="text-xs font-mono text-canon-text">{mcpConfig(token)}</code>
         </pre>
       </div>
     </div>

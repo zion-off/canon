@@ -1,28 +1,74 @@
-@import url("https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
 
+@font-face {
+  font-family: "ROM";
+  src: url("/fonts/ROMVariable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "ROM Condensed";
+  src: url("/fonts/ROMCondensedVariable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Gaisyr Mono";
+  src: url("/fonts/GaisyrMono-Book.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme inline {
-  --color-canon-bg: #080810;
-  --color-canon-surface: #0f0f1a;
-  --color-canon-surface-2: #161625;
-  --color-canon-border: rgba(255, 255, 255, 0.08);
-  --color-canon-blue: #3b82f6;
-  --color-canon-amber: #f59e0b;
-  --color-canon-green: #10b981;
-  --color-canon-red: #ef4444;
-  --color-canon-muted: #64748b;
-  --color-canon-text: #e2e8f0;
-  --color-canon-text-dim: #94a3b8;
-  --font-syne: "Syne", sans-serif;
+  /* Fonts */
+  --font-condensed: "ROM Condensed", sans-serif;
+  --font-sans: "ROM", sans-serif;
+  --font-mono: "Gaisyr Mono", monospace;
+
+  /* Base — pure neutral greys, no blue cast */
+  --color-canon-bg: #111111;
+  --color-canon-surface: #1c1c1c;
+  --color-canon-surface-raised: #252525;
+  --color-canon-border: #303030;
+  --color-canon-text: #d4d4d4;
+  --color-canon-text-secondary: #737373;
+  --color-canon-text-disabled: #444444;
+  --color-canon-accent: #ffffff;
+  --color-canon-highlight: #c96060;
+
+  /* Semantic */
+  --color-canon-success: #3d9e6a;
+  --color-canon-warning: #c9951a;
+  --color-canon-error: #c94040;
+  --color-canon-info: #8888aa;
+
+  /* Semantic badge pairs */
+  --color-canon-success-bg: #1a3d2a;
+  --color-canon-success-fg: #4ade80;
+  --color-canon-warning-bg: #3d2e0a;
+  --color-canon-warning-fg: #f0b429;
+  --color-canon-error-bg: #3d1a1a;
+  --color-canon-error-fg: #f87171;
+  --color-canon-info-bg: #1a2a3d;
+  --color-canon-info-fg: #93c5fd;
 }
 
 * {
   box-sizing: border-box;
 }
 
-html,
+html {
+  font-size: 17px;
+}
+
 body {
-  background: #080810;
-  color: #e2e8f0;
+  background: #111111;
+  color: #d4d4d4;
+  font-family: "ROM", sans-serif;
   min-height: 100vh;
 }

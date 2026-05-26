@@ -15,9 +15,9 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="min-h-screen bg-canon-bg">
-      <AppHeader user={{ name: user.name, email: user.email, role: user.role }} />
-      <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
+    <div className="min-h-screen flex flex-col">
+      <AppHeader userRole={user.role} />
+      <main className="flex-1 px-5">{children}</main>
     </div>
   );
 }

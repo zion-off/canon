@@ -32,10 +32,9 @@ export function NodeDetailPanel({
 
   return (
     <aside className="flex h-full w-full flex-col overflow-y-auto border-l border-canon-border bg-canon-surface">
-      {/* Header */}
       <div className="flex items-start justify-between border-b border-canon-border p-4">
         <div className="min-w-0 flex-1">
-          <h2 className="truncate font-syne text-lg font-semibold text-canon-text">{node.name}</h2>
+          <h2 className="truncate font-condensed text-lg font-bold text-canon-text">{node.name}</h2>
           <div className="mt-1.5">
             <Badge variant={node.status as BadgeVariant}>{node.status.replace("_", " ")}</Badge>
           </div>
@@ -43,7 +42,7 @@ export function NodeDetailPanel({
         <button
           type="button"
           onClick={onClose}
-          className="ml-2 shrink-0 rounded p-1 text-canon-text-dim hover:bg-white/[0.05] hover:text-canon-text"
+          className="ml-2 shrink-0 p-1 text-canon-text-secondary hover:bg-white/[0.05] hover:text-canon-text transition-colors"
           aria-label="Close panel"
         >
           <svg
@@ -59,19 +58,17 @@ export function NodeDetailPanel({
         </button>
       </div>
 
-      {/* Content */}
       <div className="flex-1 space-y-5 p-4">
-        {/* Tags */}
         {node.tags.length > 0 && (
           <div>
-            <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-canon-muted">
+            <h3 className="mb-2 font-condensed font-bold text-xs uppercase tracking-[0.05em] text-canon-text-secondary">
               Tags
             </h3>
             <div className="flex flex-wrap gap-1.5">
               {node.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="rounded-full border border-canon-border bg-white/[0.03] px-2 py-0.5 text-xs text-canon-text-dim"
+                  className="border border-canon-border px-2 py-0.5 font-mono text-xs text-canon-text-secondary"
                 >
                   {tag}
                 </span>
@@ -80,9 +77,8 @@ export function NodeDetailPanel({
           </div>
         )}
 
-        {/* Description */}
         <div>
-          <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-canon-muted">
+          <h3 className="mb-2 font-condensed font-bold text-xs uppercase tracking-[0.05em] text-canon-text-secondary">
             Description
           </h3>
           <p className="text-sm leading-relaxed text-canon-text">
@@ -90,10 +86,9 @@ export function NodeDetailPanel({
           </p>
         </div>
 
-        {/* Connected nodes */}
         {connectedNodes.length > 0 && (
           <div>
-            <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-canon-muted">
+            <h3 className="mb-2 font-condensed font-bold text-xs uppercase tracking-[0.05em] text-canon-text-secondary">
               Connected to
             </h3>
             <ul className="space-y-1">
@@ -102,7 +97,7 @@ export function NodeDetailPanel({
                   <button
                     type="button"
                     onClick={() => onSelectNode(cn.id)}
-                    className="w-full rounded px-2 py-1 text-left text-sm text-blue-400 hover:bg-white/[0.05]"
+                    className="w-full px-2 py-1 text-left text-sm text-canon-accent hover:bg-white/[0.05] transition-colors"
                   >
                     {cn.name}
                   </button>
@@ -112,51 +107,53 @@ export function NodeDetailPanel({
           </div>
         )}
 
-        {/* Supersedes / Superseded by */}
         <div className="space-y-3">
           <div>
-            <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-canon-muted">
+            <h3 className="mb-1 font-condensed font-bold text-xs uppercase tracking-[0.05em] text-canon-text-secondary">
               Supersedes
             </h3>
             {supersedesNode ? (
               <button
                 type="button"
                 onClick={() => onSelectNode(supersedesNode.id)}
-                className="text-sm text-blue-400 hover:underline"
+                className="text-sm text-canon-accent hover:underline"
               >
                 {supersedesNode.name}
               </button>
             ) : (
-              <span className="text-sm text-canon-muted">—</span>
+              <span className="text-sm text-canon-text-secondary">—</span>
             )}
           </div>
           <div>
-            <h3 className="mb-1 text-xs font-medium uppercase tracking-wider text-canon-muted">
+            <h3 className="mb-1 font-condensed font-bold text-xs uppercase tracking-[0.05em] text-canon-text-secondary">
               Superseded by
             </h3>
             {supersededByNode ? (
               <button
                 type="button"
                 onClick={() => onSelectNode(supersededByNode.id)}
-                className="text-sm text-blue-400 hover:underline"
+                className="text-sm text-canon-accent hover:underline"
               >
                 {supersededByNode.name}
               </button>
             ) : (
-              <span className="text-sm text-canon-muted">—</span>
+              <span className="text-sm text-canon-text-secondary">—</span>
             )}
           </div>
         </div>
 
-        {/* Dates */}
         <div className="border-t border-canon-border pt-4">
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div>
-              <span className="text-canon-muted">Created</span>
+              <span className="font-condensed font-bold uppercase tracking-[0.05em] text-canon-text-secondary">
+                Created
+              </span>
               <p className="mt-0.5 text-canon-text">{formatShortDate(node.createdAt)}</p>
             </div>
             <div>
-              <span className="text-canon-muted">Updated</span>
+              <span className="font-condensed font-bold uppercase tracking-[0.05em] text-canon-text-secondary">
+                Updated
+              </span>
               <p className="mt-0.5 text-canon-text">{formatShortDate(node.updatedAt)}</p>
             </div>
           </div>

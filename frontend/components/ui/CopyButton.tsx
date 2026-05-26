@@ -24,7 +24,7 @@ export function CopyButton({ text, className = "", children }: CopyButtonProps) 
   return (
     <button
       onClick={handleCopy}
-      className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-canon-text-dim hover:text-canon-text hover:bg-white/5 transition-colors ${className}`}
+      className={`inline-flex items-center gap-1.5 px-2 py-1 font-condensed font-bold text-xs uppercase tracking-[0.05em] text-canon-text-secondary hover:text-canon-text hover:bg-white/[0.05] transition-colors ${className}`}
       type="button"
     >
       {copied ? (
@@ -37,7 +37,7 @@ export function CopyButton({ text, className = "", children }: CopyButtonProps) 
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="text-canon-green"
+          className="text-canon-success"
         >
           <polyline points="20 6 9 17 4 12" />
         </svg>

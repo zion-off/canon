@@ -1,125 +1,93 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { register } from "@/lib/actions/auth";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { ROUTE_LOGIN, ROUTE_ONBOARDING } from "@/lib/constants";
 
-interface RegisterState {
-  error: string | null;
-  success: boolean;
-}
-
-const initialState: RegisterState = { error: null, success: false };
-
-async function registerAction(
-  _prevState: RegisterState,
-  formData: FormData,
-): Promise<RegisterState> {
-  const name = formData.get("name") as string;
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-
-  if (!name || !email || !password) {
-    return { error: "All fields are required.", success: false };
-  }
-
-  if (password.length < 8) {
-    return { error: "Password must be at least 8 characters.", success: false };
-  }
-
-  try {
-    await register(email, name, password);
-    return { error: null, success: true };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "An unexpected error occurred.";
-    return { error: message, success: false };
-  }
-}
+const fieldClass =
+  "w-full bg-transparent border-b border-canon-border py-2 text-sm text-canon-text placeholder:text-canon-text-secondary focus:outline-none focus:border-canon-accent transition-colors";
+const actionClass =
+  "font-condensed font-bold text-xs uppercase tracking-[0.08em] text-canon-text hover:text-canon-text-secondary transition-colors cursor-pointer disabled:opacity-[0.38]";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [state, formAction, isPending] = useActionState(registerAction, initialState);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
 
-  useEffect(() => {
-    if (state.success) {
-      router.push(ROUTE_ONBOARDING);
+  async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    const name = data.get("name") as string;
+    const email = data.get("email") as string;
+    const password = data.get("password") as string;
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
     }
-  }, [state.success, router]);
+
+    setIsPending(true);
+    setError(null);
+    try {
+      await register(email, name, password);
+      router.push(ROUTE_ONBOARDING);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred.");
+      setIsPending(false);
+    }
+  }
 
   return (
-    <div className="w-full max-w-md px-4">
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-syne font-bold text-canon-text mb-2">Canon</h1>
-        <p className="text-canon-text-dim text-sm">Organizational memory for engineering teams</p>
-      </div>
+    <div className="w-72">
+      <p className="font-condensed font-bold text-xs uppercase tracking-[0.08em] text-canon-text mb-10">
+        canon
+      </p>
 
-      <div className="bg-canon-surface border border-canon-border rounded-xl p-8">
-        <form action={formAction} className="space-y-5">
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-canon-text mb-1.5">
-              Name
-            </label>
-            <Input
-              id="name"
-              name="name"
-              type="text"
-              placeholder="Jane Smith"
-              required
-              autoComplete="name"
-            />
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <input
+          name="name"
+          type="text"
+          placeholder="Name"
+          required
+          autoComplete="name"
+          className={fieldClass}
+        />
+        <input
+          name="email"
+          type="email"
+          placeholder="you@company.com"
+          required
+          autoComplete="email"
+          className={fieldClass}
+        />
+        <input
+          name="password"
+          type="password"
+          placeholder="••••••••"
+          required
+          autoComplete="new-password"
+          minLength={8}
+          className={fieldClass}
+        />
 
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-canon-text mb-1.5">
-              Email
-            </label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              placeholder="you@company.com"
-              required
-              autoComplete="email"
-            />
-          </div>
+        {error && (
+          <p role="alert" className="text-xs text-canon-error">
+            {error}
+          </p>
+        )}
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-canon-text mb-1.5">
-              Password
-            </label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              placeholder="••••••••"
-              required
-              autoComplete="new-password"
-              minLength={8}
-            />
-            <p className="text-xs text-canon-muted mt-1">Minimum 8 characters</p>
-          </div>
+        <button type="submit" disabled={isPending} className={actionClass}>
+          {isPending ? "Creating account…" : "Create account"}
+        </button>
+      </form>
 
-          {state.error && (
-            <p role="alert" className="text-sm text-canon-red bg-canon-red/10 rounded-md px-3 py-2">
-              {state.error}
-            </p>
-          )}
-
-          <Button type="submit" disabled={isPending} className="w-full">
-            {isPending ? "Creating account…" : "Create account"}
-          </Button>
-        </form>
-      </div>
-
-      <p className="text-center text-sm text-canon-text-dim mt-6">
+      <p className="mt-10 text-xs text-canon-text-secondary">
         Already have an account?{" "}
         <Link
           href={ROUTE_LOGIN}
-          className="text-canon-blue hover:text-canon-blue/80 transition-colors"
+          className="text-canon-text hover:text-canon-text-secondary transition-colors"
         >
           Sign in
         </Link>

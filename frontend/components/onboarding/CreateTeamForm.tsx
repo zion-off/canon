@@ -1,78 +1,60 @@
 "use client";
 
-import { useActionState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createTeam } from "@/lib/actions/teams";
-import { ROUTE_DASHBOARD } from "@/lib/constants";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { ApiTokenDisplay } from "./ApiTokenDisplay";
+import { ROUTE_ONBOARDING_SETUP } from "@/lib/constants";
 
-interface CreateTeamState {
-  error: string | null;
-  token: string | null;
-}
-
-const initialState: CreateTeamState = { error: null, token: null };
-
-async function createTeamAction(
-  _prevState: CreateTeamState,
-  formData: FormData,
-): Promise<CreateTeamState> {
-  const name = (formData.get("team-name") as string)?.trim();
-
-  if (!name) {
-    return { error: "Team name is required.", token: null };
-  }
-
-  try {
-    const result = await createTeam(name);
-    return { error: null, token: result.rawApiToken };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to create team.";
-    return { error: message, token: null };
-  }
-}
+const fieldClass =
+  "w-full bg-transparent border-b border-canon-border py-2 text-sm text-canon-text placeholder:text-canon-text-secondary focus:outline-none focus:border-canon-accent transition-colors";
+const actionClass =
+  "font-condensed font-bold text-xs uppercase tracking-[0.08em] text-canon-text hover:text-canon-text-secondary transition-colors cursor-pointer disabled:opacity-[0.38]";
 
 export function CreateTeamForm() {
   const router = useRouter();
-  const [state, formAction, isPending] = useActionState(createTeamAction, initialState);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
 
-  if (state.token) {
-    return (
-      <div className="space-y-6">
-        <ApiTokenDisplay token={state.token} />
-        <Button onClick={() => router.push(ROUTE_DASHBOARD)} className="w-full">
-          Go to Dashboard
-        </Button>
-      </div>
-    );
+  async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const name = (new FormData(e.currentTarget).get("team-name") as string)?.trim();
+    if (!name) {
+      setError("Team name is required.");
+      return;
+    }
+
+    setIsPending(true);
+    setError(null);
+    try {
+      const result = await createTeam(name);
+      sessionStorage.setItem("onboarding_token", result.rawApiToken);
+      router.push(ROUTE_ONBOARDING_SETUP);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create team.");
+      setIsPending(false);
+    }
   }
 
   return (
-    <form action={formAction} className="space-y-5">
-      <div>
-        <label htmlFor="team-name" className="block text-sm font-medium text-canon-text mb-1.5">
-          Team name
-        </label>
-        <Input
-          id="team-name"
-          name="team-name"
-          type="text"
-          placeholder="Acme Engineering"
-          required
-        />
-      </div>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <input
+        name="team-name"
+        type="text"
+        placeholder="Team"
+        required
+        autoComplete="off"
+        className={fieldClass}
+      />
 
-      {state.error && (
-        <p role="alert" className="text-sm text-canon-red bg-canon-red/10 rounded-md px-3 py-2">
-          {state.error}
+      {error && (
+        <p role="alert" className="text-xs text-canon-error">
+          {error}
         </p>
       )}
 
-      <Button type="submit" disabled={isPending} className="w-full">
-        {isPending ? "Creating team…" : "Create team"}
-      </Button>
+      <button type="submit" disabled={isPending} className={actionClass}>
+        {isPending ? "Creating…" : "Create team"}
+      </button>
     </form>
   );
 }

@@ -4,8 +4,6 @@ import { useActionState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { joinTeam } from "@/lib/actions/teams";
 import { ROUTE_DASHBOARD } from "@/lib/constants";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 
 interface JoinTeamState {
   error: string | null;
@@ -19,11 +17,8 @@ async function joinTeamAction(
   formData: FormData,
 ): Promise<JoinTeamState> {
   const code = (formData.get("invite-code") as string)?.trim().toUpperCase();
-
-  if (!code || code.length !== 8) {
+  if (!code || code.length !== 8)
     return { error: "Invite code must be 8 characters.", teamName: null };
-  }
-
   try {
     const result = await joinTeam(code);
     return { error: null, teamName: result.team.name };
@@ -32,6 +27,11 @@ async function joinTeamAction(
     return { error: message, teamName: null };
   }
 }
+
+const fieldClass =
+  "w-full bg-transparent border-b border-canon-border py-2 text-sm text-canon-text placeholder:text-canon-text-secondary focus:outline-none focus:border-canon-accent transition-colors uppercase tracking-widest";
+const actionClass =
+  "font-condensed font-bold text-xs uppercase tracking-[0.08em] text-canon-text hover:text-canon-text-secondary transition-colors cursor-pointer disabled:opacity-[0.38]";
 
 export function JoinTeamForm() {
   const router = useRouter();
@@ -43,47 +43,39 @@ export function JoinTeamForm() {
       redirectTimer.current = setTimeout(() => router.push(ROUTE_DASHBOARD), 1000);
     }
     return () => {
-      if (redirectTimer.current) {
-        clearTimeout(redirectTimer.current);
-      }
+      if (redirectTimer.current) clearTimeout(redirectTimer.current);
     };
   }, [state.teamName, router]);
 
   if (state.teamName) {
     return (
-      <div className="text-center py-4">
-        <p className="text-lg font-medium text-canon-text">Joined {state.teamName}!</p>
-        <p className="text-sm text-canon-text-dim mt-2">Redirecting to dashboard…</p>
-      </div>
+      <p className="font-condensed font-bold text-xs uppercase tracking-[0.08em] text-canon-text-secondary">
+        Joined {state.teamName} — redirecting…
+      </p>
     );
   }
 
   return (
-    <form action={formAction} className="space-y-5">
-      <div>
-        <label htmlFor="invite-code" className="block text-sm font-medium text-canon-text mb-1.5">
-          Invite code
-        </label>
-        <Input
-          id="invite-code"
-          name="invite-code"
-          type="text"
-          placeholder="ABCD1234"
-          required
-          maxLength={8}
-          className="uppercase tracking-widest"
-        />
-      </div>
+    <form action={formAction} className="space-y-6">
+      <input
+        name="invite-code"
+        type="text"
+        placeholder="ABCD1234"
+        required
+        maxLength={8}
+        autoComplete="off"
+        className={fieldClass}
+      />
 
       {state.error && (
-        <p role="alert" className="text-sm text-canon-red bg-canon-red/10 rounded-md px-3 py-2">
+        <p role="alert" className="text-xs text-canon-error">
           {state.error}
         </p>
       )}
 
-      <Button type="submit" disabled={isPending} className="w-full">
+      <button type="submit" disabled={isPending} className={actionClass}>
         {isPending ? "Joining…" : "Join team"}
-      </Button>
+      </button>
     </form>
   );
 }

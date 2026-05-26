@@ -1,6 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
-import { COOKIE_NAME, PUBLIC_PATHS, ROUTE_DASHBOARD, ROUTE_LOGIN, ROUTE_ONBOARDING } from "@/lib/constants";
+import {
+  COOKIE_NAME,
+  PUBLIC_PATHS,
+  ROUTE_DASHBOARD,
+  ROUTE_LOGIN,
+  ROUTE_ONBOARDING,
+} from "@/lib/constants";
 import { getJwtSecret } from "@/lib/config";
 
 interface JwtPayload {
@@ -13,7 +19,7 @@ interface JwtPayload {
   exp: number;
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (PUBLIC_PATHS.includes(pathname)) {

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Canon",
+  title: "canon",
   description: "Organizational memory for engineering teams",
 };
 

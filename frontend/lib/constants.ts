@@ -18,6 +18,7 @@ export const ROUTE_LOGIN = "/login" as const;
 export const ROUTE_REGISTER = "/register" as const;
 export const ROUTE_DASHBOARD = "/dashboard" as const;
 export const ROUTE_ONBOARDING = "/onboarding" as const;
+export const ROUTE_ONBOARDING_SETUP = "/onboarding/setup" as const;
 export const ROUTE_GRAPH = "/graph" as const;
 export const ROUTE_SETTINGS = "/settings" as const;
 

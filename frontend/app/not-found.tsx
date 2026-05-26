@@ -1,17 +1,21 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/Button";
 import { ROUTE_DASHBOARD } from "@/lib/constants";
 
 export default function NotFoundPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-canon-bg px-4">
-      <div className="text-center max-w-md">
-        <h1 className="font-syne text-6xl font-bold text-canon-text-dim mb-4">404</h1>
-        <p className="text-sm text-canon-text-dim mb-8">
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <div className="space-y-6">
+        <p className="font-condensed font-bold text-[8rem] leading-none text-canon-text-disabled">
+          404
+        </p>
+        <p className="text-sm text-canon-text-secondary">
           The page you&apos;re looking for doesn&apos;t exist or has been moved.
         </p>
-        <Link href={ROUTE_DASHBOARD}>
-          <Button>Go to Dashboard</Button>
+        <Link
+          href={ROUTE_DASHBOARD}
+          className="font-condensed font-bold text-xs uppercase tracking-[0.08em] text-canon-text hover:text-canon-text-secondary transition-colors"
+        >
+          Go to dashboard
         </Link>
       </div>
     </div>

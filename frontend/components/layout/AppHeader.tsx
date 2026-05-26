@@ -1,59 +1,31 @@
 import Link from "next/link";
-import { handleLogout } from "@/lib/actions/auth";
-import { ROUTE_DASHBOARD, ROUTE_GRAPH, ROUTE_SETTINGS, ROLE_OWNER } from "@/lib/constants";
+import { NavLinks } from "./NavLinks";
+import { ROUTE_DASHBOARD } from "@/lib/constants";
+
+const navClass = "font-condensed font-bold text-xs uppercase tracking-[0.08em] transition-colors";
 
 interface AppHeaderProps {
-  user: {
-    name: string;
-    email: string;
-    role: string | null;
-  };
+  userRole: string | null;
 }
 
-export function AppHeader({ user }: AppHeaderProps) {
-  const initial = user.name.charAt(0).toUpperCase();
-
+export function AppHeader({ userRole }: AppHeaderProps) {
   return (
-    <header className="sticky top-0 z-50 border-b border-canon-border bg-[rgba(8,8,16,0.85)] backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
+    <header className="shrink-0 bg-canon-bg z-50">
+      <div className="h-10 flex items-center justify-between px-5 border-b border-canon-border">
         <Link
           href={ROUTE_DASHBOARD}
-          className="font-syne text-lg font-bold tracking-tight text-canon-text hover:text-white transition-colors"
+          className="font-condensed font-bold text-sm uppercase tracking-wide text-canon-text hover:text-canon-text-secondary transition-colors"
         >
-          Canon
+          canon
         </Link>
 
         <nav className="flex items-center gap-6">
-          <Link
-            href={ROUTE_DASHBOARD}
-            className="text-sm text-canon-text-dim hover:text-canon-text transition-colors"
-          >
-            Dashboard
-          </Link>
-          <Link
-            href={ROUTE_GRAPH}
-            className="text-sm text-canon-text-dim hover:text-canon-text transition-colors"
-          >
-            Graph
-          </Link>
-          {user.role === ROLE_OWNER && (
-            <Link
-              href={ROUTE_SETTINGS}
-              className="text-sm text-canon-text-dim hover:text-canon-text transition-colors"
-            >
-              Settings
-            </Link>
-          )}
-          <div
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-canon-surface-2 border border-canon-border text-sm font-medium text-canon-text"
-            title={user.email}
-          >
-            {initial}
-          </div>
-          <form action={handleLogout}>
+          <NavLinks userRole={userRole} />
+
+          <form method="post" action="/api/logout" className="inline-flex items-center">
             <button
               type="submit"
-              className="text-sm text-canon-text-dim hover:text-canon-text transition-colors cursor-pointer"
+              className={`${navClass} text-canon-text-secondary hover:text-canon-text cursor-pointer`}
             >
               Logout
             </button>

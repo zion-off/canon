@@ -1,101 +1,78 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { login } from "@/lib/actions/auth";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { ROUTE_DASHBOARD, ROUTE_REGISTER } from "@/lib/constants";
 
-interface LoginState {
-  error: string | null;
-  success: boolean;
-}
-
-const initialState: LoginState = { error: null, success: false };
-
-async function loginAction(_prevState: LoginState, formData: FormData): Promise<LoginState> {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
-
-  if (!email || !password) {
-    return { error: "Email and password are required.", success: false };
-  }
-
-  try {
-    await login(email, password);
-    return { error: null, success: true };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "An unexpected error occurred.";
-    return { error: message, success: false };
-  }
-}
+const fieldClass =
+  "w-full bg-transparent border-b border-canon-border py-2 text-sm text-canon-text placeholder:text-canon-text-secondary focus:outline-none focus:border-canon-accent transition-colors";
+const actionClass =
+  "font-condensed font-bold text-xs uppercase tracking-[0.08em] text-canon-text hover:text-canon-text-secondary transition-colors cursor-pointer disabled:opacity-[0.38]";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [state, formAction, isPending] = useActionState(loginAction, initialState);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
 
-  useEffect(() => {
-    if (state.success) {
+  async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    const email = data.get("email") as string;
+    const password = data.get("password") as string;
+
+    setIsPending(true);
+    setError(null);
+    try {
+      await login(email, password);
       router.push(ROUTE_DASHBOARD);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred.");
+      setIsPending(false);
     }
-  }, [state.success, router]);
+  }
 
   return (
-    <div className="w-full max-w-md px-4">
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-syne font-bold text-canon-text mb-2">Canon</h1>
-        <p className="text-canon-text-dim text-sm">Organizational memory for engineering teams</p>
-      </div>
+    <div className="w-72">
+      <p className="font-condensed font-bold text-xs uppercase tracking-[0.08em] text-canon-text mb-10">
+        canon
+      </p>
 
-      <div className="bg-canon-surface border border-canon-border rounded-xl p-8">
-        <form action={formAction} className="space-y-5">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-canon-text mb-1.5">
-              Email
-            </label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              placeholder="you@company.com"
-              required
-              autoComplete="email"
-            />
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <input
+          name="email"
+          type="email"
+          placeholder="you@company.com"
+          required
+          autoComplete="email"
+          className={fieldClass}
+        />
+        <input
+          name="password"
+          type="password"
+          placeholder="••••••••"
+          required
+          autoComplete="current-password"
+          className={fieldClass}
+        />
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-canon-text mb-1.5">
-              Password
-            </label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              placeholder="••••••••"
-              required
-              autoComplete="current-password"
-            />
-          </div>
+        {error && (
+          <p role="alert" className="text-xs text-canon-error">
+            {error}
+          </p>
+        )}
 
-          {state.error && (
-            <p role="alert" className="text-sm text-canon-red bg-canon-red/10 rounded-md px-3 py-2">
-              {state.error}
-            </p>
-          )}
+        <button type="submit" disabled={isPending} className={actionClass}>
+          {isPending ? "Signing in…" : "Sign in"}
+        </button>
+      </form>
 
-          <Button type="submit" disabled={isPending} className="w-full">
-            {isPending ? "Signing in…" : "Sign in"}
-          </Button>
-        </form>
-      </div>
-
-      <p className="text-center text-sm text-canon-text-dim mt-6">
-        Don&apos;t have an account?{" "}
+      <p className="mt-10 text-xs text-canon-text-secondary">
+        No account?{" "}
         <Link
           href={ROUTE_REGISTER}
-          className="text-canon-blue hover:text-canon-blue/80 transition-colors"
+          className="text-canon-text hover:text-canon-text-secondary transition-colors"
         >
           Register
         </Link>

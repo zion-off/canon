@@ -22,14 +22,15 @@ export function EventItem({ event }: EventItemProps) {
     case EVENT_TYPE.SUBAGENT_INVOKED:
       return (
         <div className="py-1 pl-4">
-          <span className="text-xs text-canon-muted">▶ {event.content ?? "Subagent"} started</span>
+          <span className="text-xs text-canon-text-secondary">
+            ▶ {event.content ?? "Subagent"} started
+          </span>
         </div>
       );
 
     case EVENT_TYPE.TOOL_CALL_STARTED:
       return (
         <CollapsibleEvent
-          icon="🔍"
           label={event.content?.split("\n")[0] ?? "Tool call"}
           content={event.content}
           timestamp={event.timestamp}
@@ -39,7 +40,6 @@ export function EventItem({ event }: EventItemProps) {
     case EVENT_TYPE.TOOL_CALL_COMPLETED:
       return (
         <CollapsibleEvent
-          icon="✓"
           label={event.content?.split("\n")[0] ?? "Tool completed"}
           content={event.content}
           timestamp={event.timestamp}
@@ -48,13 +48,15 @@ export function EventItem({ event }: EventItemProps) {
 
     case EVENT_TYPE.REASONING_CHECKPOINT:
       return (
-        <div className="rounded-md border-l-2 border-l-canon-blue bg-[#0c0c20] px-4 py-3">
+        <div className="border-l-2 border-l-canon-accent bg-canon-surface px-4 py-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium uppercase tracking-wide text-blue-400">
+            <span className="font-condensed font-bold text-xs uppercase tracking-wider text-canon-accent">
               Reasoning
             </span>
             {event.timestamp && (
-              <span className="text-xs text-canon-muted">{formatTimestamp(event.timestamp)}</span>
+              <span suppressHydrationWarning className="text-xs text-canon-text-secondary">
+                {formatTimestamp(event.timestamp)}
+              </span>
             )}
           </div>
           {event.content && (
@@ -65,13 +67,15 @@ export function EventItem({ event }: EventItemProps) {
 
     case EVENT_TYPE.FINAL_RESPONSE:
       return (
-        <div className="rounded-md border-l-4 border-l-canon-blue bg-[#0d0d22] px-5 py-4">
+        <div className="border-l-4 border-l-canon-accent bg-canon-surface-raised px-5 py-4">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium uppercase tracking-wide text-blue-300">
+            <span className="font-condensed font-bold text-xs uppercase tracking-wider text-canon-accent">
               Final Response
             </span>
             {event.timestamp && (
-              <span className="text-xs text-canon-muted">{formatTimestamp(event.timestamp)}</span>
+              <span suppressHydrationWarning className="text-xs text-canon-text-secondary">
+                {formatTimestamp(event.timestamp)}
+              </span>
             )}
           </div>
           {event.content && (

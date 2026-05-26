@@ -1,19 +1,21 @@
 export default function AppLoading() {
   return (
-    <div className="space-y-8">
-      <header>
-        <div className="h-8 w-40 animate-pulse rounded-md bg-canon-surface-2" />
-        <div className="mt-2 h-4 w-64 animate-pulse rounded-md bg-canon-surface-2" />
-      </header>
-
-      <div className="space-y-3">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="rounded-lg border border-canon-border bg-canon-surface px-5 py-4">
-            <div className="flex items-center justify-between">
-              <div className="h-5 w-48 animate-pulse rounded-md bg-canon-surface-2" />
-              <div className="h-4 w-16 animate-pulse rounded-md bg-canon-surface-2" />
+    <div className="pt-10">
+      <div className="h-10 flex items-center border-b border-canon-border -mx-5 px-5">
+        <div className="h-2 w-20 animate-pulse bg-canon-border" />
+      </div>
+      <div className="-mx-5">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div
+            key={i}
+            className="grid grid-cols-[1fr_auto_auto] gap-x-6 items-center px-5 py-3 border-b border-canon-border"
+          >
+            <div className="space-y-2">
+              <div className="h-8 w-64 animate-pulse bg-canon-border" />
+              <div className="h-2 w-96 animate-pulse bg-canon-border" />
             </div>
-            <div className="mt-3 h-4 w-full animate-pulse rounded-md bg-canon-surface-2" />
+            <div className="h-4 w-12 animate-pulse bg-canon-border" />
+            <div className="h-2 w-16 animate-pulse bg-canon-border" />
           </div>
         ))}
       </div>

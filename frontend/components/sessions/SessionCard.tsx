@@ -12,50 +12,54 @@ interface SessionCardProps {
 function statusColor(status: string): string {
   switch (status) {
     case STATUS.ACTIVE:
-      return "bg-emerald-500";
+      return "bg-canon-success";
     case STATUS.COMPLETED:
-      return "bg-slate-500";
+      return "bg-canon-text-secondary";
     default:
-      return "bg-slate-600";
+      return "bg-canon-border";
   }
 }
 
-function borderColor(status: string): string {
-  return status === STATUS.ACTIVE ? "border-l-canon-blue" : "border-l-slate-700";
+function activeBorder(status: string): string {
+  return status === STATUS.ACTIVE ? "border-l-canon-accent" : "border-l-canon-border";
 }
 
 export function SessionCard({ session }: SessionCardProps) {
   const truncatedSummary = session.summary
-    ? session.summary.length > 100
-      ? `${session.summary.slice(0, 100)}…`
+    ? session.summary.length > 120
+      ? `${session.summary.slice(0, 120)}…`
       : session.summary
     : null;
 
   return (
     <Link href={routeToSession(session.sessionId)} className="block group">
       <div
-        className={`rounded-lg border border-canon-border border-l-2 ${borderColor(session.status)} bg-canon-surface px-5 py-4 transition-colors group-hover:bg-[#141428]`}
+        className={`border border-canon-border border-l-2 ${activeBorder(session.status)} bg-canon-surface px-5 py-4 transition-colors group-hover:bg-white/[0.05]`}
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className={`inline-block h-2 w-2 rounded-full ${statusColor(session.status)}`} />
-            <span className="font-medium text-canon-text">{session.title}</span>
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className={`shrink-0 inline-block h-1.5 w-1.5 ${statusColor(session.status)}`} />
+            <span className="font-medium text-canon-text truncate">{session.title}</span>
           </div>
-          <span className="text-sm text-canon-text-dim" suppressHydrationWarning>
-            {formatRelativeTime(session.lastRunAt ?? session.updatedAt)}
-          </span>
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="bg-canon-surface-raised px-2 font-condensed font-bold text-xs uppercase tracking-[0.05em] text-canon-text-secondary">
+              {session.runCount} run{session.runCount !== 1 ? "s" : ""}
+            </span>
+            <span className="text-xs text-canon-text-secondary" suppressHydrationWarning>
+              {formatRelativeTime(session.lastRunAt ?? session.updatedAt)}
+            </span>
+          </div>
         </div>
 
-        <div className="mt-2 flex items-center justify-between">
-          {truncatedSummary ? (
-            <p className="text-sm text-canon-text-dim">{truncatedSummary}</p>
-          ) : (
-            <p className="text-sm italic text-canon-muted">No summary</p>
-          )}
-          <span className="ml-4 shrink-0 rounded-full bg-white/[0.06] px-2.5 py-0.5 text-xs text-canon-text-dim">
-            {session.runCount} run{session.runCount !== 1 ? "s" : ""}
-          </span>
-        </div>
+        {(truncatedSummary || !session.summary) && (
+          <div className="mt-2 pl-3.5">
+            {truncatedSummary ? (
+              <p className="text-sm text-canon-text-secondary">{truncatedSummary}</p>
+            ) : (
+              <p className="text-sm italic text-canon-text-secondary">No summary</p>
+            )}
+          </div>
+        )}
       </div>
     </Link>
   );

@@ -8,7 +8,9 @@ from bson import ObjectId
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
 
+from src.config import settings
 from src.constants import Status
+from src.mcp.agent_platform import CanonModel
 from src.mcp.runner import run_agent
 from src.models.documents import MemoryNodeDocument
 from src.services.event_feed import AgentEventFeed, get_feed
@@ -95,11 +97,14 @@ async def canon(
     run_id = str(uuid4())
     resolved_session_id = session_id or str(uuid4())
 
+    title = await _generate_title(request)
+
     response = await run_agent(
         tenant_id=request_ctx.tenant_id,
         user_id=request_ctx.user_id,
         session_id=resolved_session_id,
         run_id=run_id,
+        title=title,
         message=f"Request:\n{request}\n\nContext:\n{context}",
         event_feed=request_ctx.event_feed,
     )
@@ -245,6 +250,22 @@ def _format_as_org_state(nodes: list[MemoryNodeDocument]) -> str:
                 sections.append(f"  Tags: {', '.join(node.tags)}")
 
     return "\n".join(sections)
+
+
+async def _generate_title(request: str) -> str:
+    """Generate a 5-6 word title from the raw request. Falls back to truncation."""
+    prompt = f"""\
+Generate a concise title (5-6 words max) for a coding session based on this request.
+Return ONLY the title — no quotes, no preamble, no explanation.
+
+Request: {request[:500]}
+
+Title:"""
+
+    title = await CanonModel.generate_text(settings.fast_model, prompt)
+    if title:
+        return title.strip()
+    return request[:100]
 
 
 def _format_as_org_momentum(nodes: list[MemoryNodeDocument]) -> str:

@@ -33,6 +33,7 @@ async def run_agent(
     user_id: str,
     session_id: str,
     run_id: str,
+    title: str,
     message: str,
     event_feed: AgentEventFeed,
 ) -> str:
@@ -54,7 +55,7 @@ async def run_agent(
             session_id=session_id,
             tenant_id=ObjectId(tenant_id),
             user_id=user_id,
-            title=message[:100],
+            title=title,
             summary=None,
             run_count=1,
             created_at=now,

@@ -1,11 +1,8 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { STATUS } from "@/lib/constants";
 
 interface GraphFiltersProps {
-  statusFilter: string;
-  onStatusChange: (v: string) => void;
   tagFilter: string;
   onTagChange: (v: string) => void;
   searchQuery: string;
@@ -15,21 +12,10 @@ interface GraphFiltersProps {
   linkCount: number;
 }
 
-const STATUS_OPTIONS = [
-  { value: "", label: "All Statuses" },
-  { value: STATUS.ACTIVE, label: "Active" },
-  { value: STATUS.IN_PROGRESS, label: "In Progress" },
-  { value: STATUS.DEPRECATED, label: "Deprecated" },
-  { value: STATUS.RESOLVED, label: "Resolved" },
-  { value: STATUS.COMPLETED, label: "Completed" },
-] as const;
-
 const inputBase =
   "bg-transparent border-b border-canon-border py-1.5 font-condensed font-bold text-xs uppercase tracking-[0.08em] text-canon-text placeholder:text-canon-text-secondary outline-none focus:border-canon-accent transition-colors";
 
 export function GraphFilters({
-  statusFilter,
-  onStatusChange,
   tagFilter,
   onTagChange,
   searchQuery,
@@ -55,18 +41,6 @@ export function GraphFilters({
 
   return (
     <div className="flex items-center gap-3 border-b border-canon-border py-3">
-      <select
-        value={statusFilter}
-        onChange={(e) => onStatusChange(e.target.value)}
-        className={inputBase}
-      >
-        {STATUS_OPTIONS.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-
       <div className="relative">
         <input
           ref={tagInputRef}

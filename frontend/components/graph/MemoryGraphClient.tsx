@@ -88,7 +88,6 @@ function renderNode(
 }
 
 export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
-  const [statusFilter, setStatusFilter] = useState("");
   const [tagFilter, setTagFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -129,9 +128,6 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
   const filteredData = useMemo(() => {
     let nodes = graphData.nodes;
 
-    if (statusFilter) {
-      nodes = nodes.filter((n) => n.status === statusFilter);
-    }
     if (tagFilter) {
       nodes = nodes.filter((n) =>
         n.tags.some((t) => t.toLowerCase().includes(tagFilter.toLowerCase())),
@@ -148,7 +144,7 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
     });
 
     return { nodes, links };
-  }, [graphData, statusFilter, tagFilter]);
+  }, [graphData, tagFilter]);
 
   // Search highlight set
   const searchHighlightIds = useMemo(() => {
@@ -232,8 +228,6 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
     <div className="flex h-full flex-col">
       {/* Filters */}
       <GraphFilters
-        statusFilter={statusFilter}
-        onStatusChange={setStatusFilter}
         tagFilter={tagFilter}
         onTagChange={setTagFilter}
         searchQuery={searchQuery}

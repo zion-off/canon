@@ -165,10 +165,12 @@ cmd_down() {
 cmd_restart() {
   if [ $# -eq 0 ]; then
     color "$YELLOW" "Restarting all services..."
-    compose restart
+    compose down
+    compose up -d
   else
     color "$YELLOW" "Restarting $*..."
-    compose restart "$@"
+    compose down "$@"
+    compose up -d "$@"
   fi
 }
 

@@ -170,6 +170,7 @@ class MongoProvider:
                             "status": [
                                 {"type": "string", "analyzer": "lucene.keyword"}
                             ],
+                            "tenantId": [{"type": "objectId"}],
                         },
                     },
                 },

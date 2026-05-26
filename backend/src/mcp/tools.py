@@ -127,18 +127,35 @@ async def hybrid_search(
             "tenantId": {"$oid": tenant_id},
         }
 
-    text_search_stage: dict[str, Any] = {
-        "$search": {
-            "index": "text_search_index",
-            "text": {
-                "query": " ".join(extracted_keywords),
-                "path": ["name", "description", "content"],
-            },
+    text_query = {
+        "text": {
+            "query": " ".join(extracted_keywords),
+            "path": ["name", "description", "content"],
         }
     }
     if tenant_id:
-        text_search_stage["$search"]["filter"] = {
-            "tenantId": {"$oid": tenant_id},
+        text_search_stage: dict[str, Any] = {
+            "$search": {
+                "index": "text_search_index",
+                "compound": {
+                    "must": [text_query],
+                    "filter": [
+                        {
+                            "equals": {
+                                "path": "tenantId",
+                                "value": {"$oid": tenant_id},
+                            }
+                        }
+                    ],
+                },
+            }
+        }
+    else:
+        text_search_stage: dict[str, Any] = {
+            "$search": {
+                "index": "text_search_index",
+                **text_query,
+            }
         }
 
     pipeline: list[dict[str, Any]] = [
@@ -150,8 +167,9 @@ async def hybrid_search(
                         "text": [text_search_stage],
                     }
                 },
-                "weights": {"vector": 1.5, "text": 1.0},
-                "normalization": "minmax",
+                "combination": {
+                    "weights": {"vector": 1.5, "text": 1.0},
+                },
             }
         },
         {"$limit": limit},
@@ -163,7 +181,6 @@ async def hybrid_search(
                 "status": 1,
                 "tags": 1,
                 "metadata": 1,
-                "score": {"$meta": "rankFusionScore"},
             }
         },
     ]

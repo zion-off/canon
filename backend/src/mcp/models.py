@@ -67,5 +67,3 @@ class CanonizeError(BaseModel):
 
 
 type CanonizeResult = CanonizeSuccess | CanonizeError
-
-

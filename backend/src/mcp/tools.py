@@ -20,8 +20,8 @@ from typing import Any
 from beanie.odm.fields import PydanticObjectId
 from google.adk.tools.function_tool import FunctionTool
 from google.adk.tools.tool_context import ToolContext
-
 from mcp.types import TextContent
+
 from src.config import settings
 from src.mcp.agent_platform import CanonModel
 from src.mcp.constants import SessionState, TempState
@@ -327,7 +327,9 @@ async def canonize_node(
         await node_doc.insert()
     except Exception as exc:
         if "duplicate key" in str(exc).lower():
-            return CanonizeError(error=f"A node named '{doc.name}' already exists for this tenant.")
+            return CanonizeError(
+                error=f"A node named '{doc.name}' already exists for this tenant."
+            )
         log.warning("canonize_node: insert failed | name=%s error=%s", doc.name, exc)
         return CanonizeError(error=f"Insert failed: {exc}")
 
@@ -338,14 +340,18 @@ async def canonize_node(
     if related_existing_oids:
         await MemoryNodeDocument.find(
             {"_id": {"$in": related_existing_oids}, "tenantId": tenant_oid}
-        ).update_many({"$addToSet": {"relatedEntityIds": new_id}, "$set": {"updatedAt": now}})
+        ).update_many(
+            {"$addToSet": {"relatedEntityIds": new_id}, "$set": {"updatedAt": now}}
+        )
         relationships_formed += len(related_existing_oids)
 
     # Cascade supersession — mark predecessor as deprecated.
     if supersedes_oid:
         await MemoryNodeDocument.find(
             {"_id": supersedes_oid, "tenantId": tenant_oid}
-        ).update_many({"$set": {"supersededBy": new_id, "status": "deprecated", "updatedAt": now}})
+        ).update_many(
+            {"$set": {"supersededBy": new_id, "status": "deprecated", "updatedAt": now}}
+        )
         relationships_formed += 1
 
     log.info(

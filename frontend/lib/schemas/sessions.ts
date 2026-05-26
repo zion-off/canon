@@ -1,12 +1,9 @@
 import { z } from "zod";
 
-export const SessionStatusSchema = z.string();
-
 export const SessionResponseSchema = z.object({
   sessionId: z.string(),
   title: z.string(),
   summary: z.string().nullable(),
-  status: SessionStatusSchema,
   runCount: z.number().int(),
   createdAt: z.string(),
   updatedAt: z.string(),

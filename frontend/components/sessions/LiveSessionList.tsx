@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import type { SessionResponse } from "@/lib/schemas/sessions";
+import { SessionResponseSchema } from "@/lib/schemas/sessions";
 import { useEventSource } from "@/hooks/useEventSource";
 import { SessionRow } from "./SessionRow";
 
@@ -16,7 +17,9 @@ export function LiveSessionList({ initialSessions }: LiveSessionListProps) {
   const [sessions, setSessions] = useState(initialSessions);
 
   const onSession = useCallback((data: unknown) => {
-    const incoming = data as SessionResponse;
+    const parsed = SessionResponseSchema.safeParse(data);
+    if (!parsed.success) return;
+    const incoming = parsed.data;
     setSessions((prev) => {
       const idx = prev.findIndex((s) => s.sessionId === incoming.sessionId);
       if (idx === -1) return [incoming, ...prev];
@@ -47,9 +50,8 @@ export function LiveSessionList({ initialSessions }: LiveSessionListProps) {
         </div>
       ) : (
         <div className="-mx-5">
-          <div className="grid grid-cols-[1fr_auto_auto] gap-x-6 px-5 py-2 border-b border-canon-border">
+          <div className="grid grid-cols-[1fr_auto] gap-x-6 px-5 py-2 border-b border-canon-border">
             <span className={colHeader}>Session</span>
-            <span className={colHeader}>Status</span>
             <span className={`${colHeader} text-right`}>Last run</span>
           </div>
           {sessions.map((session) => (

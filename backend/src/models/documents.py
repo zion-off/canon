@@ -70,7 +70,6 @@ class SessionDocument(Document):
     session_id: str = Field(alias="sessionId")
     tenant_id: PydanticObjectId = Field(alias="tenantId")
     user_id: str = Field(alias="userId")
-    status: str
     title: str
     summary: str | None = None
     run_count: int = Field(default=0, alias="runCount")

@@ -11,7 +11,6 @@ from google.adk.sessions import InMemorySessionService
 from google.genai.types import Content, Part
 
 from src.config import settings
-from src.constants import Status
 from src.mcp.agent_platform import CanonModel
 from src.mcp.agents import build_orchestrator
 from src.mcp.constants import (
@@ -55,7 +54,6 @@ async def run_agent(
             session_id=session_id,
             tenant_id=ObjectId(tenant_id),
             user_id=user_id,
-            status=Status.ACTIVE,
             title=message[:100],
             summary=None,
             run_count=1,
@@ -242,3 +240,4 @@ Write only the updated summary — no preamble, no explanation. Ruthlessly compr
 
     summary = await CanonModel.generate_text(settings.fast_model, prompt)
     return summary or ""
+

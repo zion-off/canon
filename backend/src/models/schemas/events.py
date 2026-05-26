@@ -4,20 +4,8 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field
 
+from src.mcp.constants import EventType
 from src.models.schemas._base import MongoModel
-
-# ── Type alias for the discriminant field ─────────────────────────────────────
-
-AgentEventType = Literal[
-    "reasoning_checkpoint",
-    "tool_call_started",
-    "tool_call_completed",
-    "subagent_invoked",
-    "run_started",
-    "run_completed",
-    "final_response",
-]
-
 
 # ── Payload models ────────────────────────────────────────────────────────────
 
@@ -81,37 +69,37 @@ class AgentEventBase(MongoModel):
 
 
 class RunStartedEvent(AgentEventBase):
-    type: Literal["run_started"] = "run_started"
+    type: Literal["run_started"] = EventType.RUN_STARTED
     payload: RunStartedPayload = Field(default_factory=RunStartedPayload)
 
 
 class RunCompletedEvent(AgentEventBase):
-    type: Literal["run_completed"] = "run_completed"
+    type: Literal["run_completed"] = EventType.RUN_COMPLETED
     payload: RunCompletedPayload = Field(default_factory=RunCompletedPayload)
 
 
 class ReasoningCheckpointEvent(AgentEventBase):
-    type: Literal["reasoning_checkpoint"] = "reasoning_checkpoint"
+    type: Literal["reasoning_checkpoint"] = EventType.REASONING_CHECKPOINT
     payload: ReasoningCheckpointPayload
 
 
 class FinalResponseEvent(AgentEventBase):
-    type: Literal["final_response"] = "final_response"
+    type: Literal["final_response"] = EventType.FINAL_RESPONSE
     payload: FinalResponsePayload
 
 
 class SubagentInvokedEvent(AgentEventBase):
-    type: Literal["subagent_invoked"] = "subagent_invoked"
+    type: Literal["subagent_invoked"] = EventType.SUBAGENT_INVOKED
     payload: SubagentInvokedPayload
 
 
 class ToolCallStartedEvent(AgentEventBase):
-    type: Literal["tool_call_started"] = "tool_call_started"
+    type: Literal["tool_call_started"] = EventType.TOOL_CALL_STARTED
     payload: ToolCallStartedPayload
 
 
 class ToolCallCompletedEvent(AgentEventBase):
-    type: Literal["tool_call_completed"] = "tool_call_completed"
+    type: Literal["tool_call_completed"] = EventType.TOOL_CALL_COMPLETED
     payload: ToolCallCompletedPayload
 
 
@@ -132,63 +120,20 @@ AgentEvent = Annotated[
 # ── Document → event factory ──────────────────────────────────────────────────
 
 _EVENT_REGISTRY: dict[str, type[AgentEventBase]] = {
-    "run_started": RunStartedEvent,
-    "run_completed": RunCompletedEvent,
-    "reasoning_checkpoint": ReasoningCheckpointEvent,
-    "final_response": FinalResponseEvent,
-    "subagent_invoked": SubagentInvokedEvent,
-    "tool_call_started": ToolCallStartedEvent,
-    "tool_call_completed": ToolCallCompletedEvent,
+    EventType.RUN_STARTED: RunStartedEvent,
+    EventType.RUN_COMPLETED: RunCompletedEvent,
+    EventType.REASONING_CHECKPOINT: ReasoningCheckpointEvent,
+    EventType.FINAL_RESPONSE: FinalResponseEvent,
+    EventType.SUBAGENT_INVOKED: SubagentInvokedEvent,
+    EventType.TOOL_CALL_STARTED: ToolCallStartedEvent,
+    EventType.TOOL_CALL_COMPLETED: ToolCallCompletedEvent,
 }
 
 
 def agent_event_from_document(doc: dict[str, Any]) -> AgentEvent:
-    """Reconstruct a typed event from a stored MongoDB document dict.
-
-    Handles legacy documents (pre-structured-payload) that carry ``content``
-    but no ``payload``, by deriving a best-effort payload from ``content``.
-    Unknown event types are surfaced as ``FinalResponseEvent`` so content is
-    never silently discarded.
-    """
+    """Reconstruct a typed AgentEvent from a stored MongoDB document dict."""
     event_type = doc.get("type", "")
     cls = _EVENT_REGISTRY.get(event_type)
-
     if cls is None:
-        return FinalResponseEvent.model_validate(
-            {
-                **doc,
-                "type": "final_response",
-                "payload": {"text": doc.get("content") or ""},
-            }
-        )
-
-    payload = doc.get("payload") or _legacy_payload(
-        event_type, doc.get("content") or ""
-    )
-    return cls.model_validate({**doc, "payload": payload})  # type: ignore[return-value]
-
-
-def _legacy_payload(event_type: str, content: str) -> dict[str, Any]:
-    """Derive a structured payload from the old plain-text ``content`` field."""
-    if event_type == "reasoning_checkpoint":
-        return {"message": content}
-    if event_type == "final_response":
-        return {"text": content}
-    if event_type in {"run_started", "run_completed"}:
-        return {}
-    if event_type == "subagent_invoked":
-        agent_name = content.removesuffix(" started") if content else ""
-        return {"agent_name": agent_name}
-    if event_type == "tool_call_started":
-        tool_name = content.split(":")[0].strip() if ":" in content else content
-        return {"tool_name": tool_name, "args": {}, "invocation_id": ""}
-    if event_type == "tool_call_completed":
-        tool_name = content.split("(")[0].strip() if "(" in content else content
-        return {
-            "tool_name": tool_name,
-            "args": {},
-            "result": None,
-            "status": "unknown",
-            "invocation_id": "",
-        }
-    return {}
+        raise ValueError(f"Unknown event type: {event_type!r}")
+    return cls.model_validate(doc)  # type: ignore[return-value]

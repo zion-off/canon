@@ -10,7 +10,6 @@ from src.models.schemas.auth import (
 from src.models.schemas.events import (
     AgentEvent,
     AgentEventBase,
-    AgentEventType,
     FinalResponseEvent,
     FinalResponsePayload,
     ReasoningCheckpointEvent,
@@ -45,7 +44,6 @@ from src.models.schemas.teams import (
 __all__ = [
     "AgentEvent",
     "AgentEventBase",
-    "AgentEventType",
     "FinalResponseEvent",
     "FinalResponsePayload",
     "ReasoningCheckpointEvent",

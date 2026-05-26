@@ -12,6 +12,7 @@ Lifecycle is managed by the application lifespan:
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from typing import Any
 
@@ -90,8 +91,39 @@ async def shutdown() -> None:
     log.info("mongo_connections: MCP subprocess shut down")
 
 
+async def _reconnect_read_session() -> ClientSession:
+    """Tear down the existing read session/transport and start a fresh one."""
+    log = logging.getLogger(__name__)
+    log.warning("mongo_connections: read session lost, reconnecting")
+
+    if _ConnectionState.session_ctx is not None:
+        with contextlib.suppress(Exception):
+            await _ConnectionState.session_ctx.__aexit__(None, None, None)
+        _ConnectionState.session_ctx = None
+
+    if _ConnectionState.read_ctx is not None:
+        with contextlib.suppress(Exception):
+            await _ConnectionState.read_ctx.__aexit__(None, None, None)
+        _ConnectionState.read_ctx = None
+
+    _ConnectionState.read_session = None
+
+    params = get_read_params()
+    _ConnectionState.read_ctx = stdio_client(params)
+    read, write = await _ConnectionState.read_ctx.__aenter__()
+    _ConnectionState.session_ctx = ClientSession(read, write)
+    session = await _ConnectionState.session_ctx.__aenter__()
+    await session.initialize()
+    _ConnectionState.read_session = session
+    log.info("mongo_connections: read session reconnected")
+    return session
+
+
 async def call_aggregate(collection: str, pipeline: list[dict[str, Any]]) -> Any:
     """Execute an aggregate pipeline against the shared read-only session.
+
+    If the underlying subprocess has died, transparently reconnects before
+    retrying once.
 
     Args:
         collection: Target MongoDB collection name.
@@ -101,7 +133,7 @@ async def call_aggregate(collection: str, pipeline: list[dict[str, Any]]) -> Any
         Raw CallToolResult from the MCP server.
 
     Raises:
-        RuntimeError: If the session hasn't been started.
+        RuntimeError: If the session cannot be started or reconnected.
     """
     session = _ConnectionState.read_session
     if session is None:
@@ -113,11 +145,25 @@ async def call_aggregate(collection: str, pipeline: list[dict[str, Any]]) -> Any
         collection,
         len(pipeline),
     )
-    return await session.call_tool(
-        "aggregate",
-        {
-            "collection": collection,
-            "database": "canon",
-            "pipeline": pipeline,
-        },
-    )
+
+    for attempt in range(2):
+        try:
+            return await session.call_tool(
+                "aggregate",
+                {
+                    "collection": collection,
+                    "database": "canon",
+                    "pipeline": pipeline,
+                },
+            )
+        except (BrokenPipeError, ConnectionResetError, OSError) as exc:
+            if attempt == 0:
+                log.warning(
+                    "mongo_connections: aggregate failed (attempt 1/2) | error=%s",
+                    exc,
+                )
+                session = await _reconnect_read_session()
+            else:
+                raise RuntimeError(
+                    f"MongoMCP aggregate failed after reconnect: {exc}"
+                ) from exc

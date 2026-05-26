@@ -7,7 +7,24 @@ from src.models.schemas.auth import (
     RegisterRequest,
     UserResponse,
 )
-from src.models.schemas.events import AgentEvent, AgentEventType
+from src.models.schemas.events import (
+    AgentEvent,
+    AgentEventType,
+    AnyAgentEvent,
+    FinalResponseEvent,
+    FinalResponsePayload,
+    ReasoningCheckpointEvent,
+    ReasoningCheckpointPayload,
+    RunCompletedEvent,
+    RunStartedEvent,
+    SubagentInvokedEvent,
+    SubagentInvokedPayload,
+    ToolCallCompletedEvent,
+    ToolCallCompletedPayload,
+    ToolCallStartedEvent,
+    ToolCallStartedPayload,
+    agent_event_from_document,
+)
 from src.models.schemas.graph import GraphLink, GraphNode, GraphResponse
 from src.models.schemas.sessions import SessionListResponse, SessionResponse
 from src.models.schemas.teams import (
@@ -28,6 +45,20 @@ from src.models.schemas.teams import (
 __all__ = [
     "AgentEvent",
     "AgentEventType",
+    "AnyAgentEvent",
+    "FinalResponseEvent",
+    "FinalResponsePayload",
+    "ReasoningCheckpointEvent",
+    "ReasoningCheckpointPayload",
+    "RunCompletedEvent",
+    "RunStartedEvent",
+    "SubagentInvokedEvent",
+    "SubagentInvokedPayload",
+    "ToolCallCompletedEvent",
+    "ToolCallCompletedPayload",
+    "ToolCallStartedEvent",
+    "ToolCallStartedPayload",
+    "agent_event_from_document",
     "CreateInviteResponse",
     "CreateTeamRequest",
     "CreateTeamResponse",

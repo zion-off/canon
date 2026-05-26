@@ -112,7 +112,7 @@ class AgentEventDocument(Document):
     run_id: str = Field(alias="runId")
     type: str
     author: str | None = None
-    content: str | None = None
+    payload: dict[str, Any] = Field(default_factory=dict)
     sequence: int
     timestamp: str | None = None
     is_final: bool = Field(default=False, alias="isFinal")

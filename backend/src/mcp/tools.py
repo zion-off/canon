@@ -18,11 +18,10 @@ from typing import Any
 from bson import ObjectId
 from google.adk.tools.function_tool import FunctionTool
 from google.adk.tools.tool_context import ToolContext
-from google.genai import types
 from mcp.types import TextContent
 
 from src.config import settings
-from src.mcp.agent_platform import get_genai_client
+from src.mcp.agent_platform import CanonModel
 from src.mcp.constants import SessionState, TempState
 from src.mcp.models import (
     EmitCheckpointResult,
@@ -61,31 +60,6 @@ def build_embedding_text(doc: MemoryNodeInput) -> str:
     return "\n".join(filter(None, lines))
 
 
-async def _generate_embedding(text: str, *, task_type: str) -> list[float]:
-    """Generate a 768-dim embedding via Gemini with a given task type.
-
-    Args:
-        text: The text to embed.
-        task_type: ``"RETRIEVAL_DOCUMENT"`` for indexing or
-            ``"RETRIEVAL_QUERY"`` for search.
-    """
-    client = get_genai_client()
-    response = await client.aio.models.embed_content(
-        model=settings.embedding_model,
-        contents=text,
-        config=types.EmbedContentConfig(
-            task_type=task_type,
-            output_dimensionality=768,
-        ),
-    )
-    if not response.embeddings:
-        raise RuntimeError("Embedding API returned empty response.")
-    values = response.embeddings[0].values
-    if values is None:
-        raise RuntimeError("Embedding API returned None values.")
-    return values
-
-
 async def hybrid_search(
     query: str,
     keywords: list[str] | None = None,
@@ -115,7 +89,9 @@ async def hybrid_search(
     were matched and the distribution of results.
     """
     try:
-        embedding = await _generate_embedding(query, task_type="RETRIEVAL_QUERY")
+        embedding = await CanonModel.embed(
+            query, task_type="RETRIEVAL_QUERY", model=settings.embedding_model
+        )
     except Exception as exc:
         return HybridSearchError(error=f"Embedding generation failed: {exc}")
 
@@ -271,7 +247,11 @@ async def prepare_embedding(
     embedding_text = build_embedding_text(doc)
 
     try:
-        embedding = await _generate_embedding(embedding_text, task_type="RETRIEVAL_DOCUMENT")
+        embedding = await CanonModel.embed(
+            embedding_text,
+            task_type="RETRIEVAL_DOCUMENT",
+            model=settings.embedding_model,
+        )
     except Exception as exc:
         return PrepareError(error=f"Embedding generation failed: {exc}")
 

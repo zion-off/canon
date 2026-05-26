@@ -19,7 +19,7 @@ from google.adk.tools.tool_context import ToolContext  # noqa: F401 — used by 
 from pydantic import BaseModel, Field
 
 from src.config import settings
-from src.mcp.agent_platform import VertexGemini
+from src.mcp.agent_platform import CanonModel
 from src.mcp.constants import AgentName, TempState
 from src.mcp.mongo_connections import get_read_params, get_write_params
 from src.mcp.tools import (
@@ -291,7 +291,7 @@ def _get_semantic_retriever() -> Agent:
     if _semantic_retriever is None:
         _semantic_retriever = Agent(
             name=AgentName.SEMANTIC_RETRIEVER,
-            model=VertexGemini(model=settings.fast_model),
+            model=CanonModel.create(settings.fast_model),
             description="Perceives relevant organizational knowledge through hybrid search. "
             "Call with a query to find semantically and textually related memory nodes.",
             instruction=SEMANTIC_RETRIEVER_INSTRUCTION,
@@ -307,7 +307,7 @@ def _get_graph_explorer() -> Agent:
     if _graph_explorer is None:
         _graph_explorer = Agent(
             name=AgentName.GRAPH_EXPLORER,
-            model=VertexGemini(model=settings.fast_model),
+            model=CanonModel.create(settings.fast_model),
             description="Traces relationships in the knowledge graph. Call when you need to "
             "understand what connects to a specific node — its neighbors, "
             "dependents, related knowledge, and organizational context.",
@@ -324,7 +324,7 @@ def _get_memory_writer() -> Agent:
     if _memory_writer is None:
         _memory_writer = Agent(
             name=AgentName.MEMORY_WRITER,
-            model=VertexGemini(model=settings.reasoning_model),
+            model=CanonModel.create(settings.reasoning_model),
             description="Crystallizes observations into structured memory nodes, resolves "
             "relationships, and persists to the knowledge graph. Call with the "
             "observation and any related context from prior retrieval.",
@@ -346,7 +346,7 @@ def build_orchestrator() -> Agent:
     """Construct the orchestrator agent for a single request."""
     return Agent(
         name=AgentName.ORCHESTRATOR,
-        model=VertexGemini(model=settings.reasoning_model),
+        model=CanonModel.create(settings.reasoning_model),
         instruction=ORCHESTRATOR_INSTRUCTION,
         tools=[
             AgentTool(_get_semantic_retriever()),

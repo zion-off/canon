@@ -133,9 +133,7 @@ async def stream_session_events(
     event_feed: AgentEventFeed = Depends(get_event_feed),
     last_event_id: int = Query(default=0),
 ) -> StreamingResponse:
-    return _stream_response(
-        event_feed, _jwt_tenant_id(user), session_id, last_event_id
-    )
+    return _stream_response(event_feed, _jwt_tenant_id(user), session_id, last_event_id)
 
 
 # ---------------------------------------------------------------------------

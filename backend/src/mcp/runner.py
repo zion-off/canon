@@ -12,7 +12,7 @@ from google.genai.types import Content, Part
 
 from src.config import settings
 from src.constants import Status
-from src.mcp.agent_platform import get_genai_client
+from src.mcp.agent_platform import CanonModel
 from src.mcp.agents import build_orchestrator
 from src.mcp.ambient_context import AmbientContextPlugin
 from src.mcp.constants import (
@@ -224,7 +224,7 @@ Latest response: {response[:1000]}
 
 Write only the updated summary — no preamble, no explanation. Ruthlessly compress."""
 
-    client = get_genai_client()
+    client = CanonModel.genai_client()
     result = await client.aio.models.generate_content(
         model=f"models/{settings.fast_model}",
         contents=prompt,

@@ -145,13 +145,13 @@ async def hybrid_search(
         {
             "$rankFusion": {
                 "input": {
-                    "pipelines": [
-                        vector_search_stage,
-                        text_search_stage,
-                    ]
+                    "pipelines": {
+                        "vector": vector_search_stage,
+                        "text": text_search_stage,
+                    }
                 },
                 "rankFusion": {
-                    "weights": {"0": 1.5, "1": 1.0},
+                    "weights": {"vector": 1.5, "text": 1.0},
                     "normalization": "minmax",
                 },
             }
@@ -174,15 +174,20 @@ async def hybrid_search(
         result = await call_aggregate("memory_nodes", pipeline)
 
         if result.isError:
-            log.warning(
-                "hybrid_search: aggregate returned error | query=%.80s",
-                query,
-            )
             for item in result.content:
                 if isinstance(item, TextContent):
+                    log.warning(
+                        "hybrid_search: aggregate returned error | query=%.80s error=%s",
+                        query,
+                        item.text,
+                    )
                     return HybridSearchError(
                         error=f"MongoDB MCP aggregate failed: {item.text}"
                     )
+            log.warning(
+                "hybrid_search: aggregate returned error (no content) | query=%.80s",
+                query,
+            )
             return HybridSearchError(
                 error="MongoDB MCP aggregate failed (unknown response)"
             )

@@ -74,10 +74,3 @@ class PrepareError(BaseModel):
 
 
 type PrepareResult = PrepareSuccess | PrepareError
-
-
-class EmitCheckpointResult(BaseModel):
-    """Result from emit_checkpoint."""
-
-    status: Literal["emitted"] = "emitted"
-    message: str

@@ -234,18 +234,16 @@ class MemoryNodeOutput(BaseModel):
 async def log_tool_usage(
     tool: BaseTool,
     args: dict[str, Any],
-    ctx: ToolContext,
-    result: dict[str, Any],
+    tool_context: ToolContext,
+    tool_response: dict[str, Any],
 ) -> dict[str, Any] | None:
-    """Log tool calls across the agent hierarchy for observability.
-
-    Signature matches AfterToolCallback: (tool, args, ctx, result).
-    """
-    state = ctx.state
+    """Log tool calls across the agent hierarchy for observability."""
+    state = tool_context.state
     log_entry = {
         "tool": tool.name,
         "timestamp": datetime.now(UTC).isoformat(),
-        "success": "error" not in (result if isinstance(result, dict) else {}),
+        "success": "error"
+        not in (tool_response if isinstance(tool_response, dict) else {}),
     }
     logs = state.get(TempState.TOOL_LOGS, [])
     logs.append(log_entry)
@@ -344,17 +342,20 @@ def _get_memory_writer() -> Agent:
 
 def build_orchestrator() -> Agent:
     """Construct the orchestrator agent for a single request."""
+    tools: list = [
+        AgentTool(_get_semantic_retriever()),
+        AgentTool(_get_graph_explorer()),
+        AgentTool(_get_memory_writer()),
+    ]
+    if False and settings.reasoning_model.startswith("gemini"):  # noqa: SIM223
+        tools.append(GoogleSearchTool())
+    tools.append(emit_checkpoint_tool)
+
     return Agent(
         name=AgentName.ORCHESTRATOR,
         model=CanonModel.create(settings.reasoning_model),
         instruction=ORCHESTRATOR_INSTRUCTION,
-        tools=[
-            AgentTool(_get_semantic_retriever()),
-            AgentTool(_get_graph_explorer()),
-            AgentTool(_get_memory_writer()),
-            GoogleSearchTool(),
-            emit_checkpoint_tool,
-        ],
+        tools=tools,
     )
 
 

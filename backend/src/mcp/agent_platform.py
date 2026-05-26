@@ -25,7 +25,7 @@ class _GenaiClient:
 
 
 class VertexGemini(Gemini):
-    """ADK Gemini model that forces Vertex AI (ADC) auth, not API keys."""
+    """ADK Gemini model that uses Vertex AI (ADC) auth."""
 
     @cached_property
     def api_client(self) -> genai.Client:
@@ -35,7 +35,7 @@ class VertexGemini(Gemini):
 class CanonModel:
     """Factory for ADK-compatible model instances and GenAI clients.
 
-    Gemini on Vertex AI via ADC — no API key needed.
+    Gemini on Vertex AI via ADC.
     """
 
     @staticmethod
@@ -50,7 +50,7 @@ class CanonModel:
 
         client = _GenaiClient.get()
         result = await client.aio.models.generate_content(
-            model=f"models/{model_name}",
+            model=model_name,
             contents=prompt,
             config=types.GenerateContentConfig(
                 temperature=0.3,

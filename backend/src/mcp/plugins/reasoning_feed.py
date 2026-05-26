@@ -13,6 +13,7 @@ from google.adk.agents.callback_context import CallbackContext
 from google.adk.plugins.base_plugin import BasePlugin
 from google.adk.tools.base_tool import BaseTool
 from google.genai import types
+from pydantic import BaseModel
 
 from src.mcp.constants import AgentName, EventType, SessionState
 from src.models.schemas import AgentEvent
@@ -38,10 +39,21 @@ def _summarize_args(args: dict[str, Any] | None) -> str:
     return ", ".join(f"{k}={str(v)[:50]}" for k, v in list(args.items())[:3])
 
 
-def _summarize_result(tool_name: str, args: dict[str, Any], result: dict) -> str:
+def _summarize_result(tool_name: str, args: dict[str, Any], result: Any) -> str:
     """Produce a concise summary of a completed tool invocation."""
     arg_hint = _summarize_args(args)
-    status = result.get("status", "ok")
+    if isinstance(result, BaseModel):
+        model_dict = result.model_dump()
+        if "error" in model_dict:
+            status = "error"
+        elif "status" in model_dict:
+            status = model_dict["status"]
+        else:
+            status = "ok"
+    elif isinstance(result, dict):
+        status = result.get("status", "ok")
+    else:
+        status = "ok"
     return f"{tool_name}({arg_hint}) -> {status}"
 
 
@@ -104,7 +116,7 @@ class ReasoningFeedPlugin(BasePlugin):
         tool: BaseTool,
         tool_args: dict[str, Any],
         tool_context: ToolContext,
-        result: dict,
+        result: Any,
     ) -> dict | None:
         """Emit tool_call_completed with a summary of the invocation."""
         summary = _summarize_result(tool.name, tool_args, result)

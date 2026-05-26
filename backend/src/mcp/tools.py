@@ -24,7 +24,6 @@ from src.config import settings
 from src.mcp.agent_platform import CanonModel
 from src.mcp.constants import SessionState, TempState
 from src.mcp.models import (
-    EmitCheckpointResult,
     HybridSearchError,
     HybridSearchResult,
     HybridSearchSuccess,
@@ -278,9 +277,7 @@ async def prepare_embedding(
     return PrepareSuccess(status="ready", document=prepared, meta=meta)
 
 
-async def emit_checkpoint(
-    message: str, tool_context: ToolContext
-) -> EmitCheckpointResult:
+async def emit_checkpoint(message: str, tool_context: ToolContext) -> dict[str, str]:
     """Emit a reasoning checkpoint visible to the user.
 
     Checkpoints allow agents to communicate intermediate reasoning steps
@@ -298,7 +295,7 @@ async def emit_checkpoint(
     )
     checkpoints.append({"message": message, "timestamp": datetime.now(UTC).isoformat()})
     tool_context.state[TempState.CHECKPOINTS] = checkpoints
-    return EmitCheckpointResult(status="emitted", message=message)
+    return {"status": "emitted", "message": message}
 
 
 # ─── Tool Instances ──────────────────────────────────────────────────────────

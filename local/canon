@@ -83,36 +83,34 @@ EOF
 cmd_logs() {
   local show_all=false has_tail=false has_follow=false has_services=false
   local next_is_value=false
-  local -a extra_args=()
+  local -a args=()
 
   for arg in "$@"; do
     # consume the value token that follows a flag like --tail or --since
     if $next_is_value; then
       next_is_value=false
-      extra_args+=("$arg")
+      args+=("$arg")
       continue
     fi
     case "$arg" in
     -a | --all)            show_all=true ;;
-    --tail | -n)           has_tail=true;  extra_args+=("$arg"); next_is_value=true ;;
-    --tail=* | -n=*)       has_tail=true;  extra_args+=("$arg") ;;
-    --since | --until | --index) extra_args+=("$arg"); next_is_value=true ;;
-    --since=* | --until=* | --index=*) extra_args+=("$arg") ;;
-    -f | --follow)         has_follow=true; extra_args+=("$arg") ;;
-    -*)                    extra_args+=("$arg") ;;
-    # bare word with no leading dash → a service name
-    *)                     has_services=true; extra_args+=("$arg") ;;
+    --tail | -n)           has_tail=true;  args+=("$arg"); next_is_value=true ;;
+    --tail=* | -n=*)       has_tail=true;  args+=("$arg") ;;
+    --since | --until | --index) args+=("$arg"); next_is_value=true ;;
+    --since=* | --until=* | --index=*) args+=("$arg") ;;
+    -f | --follow)         has_follow=true; args+=("$arg") ;;
+    -*)                    args+=("$arg") ;;
+    *)                     has_services=true; args+=("$arg") ;;
     esac
   done
 
-  local -a defaults=()
-  $has_tail   || defaults+=(--tail 0)
-  $has_follow || defaults+=(-f)
+  $has_tail   || args+=(--tail 0)
+  $has_follow || args+=(-f)
 
   if $show_all || $has_services; then
-    compose logs "${defaults[@]}" "${extra_args[@]}"
+    compose logs "${args[@]}"
   else
-    compose logs "${defaults[@]}" "${extra_args[@]}" frontend backend
+    compose logs "${args[@]}" frontend backend
   fi
 }
 

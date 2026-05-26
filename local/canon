@@ -81,9 +81,10 @@ EOF
 }
 
 cmd_logs() {
-  local show_all=false has_tail=false has_follow=false has_services=false
+  local show_all=false has_tail=false has_follow=false
   local next_is_value=false
   local -a args=()
+  local -a services=()
 
   for arg in "$@"; do
     # consume the value token that follows a flag like --tail or --since
@@ -100,15 +101,17 @@ cmd_logs() {
     --since=* | --until=* | --index=*) args+=("$arg") ;;
     -f | --follow)         has_follow=true; args+=("$arg") ;;
     -*)                    args+=("$arg") ;;
-    *)                     has_services=true; args+=("$arg") ;;
+    *)                     services+=("$arg") ;;
     esac
   done
 
   $has_tail   || args+=(--tail 0)
   $has_follow || args+=(-f)
 
-  if $show_all || $has_services; then
-    compose logs "${args[@]}"
+  if (( ${#services[@]} == 1 )) && ! $show_all; then
+    docker logs "${args[@]}" "$(container_name "${services[0]}")"
+  elif $show_all || (( ${#services[@]} > 0 )); then
+    compose logs "${args[@]}" "${services[@]}"
   else
     compose logs "${args[@]}" frontend backend
   fi

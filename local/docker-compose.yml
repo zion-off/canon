@@ -2,6 +2,7 @@ services:
   mongo:
     container_name: canon-mongo
     image: mongodb/mongodb-atlas-local:latest
+    tty: true
     restart: unless-stopped
     volumes:
       - mongo-data:/data/db
@@ -12,21 +13,24 @@ services:
       timeout: 5s
       retries: 5
     ports:
-      - "27017:27017"
+      - "27117:27017"
 
   backend:
     container_name: canon-backend
     build:
-      context: ./backend
+      context: ../backend
       dockerfile: Dockerfile
+    tty: true
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8400:8000"
     volumes:
       - ~/.config/gcloud/application_default_credentials.json:/gcp/credentials.json:ro
-      - ./backend:/app
+      - ../backend:/app
       - /app/.venv
       - /app/__pycache__
+    env_file:
+      - .env
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/gcp/credentials.json
       - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}
@@ -42,15 +46,18 @@ services:
   frontend:
     container_name: canon-frontend
     build:
-      context: ./frontend
+      context: ../frontend
       dockerfile: Dockerfile
+    tty: true
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3200:3000"
     volumes:
-      - ./frontend:/app
+      - ../frontend:/app
       - /app/node_modules
       - /app/.next
+    env_file:
+      - .env
     environment:
       - API_URL=${API_URL:-http://backend:8000}
       - JWT_SECRET=${JWT_SECRET}

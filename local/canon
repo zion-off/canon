@@ -1,0 +1,284 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+# Resolve one level of symlink so the script works when installed via `canon install`
+if [ -L "$SCRIPT_PATH" ]; then
+  SCRIPT_PATH="$(readlink "$SCRIPT_PATH")"
+fi
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+
+VERSION="1.0.0"
+
+# Color helpers — cache tty status so $(color ...) still works
+if [ -t 1 ]; then
+    BOLD="\033[1m"
+    DIM="\033[2m"
+    RED="\033[31m"
+    GREEN="\033[32m"
+    YELLOW="\033[33m"
+    BLUE="\033[34m"
+    CYAN="\033[36m"
+    RESET="\033[0m"
+else
+    BOLD=""
+    DIM=""
+    RED=""
+    GREEN=""
+    YELLOW=""
+    BLUE=""
+    CYAN=""
+    RESET=""
+fi
+
+color() {
+    local code="$1" msg="$2"
+    printf "%b%s%b\n" "$code" "$msg" "$RESET"
+}
+
+compose() {
+  docker compose --project-directory "$SCRIPT_DIR" "$@"
+}
+
+container_name() {
+  local name="$1"
+  case "$name" in
+  canon-*) echo "$name" ;;
+  backend | frontend | mongo) echo "canon-$name" ;;
+  *) echo "$name" ;;
+  esac
+}
+
+cmd_help() {
+  cat <<EOF
+$(color "$BOLD$CYAN" "canon") $(color "$DIM" "— local development CLI for Canon")
+
+$(color "$BOLD" "Usage:")
+  $(color "$CYAN" "canon logs") [docker-logs-args]      Follow logs for frontend + backend (defaults: -f --tail 0)
+  $(color "$CYAN" "canon logs") -a|--all [args]         Follow logs for all containers (includes mongo)
+  $(color "$CYAN" "canon ps")                           Show container status (docker compose ps)
+  $(color "$CYAN" "canon exec") <container> [cmd...]    Run a command in a container (docker exec)
+  $(color "$CYAN" "canon shell") <name>                 Open a bash shell in a container (e.g., canon shell backend)
+  $(color "$CYAN" "canon up") [name...]                 Start services (-d by default)
+  $(color "$CYAN" "canon down") [name...]               Stop services
+  $(color "$CYAN" "canon restart") [name...]            Restart services
+  $(color "$CYAN" "canon rebuild") [name...]            Down, build --no-cache, up -d
+  $(color "$CYAN" "canon clean")                        Down and remove volumes
+  $(color "$CYAN" "canon build") [name...]              Build services
+  $(color "$CYAN" "canon install")                      Symlink this script into /usr/local/bin/canon
+  $(color "$CYAN" "canon help")                         Show this help
+
+$(color "$BOLD" "Examples:")
+  canon up                           Start all services in the background
+  canon up backend                   Start only the backend service
+  canon logs                         Tail all frontend + backend logs
+  canon logs --since 1h              Show logs from the last hour
+  canon logs -a                      Tail logs for all containers (incl. mongo)
+  canon rebuild backend              Rebuild and restart only the backend
+  canon shell backend                Open a bash shell in the backend container
+  canon exec canon-mongo mongosh     Run mongosh in the mongo container
+EOF
+}
+
+cmd_logs() {
+  local show_all=false has_tail=false has_follow=false has_services=false
+  local next_is_value=false
+  local -a extra_args=()
+
+  for arg in "$@"; do
+    # consume the value token that follows a flag like --tail or --since
+    if $next_is_value; then
+      next_is_value=false
+      extra_args+=("$arg")
+      continue
+    fi
+    case "$arg" in
+    -a | --all)            show_all=true ;;
+    --tail | -n)           has_tail=true;  extra_args+=("$arg"); next_is_value=true ;;
+    --tail=* | -n=*)       has_tail=true;  extra_args+=("$arg") ;;
+    --since | --until | --index) extra_args+=("$arg"); next_is_value=true ;;
+    --since=* | --until=* | --index=*) extra_args+=("$arg") ;;
+    -f | --follow)         has_follow=true; extra_args+=("$arg") ;;
+    -*)                    extra_args+=("$arg") ;;
+    # bare word with no leading dash → a service name
+    *)                     has_services=true; extra_args+=("$arg") ;;
+    esac
+  done
+
+  local -a defaults=()
+  $has_tail   || defaults+=(--tail 0)
+  $has_follow || defaults+=(-f)
+
+  if $show_all || $has_services; then
+    compose logs "${defaults[@]}" "${extra_args[@]}"
+  else
+    compose logs "${defaults[@]}" "${extra_args[@]}" frontend backend
+  fi
+}
+
+cmd_ps() {
+  compose ps "$@"
+}
+
+cmd_exec() {
+  if [ $# -eq 0 ]; then
+    color "$RED" "Usage: canon exec <container> [cmd...]" >&2
+    exit 1
+  fi
+  docker exec "$@"
+}
+
+cmd_shell() {
+  if [ $# -eq 0 ]; then
+    color "$RED" "Usage: canon shell <name>" >&2
+    color "$YELLOW" "  e.g. canon shell backend" >&2
+    exit 1
+  fi
+  local cname
+  cname="$(container_name "$1")"
+  shift
+  color "$GREEN" "Connecting to $cname..."
+  docker exec -it "$cname" "${@:-bash}"
+}
+
+cmd_up() {
+  if [ $# -eq 0 ]; then
+    color "$GREEN" "Starting all services..."
+    compose up -d
+  else
+    color "$GREEN" "Starting $*..."
+    compose up -d "$@"
+  fi
+}
+
+cmd_down() {
+  if [ $# -eq 0 ]; then
+    color "$YELLOW" "Stopping all services..."
+    compose down "$@"
+  else
+    color "$YELLOW" "Stopping $*..."
+    compose down "$@"
+  fi
+}
+
+cmd_restart() {
+  if [ $# -eq 0 ]; then
+    color "$YELLOW" "Restarting all services..."
+    compose restart
+  else
+    color "$YELLOW" "Restarting $*..."
+    compose restart "$@"
+  fi
+}
+
+cmd_rebuild() {
+  if [ $# -eq 0 ]; then
+    color "$YELLOW" "Rebuilding all services..."
+    compose down
+    compose build --no-cache
+    compose up -d
+    color "$GREEN" "Rebuild complete."
+  else
+    color "$YELLOW" "Rebuilding $*..."
+    compose down "$@"
+    compose build --no-cache "$@"
+    compose up -d "$@"
+    color "$GREEN" "Rebuild complete."
+  fi
+}
+
+cmd_clean() {
+  color "$RED" "Removing all containers and volumes..."
+  compose down -v
+  color "$GREEN" "Clean complete."
+}
+
+cmd_build() {
+  color "$YELLOW" "Building ${*:-all services}..."
+  compose build "$@"
+  color "$GREEN" "Build complete."
+}
+
+cmd_install() {
+  local target="/usr/local/bin/canon"
+  local source="$SCRIPT_DIR/canon"
+
+  if [ -L "$target" ] || [ -f "$target" ]; then
+    color "$YELLOW" "canon is already installed at $target"
+    color "$DIM" "To reinstall, remove it first: rm $target"
+    exit 1
+  fi
+
+  if [ ! -w "/usr/local/bin" ]; then
+    color "$DIM" "Need sudo to write to /usr/local/bin"
+    sudo ln -sf "$source" "$target"
+  else
+    ln -sf "$source" "$target"
+  fi
+
+  if [ -L "$target" ]; then
+    color "$GREEN" "Installed: $target -> $source"
+    color "$GREEN" "You can now run 'canon' from anywhere in the project tree."
+  else
+    color "$RED" "Install failed." >&2
+    exit 1
+  fi
+}
+
+# Ensure we're in the SCRIPT_DIR so .env is found
+cd "$SCRIPT_DIR"
+
+case "${1:-help}" in
+logs)
+  shift
+  cmd_logs "$@"
+  ;;
+ps)
+  shift
+  cmd_ps "$@"
+  ;;
+exec)
+  shift
+  cmd_exec "$@"
+  ;;
+shell)
+  shift
+  cmd_shell "$@"
+  ;;
+up)
+  shift
+  cmd_up "$@"
+  ;;
+down)
+  shift
+  cmd_down "$@"
+  ;;
+restart)
+  shift
+  cmd_restart "$@"
+  ;;
+rebuild)
+  shift
+  cmd_rebuild "$@"
+  ;;
+clean)
+  shift
+  cmd_clean "$@"
+  ;;
+build)
+  shift
+  cmd_build "$@"
+  ;;
+install)
+  shift
+  cmd_install "$@"
+  ;;
+help | --help | -h)
+  cmd_help
+  ;;
+*)
+  color "$RED" "Unknown command: $1" >&2
+  color "$DIM" "Run 'canon help' for usage." >&2
+  exit 1
+  ;;
+esac

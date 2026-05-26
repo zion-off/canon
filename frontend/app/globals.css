@@ -17,8 +17,8 @@
 }
 
 @font-face {
-  font-family: "Gaisyr Mono";
-  src: url("/fonts/GaisyrMono-Book.woff2") format("woff2");
+  font-family: "JetBrains Mono";
+  src: url("/fonts/JetBrainsMono-Regular.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -28,7 +28,7 @@
   /* Fonts */
   --font-condensed: "ROM Condensed", sans-serif;
   --font-sans: "ROM", sans-serif;
-  --font-mono: "Gaisyr Mono", monospace;
+  --font-mono: "JetBrains Mono", monospace;
 
   /* Base — pure neutral greys, no blue cast */
   --color-canon-bg: #111111;

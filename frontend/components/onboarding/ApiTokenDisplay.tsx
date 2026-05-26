@@ -1,25 +1,10 @@
 "use client";
 
 import { CopyButton } from "@/components/ui/CopyButton";
-import { PUBLIC_API_URL } from "@/lib/config";
+import { McpConfigDisplay } from "@/components/ui/McpConfigDisplay";
 
 interface ApiTokenDisplayProps {
   token: string;
-}
-
-function mcpConfig(token: string) {
-  return JSON.stringify(
-    {
-      mcpServers: {
-        canon: {
-          url: `${PUBLIC_API_URL}/mcp`,
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      },
-    },
-    null,
-    2,
-  );
 }
 
 const labelClass =
@@ -41,13 +26,7 @@ export function ApiTokenDisplay({ token }: ApiTokenDisplayProps) {
       </div>
 
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <p className={labelClass}>MCP Config</p>
-          <CopyButton text={mcpConfig(token)} />
-        </div>
-        <pre className="bg-canon-surface p-4 overflow-x-auto">
-          <code className="text-xs font-mono text-canon-text">{mcpConfig(token)}</code>
-        </pre>
+        <McpConfigDisplay token={token} />
       </div>
     </div>
   );

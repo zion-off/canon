@@ -5,6 +5,7 @@ import type { ApiToken } from "@/lib/schemas/teams";
 import { InviteSection } from "./InviteSection";
 import { TokenSection } from "./TokenSection";
 import { formatShortDate } from "@/lib/date-utils";
+import { McpConfigDisplay } from "@/components/ui/McpConfigDisplay";
 
 interface SettingsClientProps {
   initialTokens: ApiToken[];
@@ -29,6 +30,15 @@ export function SettingsClient({ initialTokens }: SettingsClientProps) {
           </div>
           <div className="px-5 py-6">
             <InviteSection />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-[1fr_2fr] border-b border-canon-border">
+          <div className="px-5 py-6 border-r border-canon-border">
+            <span className={`${labelClass} text-canon-text-secondary`}>MCP Config</span>
+          </div>
+          <div className="px-5 py-6">
+            <McpConfigDisplay label="" />
           </div>
         </div>
 

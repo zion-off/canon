@@ -25,7 +25,7 @@ export function AppHeader({ userRole }: AppHeaderProps) {
           <form method="post" action="/api/logout" className="inline-flex items-center">
             <button
               type="submit"
-              className={`${navClass} text-canon-text-secondary hover:text-canon-text cursor-pointer`}
+              className={`${navClass} text-canon-text-secondary hover:text-canon-error cursor-pointer`}
             >
               Logout
             </button>

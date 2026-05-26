@@ -12,9 +12,7 @@ interface EventFeedProps {
   isLive: boolean;
 }
 
-export interface IdentifiedEvent extends AgentEvent {
-  stableId: number;
-}
+export type IdentifiedEvent = AgentEvent & { stableId: number };
 
 interface RunBucket {
   runIndex: number;

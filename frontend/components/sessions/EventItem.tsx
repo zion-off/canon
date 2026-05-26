@@ -23,7 +23,7 @@ export function EventItem({ event }: EventItemProps) {
       return (
         <div className="py-1 pl-4">
           <span className="text-xs text-canon-text-secondary">
-            ▶ {event.content ?? "Subagent"} started
+            ▶ {event.payload.agent_name}
           </span>
         </div>
       );
@@ -31,8 +31,8 @@ export function EventItem({ event }: EventItemProps) {
     case EVENT_TYPE.TOOL_CALL_STARTED:
       return (
         <CollapsibleEvent
-          label={event.content?.split("\n")[0] ?? "Tool call"}
-          content={event.content}
+          label={event.payload.tool_name}
+          content={JSON.stringify(event.payload.args, null, 2)}
           timestamp={event.timestamp}
         />
       );
@@ -40,8 +40,8 @@ export function EventItem({ event }: EventItemProps) {
     case EVENT_TYPE.TOOL_CALL_COMPLETED:
       return (
         <CollapsibleEvent
-          label={event.content?.split("\n")[0] ?? "Tool completed"}
-          content={event.content}
+          label={`${event.payload.tool_name} → ${event.payload.status}`}
+          content={JSON.stringify(event.payload.result, null, 2)}
           timestamp={event.timestamp}
         />
       );
@@ -59,9 +59,9 @@ export function EventItem({ event }: EventItemProps) {
               </span>
             )}
           </div>
-          {event.content && (
-            <p className="mt-2 whitespace-pre-wrap text-sm text-canon-text">{event.content}</p>
-          )}
+          <p className="mt-2 whitespace-pre-wrap text-sm text-canon-text">
+            {event.payload.message}
+          </p>
         </div>
       );
 
@@ -78,19 +78,17 @@ export function EventItem({ event }: EventItemProps) {
               </span>
             )}
           </div>
-          {event.content && (
-            <div className="mt-3">
-              {isJsonContent(event.content) ? (
-                <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-sm text-canon-text">
-                  {event.content}
-                </pre>
-              ) : (
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-canon-text">
-                  {event.content}
-                </p>
-              )}
-            </div>
-          )}
+          <div className="mt-3">
+            {isJsonContent(event.payload.text) ? (
+              <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-sm text-canon-text">
+                {event.payload.text}
+              </pre>
+            ) : (
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-canon-text">
+                {event.payload.text}
+              </p>
+            )}
+          </div>
         </div>
       );
 

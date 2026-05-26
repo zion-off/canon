@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { AgentEventSchema } from "@/lib/schemas/sessions";
 import type { AgentEvent } from "@/lib/schemas/sessions";
 import { useEventSource } from "./useEventSource";
 
@@ -25,7 +26,7 @@ export function useEventStream(
       return `/api/stream/${sessionId}?after=${after}`;
     },
     (data) => {
-      const event = data as AgentEvent;
+      const event = AgentEventSchema.parse(data);
       if (
         event.sequence !== null &&
         (lastSequenceRef.current === null || event.sequence > lastSequenceRef.current)

@@ -201,7 +201,7 @@ async def log_tool_usage(
 
 async def _subagent_before_tool(
     tool: BaseTool,
-    tool_args: dict[str, Any],
+    args: dict[str, Any],
     tool_context: ToolContext,
 ) -> dict | None:
     """Emit tool_call_started for subagent tools.
@@ -209,19 +209,19 @@ async def _subagent_before_tool(
     AgentTool creates a sub-runner that bypasses App-level plugins, so subagents
     register this callback directly to ensure their tool calls appear in the feed.
     """
-    await emit_tool_started(get_feed(), tool, tool_args, tool_context)
+    await emit_tool_started(get_feed(), tool, args, tool_context)
     return None
 
 
 async def _subagent_after_tool(
     tool: BaseTool,
-    tool_args: dict[str, Any],
+    args: dict[str, Any],
     tool_context: ToolContext,
     tool_response: dict[str, Any],
 ) -> dict[str, Any] | None:
     """Emit tool_call_completed and log usage for subagent tools."""
-    await emit_tool_completed(get_feed(), tool, tool_args, tool_context, tool_response)
-    return await log_tool_usage(tool, tool_args, tool_context, tool_response)
+    await emit_tool_completed(get_feed(), tool, args, tool_context, tool_response)
+    return await log_tool_usage(tool, args, tool_context, tool_response)
 
 
 def _summarize_tool_args(args: dict[str, Any]) -> str:

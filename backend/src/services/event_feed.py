@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from asyncio import Lock, Queue
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
@@ -87,7 +88,15 @@ class AgentEventFeed:
 
         # Fan out AgentEvent objects to live subscribers
         key = f"{tenant_id}:{session_id}"
-        for queue in self._subscribers.get(key, []):
+        subscribers = self._subscribers.get(key, [])
+        logging.getLogger(__name__).debug(
+            "event_feed: broadcast | key=%s seq=%d type=%s subscribers=%d",
+            key,
+            seq,
+            event.type,
+            len(subscribers),
+        )
+        for queue in subscribers:
             await queue.put(event)
 
     async def subscribe(
@@ -100,6 +109,12 @@ class AgentEventFeed:
         if key not in self._subscribers:
             self._subscribers[key] = []
         self._subscribers[key].append(queue)
+        log = logging.getLogger(__name__)
+        log.debug(
+            "event_feed: subscribe | key=%s total_subscribers=%d",
+            key,
+            len(self._subscribers[key]),
+        )
 
         try:
             while True:
@@ -109,6 +124,13 @@ class AgentEventFeed:
             self._subscribers[key].remove(queue)
             if not self._subscribers[key]:
                 del self._subscribers[key]
+                log.debug("event_feed: unsubscribe | key=%s (no more subscribers)", key)
+            else:
+                log.debug(
+                    "event_feed: unsubscribe | key=%s remaining_subscribers=%d",
+                    key,
+                    len(self._subscribers[key]),
+                )
 
     def cleanup_run(self, run_id: str) -> None:
         """Remove sequence tracking for a completed run."""

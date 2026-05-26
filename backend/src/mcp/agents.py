@@ -6,6 +6,7 @@ graph_explorer, memory_writer) with their instructions and tool bindings.
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from typing import Any
 
@@ -239,16 +240,44 @@ async def log_tool_usage(
 ) -> dict[str, Any] | None:
     """Log tool calls across the agent hierarchy for observability."""
     state = tool_context.state
+    is_error = "error" in (tool_response if isinstance(tool_response, dict) else {})
     log_entry = {
         "tool": tool.name,
         "timestamp": datetime.now(UTC).isoformat(),
-        "success": "error"
-        not in (tool_response if isinstance(tool_response, dict) else {}),
+        "success": not is_error,
     }
     logs = state.get(TempState.TOOL_LOGS, [])
     logs.append(log_entry)
     state[TempState.TOOL_LOGS] = logs
+
+    log = logging.getLogger(__name__)
+    if is_error:
+        log.warning(
+            "tool_call: error | agent=%s tool=%s args=%s",
+            tool_context.agent_name,
+            tool.name,
+            _summarize_tool_args(args),
+        )
+    else:
+        log.debug(
+            "tool_call: ok | agent=%s tool=%s args=%s",
+            tool_context.agent_name,
+            tool.name,
+            _summarize_tool_args(args),
+        )
     return None
+
+
+def _summarize_tool_args(args: dict[str, Any]) -> str:
+    """Produce a brief summary of tool args for logging."""
+    if not args:
+        return "()"
+    if "query" in args:
+        return f"(query={str(args['query'])[:80]})"
+    if "document" in args and isinstance(args["document"], dict):
+        return f"(document={args['document'].get('name', '?')})"
+    keys = list(args.keys())[:3]
+    return "(" + ", ".join(f"{k}={str(args[k])[:40]}" for k in keys) + ")"
 
 
 _semantic_retriever: Agent | None = None

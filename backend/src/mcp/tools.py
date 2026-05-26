@@ -12,6 +12,7 @@ server directly via agent tool bindings.
 from __future__ import annotations
 
 import json
+import logging
 from datetime import UTC, datetime
 from typing import Any
 
@@ -92,7 +93,19 @@ async def hybrid_search(
             query, task_type="RETRIEVAL_QUERY", model=settings.embedding_model
         )
     except Exception as exc:
+        logging.getLogger(__name__).warning(
+            "hybrid_search: embedding failed | query=%.80s error=%s",
+            query,
+            exc,
+        )
         return HybridSearchError(error=f"Embedding generation failed: {exc}")
+
+    log = logging.getLogger(__name__)
+    log.debug(
+        "hybrid_search: embedding generated | query=%.80s dims=%d",
+        query,
+        len(embedding),
+    )
 
     extracted_keywords = keywords or [w for w in query.split() if len(w) > 2]
 
@@ -161,6 +174,10 @@ async def hybrid_search(
         result = await call_aggregate("memory_nodes", pipeline)
 
         if result.isError:
+            log.warning(
+                "hybrid_search: aggregate returned error | query=%.80s",
+                query,
+            )
             for item in result.content:
                 if isinstance(item, TextContent):
                     return HybridSearchError(
@@ -190,6 +207,11 @@ async def hybrid_search(
             query=query,
         )
     except Exception as exc:
+        log.warning(
+            "hybrid_search: failed | query=%.80s error=%s",
+            query,
+            exc,
+        )
         return HybridSearchError(error=f"Hybrid search failed: {exc}")
 
 
@@ -220,9 +242,11 @@ async def prepare_embedding(
         A PrepareSuccess with the prepared document and relationship metadata,
         or a PrepareError on validation or generation failure.
     """
+    log = logging.getLogger(__name__)
     try:
         doc = MemoryNodeInput.model_validate(document)
     except Exception as exc:
+        log.warning("prepare_embedding: validation failed | error=%s", exc)
         return PrepareError(error=f"Invalid document: {exc}")
 
     if len(doc.related_entity_ids) > 100:
@@ -252,6 +276,7 @@ async def prepare_embedding(
             model=settings.embedding_model,
         )
     except Exception as exc:
+        log.warning("prepare_embedding: embedding generation failed | error=%s", exc)
         return PrepareError(error=f"Embedding generation failed: {exc}")
 
     prepared: dict[str, Any] = {
@@ -274,6 +299,11 @@ async def prepare_embedding(
         related_existing_id_strs=[str(o) for o in related_object_ids],
     )
 
+    log.debug(
+        "prepare_embedding: success | node=%s embedding_dims=%d",
+        doc.name,
+        len(embedding),
+    )
     return PrepareSuccess(status="ready", document=prepared, meta=meta)
 
 
@@ -295,6 +325,11 @@ async def emit_checkpoint(message: str, tool_context: ToolContext) -> dict[str, 
     )
     checkpoints.append({"message": message, "timestamp": datetime.now(UTC).isoformat()})
     tool_context.state[TempState.CHECKPOINTS] = checkpoints
+    logging.getLogger(__name__).info(
+        "emit_checkpoint: agent=%s msg=%.120s",
+        tool_context.agent_name,
+        message,
+    )
     return {"status": "emitted", "message": message}
 
 

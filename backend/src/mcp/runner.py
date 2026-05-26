@@ -44,8 +44,18 @@ async def run_agent(
     workflow continuity (the ADK agent can reference prior context), but no
     server-side session state persists between HTTP requests.
     """
+    log = logging.getLogger(__name__)
+    log.info(
+        "run_agent: starting | tenant=%s user=%s session=%s run=%s",
+        tenant_id,
+        user_id,
+        session_id,
+        run_id,
+    )
+
     tenant = await TenantDocument.get(ObjectId(tenant_id))
     if not tenant:
+        log.warning("run_agent: tenant not found | tenant=%s", tenant_id)
         return "Error: tenant not found."
 
     # Upsert session — find or create, then increment run count.
@@ -64,11 +74,21 @@ async def run_agent(
             last_run_at=now,
         )
         await session.insert()
+        log.info(
+            "run_agent: created session | session=%s title=%s",
+            session_id,
+            title,
+        )
     else:
         session.run_count += 1
         session.updated_at = now
         session.last_run_at = now
         await session.save()
+        log.info(
+            "run_agent: reusing session | session=%s run_count=%d",
+            session_id,
+            session.run_count,
+        )
 
     session_summary = session.summary
 
@@ -78,10 +98,12 @@ async def run_agent(
         SessionResponse.model_validate(session.model_dump(by_alias=True)),
     )
 
+    log.debug("run_agent: building orchestrator | run=%s", run_id)
     orchestrator = build_orchestrator()
 
+    log.debug("run_agent: creating ADK session | run=%s", run_id)
     session_service = InMemorySessionService()
-    session = await session_service.create_session(
+    adk_session = await session_service.create_session(
         app_name="canon",
         user_id=tenant_id,
         state={
@@ -93,6 +115,11 @@ async def run_agent(
             SessionState.MAX_GRAPH_DEPTH: tenant.settings.get("maxGraphDepth", 2),
             SessionState.EMBEDDING_MODEL: tenant.embedding_model,
         },
+    )
+    log.debug(
+        "run_agent: ADK session created | run=%s adk_session_id=%s",
+        run_id,
+        adk_session.id,
     )
 
     canon_app = App(
@@ -108,6 +135,11 @@ async def run_agent(
     runner = Runner(
         app=canon_app,
         session_service=session_service,
+    )
+    log.debug(
+        "run_agent: ADK runner ready | run=%s reasoning_model=%s",
+        run_id,
+        settings.reasoning_model,
     )
 
     content = Content(
@@ -132,15 +164,27 @@ async def run_agent(
     # Run orchestrator — the ReasoningFeedPlugin handles lifecycle events
     # automatically. This loop only detects reasoning checkpoints and the
     # final response.
+    log.info(
+        "run_agent: starting ADK run loop | run=%s model=%s",
+        run_id,
+        settings.reasoning_model,
+    )
     final_response = None
+    event_count = 0
     async for event in runner.run_async(
         user_id=tenant_id,
-        session_id=session.id,
+        session_id=adk_session.id,
         new_message=content,
     ):
         function_calls: list = getattr(event, "function_calls", None) or []
         for fc in function_calls:
             if fc.name == ToolName.EMIT_CHECKPOINT:
+                checkpoint_msg = fc.args.get("message", "") if fc.args else ""
+                log.info(
+                    "run_agent: checkpoint | run=%s msg=%s",
+                    run_id,
+                    checkpoint_msg[:120],
+                )
                 await event_feed.broadcast(
                     tenant_id=tenant_id,
                     user_id=user_id,
@@ -149,13 +193,21 @@ async def run_agent(
                     event=AgentEvent(
                         type=EventType.REASONING_CHECKPOINT,
                         author=AgentName.ORCHESTRATOR,
-                        content=fc.args.get("message", ""),
+                        content=checkpoint_msg,
                         is_final=False,
                     ),
                 )
 
         if event.is_final_response() and event.content and event.content.parts:
             final_response = event.content.parts[0].text
+        event_count += 1
+
+    log.info(
+        "run_agent: ADK run loop finished | run=%s event_count=%d has_response=%s",
+        run_id,
+        event_count,
+        bool(final_response),
+    )
 
     # Emit the final response
     if final_response:
@@ -171,6 +223,13 @@ async def run_agent(
                 is_final=True,
             ),
         )
+        log.info(
+            "run_agent: final response emitted | run=%s len=%d",
+            run_id,
+            len(final_response),
+        )
+    else:
+        log.warning("run_agent: no final response | run=%s", run_id)
 
     # Emit run_completed
     await event_feed.broadcast(
@@ -188,6 +247,7 @@ async def run_agent(
 
     # Update session summary for continuity
     if final_response:
+        log.debug("run_agent: generating session summary | run=%s", run_id)
         updated_summary = await _generate_session_summary(
             previous_summary=session_summary,
             request=message,
@@ -195,6 +255,12 @@ async def run_agent(
         )
         await SessionDocument.find_one(SessionDocument.session_id == session_id).set(
             {SessionDocument.summary: updated_summary}
+        )
+        log.debug(
+            "run_agent: session summary updated | session=%s prev_summary=%s new_summary=%s",
+            session_id,
+            bool(session_summary),
+            bool(updated_summary),
         )
 
     # Notify subscribers of updated session state (summary, run_count)
@@ -208,7 +274,14 @@ async def run_agent(
         )
 
     event_feed.cleanup_run(run_id)
+    log.debug("run_agent: cleaned up sequence tracking | run=%s", run_id)
 
+    log.info(
+        "run_agent: complete | session=%s run=%s events=%d",
+        session_id,
+        run_id,
+        event_count,
+    )
     return final_response or "No response generated."
 
 

@@ -6,6 +6,7 @@ Credentials (ADC).
 
 from __future__ import annotations
 
+import logging
 from functools import cached_property
 
 import google.genai as genai
@@ -48,6 +49,12 @@ class CanonModel:
         """Generate text directly (no agent)."""
         from google.genai import types
 
+        log = logging.getLogger(__name__)
+        log.debug(
+            "generate_text: calling | model=%s prompt_len=%d",
+            model_name,
+            len(prompt),
+        )
         client = _GenaiClient.get()
         result = await client.aio.models.generate_content(
             model=model_name,
@@ -58,7 +65,13 @@ class CanonModel:
             ),
         )
         if not result.text:
+            log.warning("generate_text: empty response | model=%s", model_name)
             return ""
+        log.debug(
+            "generate_text: response | model=%s len=%d",
+            model_name,
+            len(result.text),
+        )
         return result.text.strip()
 
     @staticmethod
@@ -66,6 +79,13 @@ class CanonModel:
         """Generate an embedding vector."""
         from google.genai import types
 
+        log = logging.getLogger(__name__)
+        log.debug(
+            "embed: calling | model=%s task_type=%s text_len=%d",
+            model,
+            task_type,
+            len(text),
+        )
         client = _GenaiClient.get()
         response = await client.aio.models.embed_content(
             model=model,
@@ -76,8 +96,18 @@ class CanonModel:
             ),
         )
         if not response.embeddings:
+            log.warning(
+                "embed: empty response | model=%s task_type=%s", model, task_type
+            )
             raise RuntimeError("Embedding API returned empty response.")
         values = response.embeddings[0].values
         if values is None:
+            log.warning("embed: None values | model=%s task_type=%s", model, task_type)
             raise RuntimeError("Embedding API returned None values.")
+        log.debug(
+            "embed: success | model=%s task_type=%s dims=%d",
+            model,
+            task_type,
+            len(values),
+        )
         return values

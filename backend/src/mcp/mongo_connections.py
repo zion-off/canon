@@ -12,6 +12,7 @@ Lifecycle is managed by the application lifespan:
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from mcp.client.stdio import StdioServerParameters, stdio_client
@@ -61,6 +62,8 @@ def get_write_params() -> StdioServerParameters:
 
 async def startup() -> None:
     """Start the persistent read-only MCP subprocess and initialize the session."""
+    log = logging.getLogger(__name__)
+    log.info("mongo_connections: starting read-only MCP subprocess")
     params = get_read_params()
     _ConnectionState.read_ctx = stdio_client(params)
     read, write = await _ConnectionState.read_ctx.__aenter__()
@@ -68,10 +71,13 @@ async def startup() -> None:
     session = await _ConnectionState.session_ctx.__aenter__()
     await session.initialize()
     _ConnectionState.read_session = session
+    log.info("mongo_connections: read-only MCP session initialized")
 
 
 async def shutdown() -> None:
     """Close the persistent session and terminate the subprocess."""
+    log = logging.getLogger(__name__)
+    log.info("mongo_connections: shutting down MCP subprocess")
     if _ConnectionState.session_ctx is not None:
         await _ConnectionState.session_ctx.__aexit__(None, None, None)
         _ConnectionState.session_ctx = None
@@ -81,6 +87,7 @@ async def shutdown() -> None:
         _ConnectionState.read_ctx = None
 
     _ConnectionState.read_session = None
+    log.info("mongo_connections: MCP subprocess shut down")
 
 
 async def call_aggregate(collection: str, pipeline: list[dict[str, Any]]) -> Any:
@@ -100,6 +107,12 @@ async def call_aggregate(collection: str, pipeline: list[dict[str, Any]]) -> Any
     if session is None:
         raise RuntimeError("MongoMCP read session not started")
 
+    log = logging.getLogger(__name__)
+    log.debug(
+        "mongo_connections: calling aggregate | collection=%s pipeline_stages=%d",
+        collection,
+        len(pipeline),
+    )
     return await session.call_tool(
         "aggregate",
         {

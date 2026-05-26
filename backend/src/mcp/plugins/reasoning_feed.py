@@ -6,6 +6,7 @@ to connected clients via the AgentEventFeed service.
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 from google.adk.agents.base_agent import BaseAgent
@@ -73,9 +74,15 @@ class ReasoningFeedPlugin(BasePlugin):
         self, *, agent: BaseAgent, callback_context: CallbackContext
     ) -> types.Content | None:
         """Emit subagent_invoked for non-orchestrator agents."""
+        log = logging.getLogger(__name__)
         if agent.name == AgentName.ORCHESTRATOR:
             return None
 
+        log.info(
+            "reasoning_feed: subagent invoked | agent=%s session=%s",
+            agent.name,
+            callback_context.state.get(SessionState.SESSION_ID),
+        )
         await self._event_feed.broadcast(
             tenant_id=callback_context.state.get(SessionState.TENANT_ID),
             user_id=callback_context.state.get(SessionState.USER_ID),
@@ -97,6 +104,12 @@ class ReasoningFeedPlugin(BasePlugin):
         tool_context: ToolContext,
     ) -> dict | None:
         """Emit tool_call_started."""
+        logging.getLogger(__name__).debug(
+            "reasoning_feed: tool started | agent=%s tool=%s args=%s",
+            tool_context.agent_name,
+            tool.name,
+            _summarize_args(tool_args),
+        )
         await self._event_feed.broadcast(
             tenant_id=tool_context.state.get(SessionState.TENANT_ID),
             user_id=tool_context.state.get(SessionState.USER_ID),
@@ -120,6 +133,11 @@ class ReasoningFeedPlugin(BasePlugin):
     ) -> dict | None:
         """Emit tool_call_completed with a summary of the invocation."""
         summary = _summarize_result(tool.name, tool_args, result)
+        logging.getLogger(__name__).debug(
+            "reasoning_feed: tool completed | agent=%s summary=%s",
+            tool_context.agent_name,
+            summary,
+        )
         await self._event_feed.broadcast(
             tenant_id=tool_context.state.get(SessionState.TENANT_ID),
             user_id=tool_context.state.get(SessionState.USER_ID),

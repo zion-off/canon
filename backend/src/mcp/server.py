@@ -49,12 +49,23 @@ async def _build_context(ctx: Context) -> _RequestContext:
         raise ValueError("No HTTP request available in MCP context")
     auth_header = request.headers.get("Authorization", "")
     token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
+    log = logging.getLogger(__name__)
+    log.debug(
+        "build_context: resolving tenant from token prefix=%s...",
+        token[:8] if token else "(none)",
+    )
     resolver = TenantResolver()
     tenant_ctx = await resolver.resolve(token)
 
     if not tenant_ctx:
+        log.warning("build_context: invalid API token")
         raise ValueError("Invalid API token")
 
+    log.info(
+        "build_context: resolved | tenant=%s user=%s",
+        tenant_ctx.tenant_id,
+        tenant_ctx.user_id,
+    )
     return _RequestContext(
         tenant_id=tenant_ctx.tenant_id,
         user_id=tenant_ctx.user_id,
@@ -98,7 +109,18 @@ async def canon(
     run_id = str(uuid4())
     resolved_session_id = session_id or str(uuid4())
 
+    log = logging.getLogger(__name__)
+    log.info(
+        "canon tool: invoked | tenant=%s session=%s run=%s new_session=%s request=%.120s",
+        request_ctx.tenant_id,
+        resolved_session_id,
+        run_id,
+        session_id is None,
+        request,
+    )
+
     title = await _generate_title(request)
+    log.debug("canon tool: generated title | run=%s title=%s", run_id, title)
 
     response = await run_agent(
         tenant_id=request_ctx.tenant_id,

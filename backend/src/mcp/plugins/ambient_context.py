@@ -15,6 +15,7 @@ isolation).
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
 
@@ -57,8 +58,17 @@ class AmbientContextPlugin(BasePlugin):
 
         tenant_id = tool_context.state.get(SessionState.TENANT_ID)
         if not tenant_id:
+            logging.getLogger(__name__).warning(
+                "ambient_context: no tenant_id in state | tool=%s",
+                tool.name,
+            )
             return None
 
+        logging.getLogger(__name__).debug(
+            "ambient_context: injecting context | tool=%s tenant=%s",
+            tool.name,
+            tenant_id,
+        )
         tool_args["database"] = Database.CANON
         self._ejsonize(tool_args)
 

@@ -23,13 +23,11 @@ from src.config import settings
 from src.mcp.agent_platform import CanonModel
 from src.mcp.constants import AgentName, TempState
 from src.mcp.mongo_connections import get_read_params
-from src.mcp.plugins.reasoning_feed import emit_tool_completed, emit_tool_started
 from src.mcp.tools import (
     canonize_node_tool,
     emit_checkpoint_tool,
     hybrid_search_tool,
 )
-from src.services.event_feed import get_feed
 
 MEMORY_NODE_SCHEMA = """\
 ## Memory Node Schema (memory_nodes collection)
@@ -199,31 +197,6 @@ async def log_tool_usage(
     return None
 
 
-async def _subagent_before_tool(
-    tool: BaseTool,
-    args: dict[str, Any],
-    tool_context: ToolContext,
-) -> dict | None:
-    """Emit tool_call_started for subagent tools.
-
-    AgentTool creates a sub-runner that bypasses App-level plugins, so subagents
-    register this callback directly to ensure their tool calls appear in the feed.
-    """
-    await emit_tool_started(get_feed(), tool, args, tool_context)
-    return None
-
-
-async def _subagent_after_tool(
-    tool: BaseTool,
-    args: dict[str, Any],
-    tool_context: ToolContext,
-    tool_response: dict[str, Any],
-) -> dict[str, Any] | None:
-    """Emit tool_call_completed and log usage for subagent tools."""
-    await emit_tool_completed(get_feed(), tool, args, tool_context, tool_response)
-    return await log_tool_usage(tool, args, tool_context, tool_response)
-
-
 def _summarize_tool_args(args: dict[str, Any]) -> str:
     """Produce a brief summary of tool args for logging."""
     if not args:
@@ -265,8 +238,7 @@ def _get_semantic_retriever() -> Agent:
             instruction=SEMANTIC_RETRIEVER_INSTRUCTION,
             tools=[hybrid_search_tool, emit_checkpoint_tool],
             output_key="retrieval_results",
-            before_tool_callback=_subagent_before_tool,
-            after_tool_callback=_subagent_after_tool,
+            after_tool_callback=log_tool_usage,
         )
     return _semantic_retriever
 
@@ -283,8 +255,7 @@ def _get_graph_explorer() -> Agent:
             instruction=GRAPH_EXPLORER_INSTRUCTION,
             tools=[_build_mongo_read_toolset(), emit_checkpoint_tool],
             output_key="graph_results",
-            before_tool_callback=_subagent_before_tool,
-            after_tool_callback=_subagent_after_tool,
+            after_tool_callback=log_tool_usage,
         )
     return _graph_explorer
 

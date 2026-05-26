@@ -146,10 +146,8 @@ async def emit_tool_completed(
 class ReasoningFeedPlugin(BasePlugin):
     """Intercepts agent lifecycle events and emits them to the Reasoning Feed.
 
-    Registered as an App plugin — runs BEFORE any agent-level callbacks.
-    Captures orchestrator tool invocations and agent delegations.
-    Subagent tool invocations are captured by callbacks registered directly
-    on each subagent (AgentTool sub-runners bypass App-level plugins).
+    Registered as an App plugin — fires for the orchestrator and all subagents.
+    Captures tool invocations and agent delegations across the full hierarchy.
     Sequence numbers are assigned by AgentEventFeed.broadcast (not here).
     """
 

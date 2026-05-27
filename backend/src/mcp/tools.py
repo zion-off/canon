@@ -132,7 +132,7 @@ async def hybrid_search(
         )
 
     log = logging.getLogger(__name__)
-    log.debug(
+    log.info(
         "hybrid_search: embedding generated | query=%.80s dims=%d",
         query,
         len(embedding),
@@ -216,6 +216,13 @@ async def hybrid_search(
         },
     ]
 
+    log.info(
+        "hybrid_search: executing | query=%.120s keywords=%s limit=%d",
+        query,
+        extracted_keywords[:5],
+        limit,
+    )
+
     try:
         result = await call_aggregate("memory_nodes", pipeline)
 
@@ -256,10 +263,20 @@ async def hybrid_search(
             except json.JSONDecodeError:
                 continue
 
+        results = [SearchResultItem.model_validate(d) for d in docs]
+        top_names = [r.name for r in results[:5]]
+
+        log.info(
+            "hybrid_search: done | query=%.120s count=%d top=[%s]",
+            query,
+            len(results),
+            ", ".join(top_names) if top_names else "(none)",
+        )
+
         return _enrich_search_result(
             HybridSearchSuccess(
-                results=[SearchResultItem.model_validate(d) for d in docs],
-                count=len(docs),
+                results=results,
+                count=len(results),
                 query=query,
             ),
             limit,

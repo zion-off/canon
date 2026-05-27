@@ -12,9 +12,9 @@ export default function LandingPage() {
 
         <Link
           href={ROUTE_LOGIN}
-          className="absolute top-1/2 right-20 -translate-y-1/2 font-condensed font-bold text-xs uppercase tracking-[0.08em] text-canon-text hover:text-canon-text-secondary transition-colors"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 md:left-auto md:right-1/5 md:translate-x-0 -translate-y-1/2 font-condensed font-bold text-xs uppercase tracking-[0.08em] text-canon-text hover:text-canon-text-secondary transition-colors whitespace-nowrap"
         >
-          See your team&apos;s canon
+          Explore your canon
         </Link>
       </div>
     </div>

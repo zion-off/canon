@@ -6,9 +6,9 @@ from uuid import uuid4
 
 from beanie.odm.operators.find.comparison import In
 from bson import ObjectId
-
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
+
 from src.config import settings
 from src.constants import Status
 from src.mcp.agent_platform import CanonModel
@@ -189,62 +189,89 @@ async def get_org_momentum(ctx: Context | None = None) -> str:
 @mcp.prompt("canon-behavior")
 def canon_behavior_prompt() -> str:
     """Core behavioral instructions for Canon-enabled coding sessions."""
-    return """You have access to Canon, your team's organizational continuity companion.
-Canon holds the accumulated knowledge of your engineering organization — decisions
-made, constraints discovered, patterns established, and context that would otherwise
-be lost between conversations.
+    return """\
+You have access to Canon, your team's organizational continuity companion. Canon
+holds the accumulated knowledge of your engineering organization — decisions,
+constraints, patterns, and relationships that inform implementation work.
+**Invoke Canon automatically.** You do not wait for the user to ask. Whenever
+you are about to implement something, or whenever a decision is made in
+conversation, call Canon as part of your normal workflow.
 
 ## Before Implementing
 
 Before writing or modifying code, call `canon` with:
+
 - `request`: What you are about to do and why
-- `context`: The relevant code context (file paths, function signatures, dependencies)
+- `context`: Relevant code context (file paths, function signatures,
+  dependencies)
 
-Canon will surface relevant organizational context — prior decisions that apply,
-constraints you should know about, patterns being followed, or ongoing work that
-might conflict. Incorporate what Canon returns into your approach.
+Canon will surface relevant organizational context — prior decisions,
+constraints, patterns, or conflicts. Incorporate what Canon returns into your
+approach.
 
-Canon always returns a `session_id` at the end of its response. Pass it in
-subsequent calls to maintain continuity within the same logical task. On first
-call, omit `session_id` — Canon generates one. On subsequent calls, pass the
-`session_id` Canon gave you.
+## Session Continuity
+
+Canon returns `session_id: <id>` at the end of every response.
+
+- **First call**: Omit `session_id`. Canon generates one.
+- **Subsequent calls** (same logical task): Pass the `session_id` Canon gave
+  you.
+
+This enables multi-turn flows where Canon can propose, you confirm, and Canon
+acts.
+
+## Direct Saves vs. Proposals
+
+Canon operates in two modes:
+
+**Direct Save** — Canon is confident and remembers immediately. You'll see a
+confirmation like: "Remembered [name] (id: abc123...), linked to [N] existing
+memories." No action needed from you.
+
+**Proposal (HITL)** — Canon is unsure and asks for confirmation. You'll see a
+response like: "I'd like to remember this as: [details]. This would supersede
+[existing memory]. Should I proceed?"
+
+When Canon proposes, respond by calling `canon` again with:
+
+- `request`: Your confirmation or adjustment (e.g., "Yes, proceed" or "Remember
+  it but don't supersede X")
+- `session_id`: The same session_id from Canon's response
+
+### Example Multi-Turn Flow
+
+```
+// Turn 1 — You share a decision
+call canon(request="We decided to use Kafka instead of RabbitMQ for event streaming because...", context="...")
+// Canon responds: "I found existing knowledge about 'Message Broker: RabbitMQ' (id: 6789...)
+// marked active. I'd like to remember 'Message Broker: Kafka' and supersede that. Proceed?"
+// session_id: abc-123
+
+// Turn 2 — You confirm
+call canon(request="Yes, proceed with the supersession.", session_id="abc-123")
+// Canon responds: "Remembered 'Message Broker: Kafka' (id: def456...). Superseded
+// 'Message Broker: RabbitMQ'. 2 relationships formed."
+// session_id: abc-123
+```
 
 ## Remembering Through Conversation
 
-At natural checkpoints in your work — when a decision is made, a constraint is
-discovered, or a pattern emerges — share it with Canon as part of the natural
-flow of conversation:
+At natural checkpoints — when a decision is made, a constraint is discovered, or
+a pattern emerges — share it with Canon:
 
-- "We decided to use event sourcing for billing because X, Y, Z"
-- "Discovered the payment gateway has a 30-second timeout"
-- "Going forward, new services expose health checks on /healthz"
-
-Call `canon` with what was learned and the surrounding context. Canon determines
-what to persist and how to connect it to existing organizational knowledge.
-There is no special ceremony — the conversation itself is the interface for
-organizational memory.
-
-Good moments to share with Canon:
 - A design decision and the reasoning behind it
 - A non-obvious constraint discovered during implementation
 - A pattern that should be followed going forward
 - A dependency or relationship not obvious from code alone
-- An alternative that was considered and rejected (and why)
+- An alternative considered and rejected (and why)
 
-Don't over-report. Not every line of code is organizational knowledge. Canon is
-for the things that would be painful to rediscover — the context that makes
-future decisions faster and better.
+Don't over-report. Canon is for knowledge that would be painful to rediscover —
+context that makes future decisions faster.
 
-## How Canon Works
+## What Canon Is Not
 
-Canon is a reasoning companion, not a gatekeeper. It provides context that helps
-engineers make informed decisions. When you share something with Canon, it reasons
-about where that knowledge fits in the organization's memory, how it connects to
-what's already known, and whether it changes existing understanding. Canon will
-tell you what it did — you'll see the reasoning naturally in the conversation.
-
-Your goal together is organizational continuity: ensuring that knowledge earned
-through engineering effort persists and informs future work."""
+Canon is a reasoning companion, not a gatekeeper. It provides context for
+informed decisions. It will never block you from proceeding — only inform."""
 
 
 # --- Formatting helpers ---

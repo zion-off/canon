@@ -166,9 +166,9 @@ class AmbientContextPlugin(BasePlugin):
             if "$vectorSearch" in stage:
                 vs = stage["$vectorSearch"]
                 if isinstance(vs, dict):
-                    if "preFilter" not in vs or not isinstance(vs["preFilter"], dict):
-                        vs["preFilter"] = {}
-                    vs["preFilter"]["tenantId"] = ejson_tenant
+                    if "filter" not in vs or not isinstance(vs["filter"], dict):
+                        vs["filter"] = {}
+                    vs["filter"]["tenantId"] = ejson_tenant
 
             if "$search" in stage and isinstance(stage["$search"], dict):
                 search = stage["$search"]

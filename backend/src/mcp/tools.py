@@ -154,7 +154,7 @@ async def hybrid_search(
         }
     }
     if tenant_id:
-        vector_search_stage["$vectorSearch"]["preFilter"] = {
+        vector_search_stage["$vectorSearch"]["filter"] = {
             "tenantId": {"$oid": tenant_id},
         }
 

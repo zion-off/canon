@@ -1,3 +1,7 @@
+from src.mcp.server import mcp
+
+
+@mcp.prompt("reflect-session")
 def reflect_session_prompt() -> str:
     """Reflect on the current session — capture what was learned, changed, or decided."""
     return """\

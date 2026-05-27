@@ -4,13 +4,25 @@ import logging
 from uuid import UUID, uuid4
 
 from mcp.server.fastmcp import Context
+from mcp.types import ToolAnnotations
 
 from src.agent.runner import run_agent
 from src.config import settings
 from src.mcp.context import build_context
+from src.mcp.server import mcp
 from src.models.schemas import RunStartedPayload
 
 
+@mcp.tool(
+    name="canon",
+    annotations=ToolAnnotations(
+        title="check organizational memory",
+        readOnlyHint=False,
+        destructiveHint=False,
+        idempotentHint=False,
+        openWorldHint=True,
+    ),
+)
 async def canon(
     request: str,
     context: str = "",

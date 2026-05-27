@@ -1,14 +1,6 @@
 from __future__ import annotations
 
 from mcp.server.fastmcp import FastMCP
-from mcp.types import ToolAnnotations
-
-from src.mcp.prompts.before_implementing import before_implementing_prompt
-from src.mcp.prompts.reflect_session import reflect_session_prompt
-from src.mcp.prompts.remember_decision import remember_decision_prompt
-from src.mcp.resources.org_momentum import get_org_momentum
-from src.mcp.resources.org_state import get_org_state
-from src.mcp.tools import canon
 
 _MCP_INSTRUCTIONS = """\
 Canon holds your engineering team's organizational memory — active migrations, \
@@ -85,26 +77,6 @@ mcp = FastMCP(
     streamable_http_path="/",
 )
 
-# ── Tools ──
-
-mcp.tool(
-    name="canon",
-    annotations=ToolAnnotations(
-        title="check organizational memory",
-        readOnlyHint=False,
-        destructiveHint=False,
-        idempotentHint=False,
-        openWorldHint=True,
-    ),
-)(canon)
-
-# ── Resources ──
-
-mcp.resource("canon://org/state")(get_org_state)
-mcp.resource("canon://org/momentum")(get_org_momentum)
-
-# ── Prompts ──
-
-mcp.prompt("before-implementing")(before_implementing_prompt)
-mcp.prompt("remember-decision")(remember_decision_prompt)
-mcp.prompt("reflect-session")(reflect_session_prompt)
+import src.mcp.prompts  # noqa: E402, F401
+import src.mcp.resources  # noqa: E402, F401
+import src.mcp.tools  # noqa: E402, F401

@@ -6,9 +6,11 @@ from mcp.server.fastmcp import Context
 
 from src.constants import Status
 from src.mcp.context import build_context
+from src.mcp.server import mcp
 from src.models.documents import MemoryNodeDocument
 
 
+@mcp.resource("canon://org/state")
 async def get_org_state(ctx: Context | None = None) -> str:
     """Synthesized organizational posture — what the org is currently doing.
 

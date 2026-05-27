@@ -1,3 +1,7 @@
+from src.mcp.server import mcp
+
+
+@mcp.prompt("before-implementing")
 def before_implementing_prompt() -> str:
     """Before I implement something — check org memory for conflicts and constraints."""
     return """\

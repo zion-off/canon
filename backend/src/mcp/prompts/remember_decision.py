@@ -1,3 +1,7 @@
+from src.mcp.server import mcp
+
+
+@mcp.prompt("remember-decision")
 def remember_decision_prompt() -> str:
     """Remember a decision, constraint, or pattern the team should know about."""
     return """\

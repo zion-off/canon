@@ -6,9 +6,11 @@ from bson import ObjectId
 from mcp.server.fastmcp import Context
 
 from src.mcp.context import build_context
+from src.mcp.server import mcp
 from src.models.documents import MemoryNodeDocument
 
 
+@mcp.resource("canon://org/momentum")
 async def get_org_momentum(ctx: Context | None = None) -> str:
     """Organizational momentum — recent trajectory and evolution.
 

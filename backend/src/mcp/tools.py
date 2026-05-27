@@ -4,16 +4,16 @@ import logging
 from uuid import uuid4
 
 from fastmcp import Context
+from fastmcp.tools import tool
 from mcp.types import ToolAnnotations
 
 from src.agent.runner import run_agent
 from src.config import settings
 from src.mcp.context import build_context
-from src.mcp.server import mcp
 from src.models.schemas import RunStartedPayload
 
 
-@mcp.tool(
+@tool(
     name="canon",
     annotations=ToolAnnotations(
         title="check organizational memory",

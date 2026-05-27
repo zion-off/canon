@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-from fastmcp import FastMCP
+from pathlib import Path
 
+from fastmcp import FastMCP
+from fastmcp.server.providers import FileSystemProvider
+
+from src.config import settings
 from src.mcp.middleware import AuthMiddleware
 
 _MCP_INSTRUCTIONS = """\
@@ -70,12 +74,13 @@ with these fields that affect future retrieval quality:
   surface connected context.
 """
 
+_BASE_DIR = Path(__file__).parent
+
 mcp = FastMCP(
     "canon",
     instructions=_MCP_INSTRUCTIONS,
     middleware=[AuthMiddleware()],
+    providers=[
+        FileSystemProvider(_BASE_DIR, reload=settings.environment == "development")
+    ],
 )
-
-import src.mcp.prompts  # noqa: E402, F401
-import src.mcp.resources  # noqa: E402, F401
-import src.mcp.tools  # noqa: E402, F401

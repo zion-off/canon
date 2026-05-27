@@ -1,7 +1,7 @@
-from src.mcp.server import mcp
+from fastmcp.prompts import prompt
 
 
-@mcp.prompt("reflect-session")
+@prompt("reflect-session")
 def reflect_session_prompt() -> str:
     """Reflect on the current session — capture what was learned, changed, or decided."""
     return """\

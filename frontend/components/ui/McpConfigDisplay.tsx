@@ -1,6 +1,7 @@
 "use client";
 
 import { CopyButton } from "@/components/ui/CopyButton";
+import { HighlightedCode } from "@/components/sessions/HighlightedCode";
 import { PUBLIC_API_URL } from "@/lib/config";
 
 interface McpConfigDisplayProps {
@@ -31,12 +32,12 @@ export function McpConfigDisplay({
   return (
     <div className="space-y-2">
       {label && <span className={labelClass}>{label}</span>}
-      <pre className="bg-canon-surface p-4 overflow-x-auto relative">
-        <code className="text-xs font-mono text-canon-text whitespace-pre">{config}</code>
+      <div className="bg-canon-surface p-4 overflow-x-auto relative">
+        <HighlightedCode code={config} lang="json" className="text-xs" />
         <div className="absolute top-2 right-2">
           <CopyButton text={config} />
         </div>
-      </pre>
+      </div>
     </div>
   );
 }

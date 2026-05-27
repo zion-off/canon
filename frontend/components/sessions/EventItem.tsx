@@ -4,8 +4,8 @@ import type { DisplayItem } from "@/lib/schemas/sessions";
 import { ToolCallTimeline } from "./ToolCallTimeline";
 import { SubagentGroupItem } from "./SubagentGroupItem";
 import { RunSeparator } from "./RunSeparator";
+import { MarkdownRenderer } from "./MarkdownRenderer";
 import { formatTimestamp } from "@/lib/date-utils";
-import { isJsonContent } from "@/lib/text-utils";
 import { EVENT_TYPE, DISPLAY_KIND } from "@/lib/constants";
 
 interface EventItemProps {
@@ -48,14 +48,12 @@ export function EventItem({ item }: EventItemProps) {
     case EVENT_TYPE.FINAL_RESPONSE:
       return (
         <div className="flex gap-3">
-          <div className="pt-1">
+          <div className="pt-1.5">
             <div className="w-2 h-2 rounded-full bg-canon-accent shrink-0" />
           </div>
           <div className="pb-1 min-w-0 flex-1">
             <div className="flex items-baseline justify-between gap-4">
-              <span className="font-condensed font-bold text-xs uppercase tracking-wider text-canon-accent">
-                Final Response
-              </span>
+              <span className="text-sm font-medium text-canon-text">Final Response</span>
               {item.timestamp && (
                 <span
                   suppressHydrationWarning
@@ -65,16 +63,8 @@ export function EventItem({ item }: EventItemProps) {
                 </span>
               )}
             </div>
-            <div className="mt-1">
-              {isJsonContent(item.payload.text) ? (
-                <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-sm text-canon-text">
-                  {item.payload.text}
-                </pre>
-              ) : (
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-canon-text">
-                  {item.payload.text}
-                </p>
-              )}
+            <div className="mt-1 px-1">
+              <MarkdownRenderer>{item.payload.text}</MarkdownRenderer>
             </div>
           </div>
         </div>

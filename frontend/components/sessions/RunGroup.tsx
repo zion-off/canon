@@ -7,6 +7,7 @@ import type {
   SubagentGroup,
 } from "@/lib/schemas/sessions";
 import { EventItem } from "./EventItem";
+import { HighlightedCode } from "./HighlightedCode";
 import { formatDateTime } from "@/lib/date-utils";
 import { EVENT_TYPE, DISPLAY_KIND, TOOL_NAME, SUBAGENT_TOOL_NAMES } from "@/lib/constants";
 
@@ -123,13 +124,13 @@ export function RunGroup({ runIndex, events, timestamp, invocationArgs }: RunGro
           <div>
             <div className="flex items-center gap-3">
               <div className="w-2 h-2 rounded-full bg-canon-accent shrink-0" />
-              <span className="font-condensed font-bold text-xs uppercase tracking-wider text-canon-accent">
-                Harness Request
-              </span>
+              <span className="text-sm font-medium text-canon-text">Harness Request</span>
             </div>
-            <pre className="mt-1 ml-5 overflow-x-auto whitespace-pre-wrap font-mono text-xs text-canon-text-secondary">
-              {JSON.stringify(invocationArgs, null, 2)}
-            </pre>
+            <HighlightedCode
+              code={JSON.stringify(invocationArgs, null, 2)}
+              lang="json"
+              className="mt-1 ml-5 text-xs"
+            />
           </div>
         )}
         {displayItems.map((item) => (

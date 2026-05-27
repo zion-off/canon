@@ -1,6 +1,7 @@
 "use client";
 
 import type { ToolCallPair } from "@/lib/schemas/sessions";
+import { HighlightedCode } from "./HighlightedCode";
 import { AGENT_DISPLAY_NAMES, TOOL_DISPLAY_NAMES } from "@/lib/constants";
 import { formatTimestamp } from "@/lib/date-utils";
 
@@ -48,9 +49,11 @@ export function ToolCallTimeline({ pair }: ToolCallTimelineProps) {
           </div>
 
           {Object.keys(started.payload.args).length > 0 && (
-            <pre className="mt-1 overflow-x-auto whitespace-pre-wrap font-mono text-xs text-canon-text-secondary">
-              {JSON.stringify(started.payload.args, null, 2)}
-            </pre>
+            <HighlightedCode
+              code={JSON.stringify(started.payload.args, null, 2)}
+              lang="json"
+              className="mt-1 text-xs"
+            />
           )}
         </div>
       </div>
@@ -91,11 +94,15 @@ export function ToolCallTimeline({ pair }: ToolCallTimelineProps) {
                 )}
               </div>
               {completed.payload.result != null && (
-                <pre className="mt-1 overflow-x-auto whitespace-pre-wrap font-mono text-xs text-canon-text-secondary">
-                  {typeof completed.payload.result === "string"
-                    ? completed.payload.result
-                    : JSON.stringify(completed.payload.result, null, 2)}
-                </pre>
+                <HighlightedCode
+                  code={
+                    typeof completed.payload.result === "string"
+                      ? completed.payload.result
+                      : JSON.stringify(completed.payload.result, null, 2)
+                  }
+                  lang={typeof completed.payload.result === "string" ? "txt" : "json"}
+                  className="mt-1 text-xs"
+                />
               )}
             </>
           )}

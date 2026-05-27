@@ -13,7 +13,7 @@ export function SubagentGroupItem({ group }: SubagentGroupItemProps) {
   const displayName = AGENT_DISPLAY_NAMES[group.agentName] ?? group.agentName;
 
   return (
-    <div>
+    <div className="ml-3 pl-3 border-l border-canon-border">
       <div className="flex items-baseline justify-between gap-4 mb-2">
         <span className="font-condensed font-bold text-xs uppercase tracking-wider text-canon-text-secondary">
           {displayName}

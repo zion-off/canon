@@ -120,18 +120,16 @@ export function RunGroup({ runIndex, events, timestamp, invocationArgs }: RunGro
 
       <div className="space-y-2 border-l border-canon-border pl-4">
         {invocationArgs && (
-          <div className="flex gap-3">
-            <div className="pt-1">
+          <div>
+            <div className="flex items-center gap-3">
               <div className="w-2 h-2 rounded-full bg-canon-accent shrink-0" />
-            </div>
-            <div className="pb-1 min-w-0 flex-1">
               <span className="font-condensed font-bold text-xs uppercase tracking-wider text-canon-accent">
                 Harness Request
               </span>
-              <pre className="mt-1 overflow-x-auto whitespace-pre-wrap font-mono text-xs text-canon-text-secondary">
-                {JSON.stringify(invocationArgs, null, 2)}
-              </pre>
             </div>
+            <pre className="mt-1 ml-5 overflow-x-auto whitespace-pre-wrap font-mono text-xs text-canon-text-secondary">
+              {JSON.stringify(invocationArgs, null, 2)}
+            </pre>
           </div>
         )}
         {displayItems.map((item) => (

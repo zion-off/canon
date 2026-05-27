@@ -56,8 +56,8 @@ export function ToolCallTimeline({ pair }: ToolCallTimelineProps) {
       </div>
 
       {/* Completed node */}
-      <div className="flex gap-3">
-        <div className="pt-1">
+      <div className={`flex gap-3 ${isPending ? "items-center" : ""}`}>
+        <div className={isPending ? undefined : "pt-1"}>
           <div
             className={`w-2 h-2 rounded-full shrink-0 ${
               isPending

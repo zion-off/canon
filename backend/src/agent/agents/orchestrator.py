@@ -1,38 +1,23 @@
-"""Canon ADK agent definitions.
+"""Canon orchestrator agent.
 
-Defines the orchestrator and its sub-agents (semantic_retriever, graph_explorer)
-with their instructions and tool bindings. Memory persistence is handled directly
-by the orchestrator via the canonize_node FunctionTool.
+Composes the orchestrator with its sub-agents (semantic_retriever,
+graph_explorer) and lifecycle hooks. Memory persistence is handled
+directly by the orchestrator via the canonize_node FunctionTool.
 """
 
 from __future__ import annotations
 
-import logging
-from datetime import UTC, datetime
-from typing import Any
-
 from google.adk.agents import Agent
 from google.adk.tools.agent_tool import AgentTool
-from google.adk.tools.base_tool import BaseTool
 from google.adk.tools.google_search_tool import GoogleSearchTool
-from google.adk.tools.mcp_tool import McpToolset
-from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
-from google.adk.tools.tool_context import ToolContext  # noqa: F401 — used by callbacks
 
 from src.agent.agent_platform import CanonModel
-from src.agent.agents.graph_explorer import (
-    GRAPH_EXPLORER_INSTRUCTION,
-    graph_explorer_after_tool,
-)
-from src.agent.agents.semantic_retriever import SEMANTIC_RETRIEVER_INSTRUCTION
-from src.agent.constants import AgentName, TempState
+from src.agent.agents.graph_explorer import get_graph_explorer, get_mongo_read_toolset
+from src.agent.agents.semantic_retriever import get_semantic_retriever
+from src.agent.constants import AgentName
 from src.agent.tools.canonize_node import canonize_node_tool
 from src.agent.tools.emit_checkpoint import emit_checkpoint_tool
-from src.agent.tools.hybrid_search import hybrid_search_tool
 from src.config import settings
-from src.mcp.mongo_connections import get_read_params
-
-logger = logging.getLogger(__name__)
 
 ORCHESTRATOR_INSTRUCTION = """\
 You are Canon — an organizational reasoning system. You maintain the knowledge \
@@ -162,110 +147,11 @@ After retrieval and traversal, YOU synthesize — no downstream agent does this.
 """
 
 
-async def log_tool_usage(
-    tool: BaseTool,
-    args: dict[str, Any],
-    tool_context: ToolContext,
-    tool_response: dict[str, Any],
-) -> dict[str, Any] | None:
-    """Log tool calls across the agent hierarchy for observability."""
-    state = tool_context.state
-    is_error = "error" in (tool_response if isinstance(tool_response, dict) else {})
-    log_entry = {
-        "tool": tool.name,
-        "timestamp": datetime.now(UTC).isoformat(),
-        "success": not is_error,
-    }
-    logs = state.get(TempState.TOOL_LOGS, [])
-    logs.append(log_entry)
-    state[TempState.TOOL_LOGS] = logs
-
-    log = logging.getLogger(__name__)
-    if is_error:
-        log.warning(
-            "tool_call: error | agent=%s tool=%s args=%s",
-            tool_context.agent_name,
-            tool.name,
-            _summarize_tool_args(args),
-        )
-    else:
-        log.debug(
-            "tool_call: ok | agent=%s tool=%s args=%s",
-            tool_context.agent_name,
-            tool.name,
-            _summarize_tool_args(args),
-        )
-    return None
-
-
-def _summarize_tool_args(args: dict[str, Any]) -> str:
-    """Produce a brief summary of tool args for logging."""
-    if not args:
-        return "()"
-    if "query" in args:
-        return f"(query={str(args['query'])[:80]})"
-    if "document" in args and isinstance(args["document"], dict):
-        return f"(document={args['document'].get('name', '?')})"
-    keys = list(args.keys())[:3]
-    return "(" + ", ".join(f"{k}={str(args[k])[:40]}" for k in keys) + ")"
-
-
-_semantic_retriever: Agent | None = None
-_graph_explorer: Agent | None = None
-_read_toolset: McpToolset | None = None
-
-
-def _build_mongo_read_toolset() -> McpToolset:
-    global _read_toolset
-    if _read_toolset is not None:
-        return _read_toolset
-    _read_toolset = McpToolset(
-        connection_params=StdioConnectionParams(
-            server_params=get_read_params(),
-        ),
-        tool_filter=["find", "aggregate", "count"],
-    )
-    return _read_toolset
-
-
-def _get_semantic_retriever() -> Agent:
-    global _semantic_retriever
-    if _semantic_retriever is None:
-        _semantic_retriever = Agent(
-            name=AgentName.SEMANTIC_RETRIEVER,
-            model=CanonModel.create(settings.fast_model),
-            description="Perceives relevant organizational knowledge through hybrid search. "
-            "Call with a query to find semantically and textually related memory nodes.",
-            instruction=SEMANTIC_RETRIEVER_INSTRUCTION,
-            tools=[hybrid_search_tool, emit_checkpoint_tool],
-            output_key="retrieval_results",
-            after_tool_callback=log_tool_usage,
-        )
-    return _semantic_retriever
-
-
-def _get_graph_explorer() -> Agent:
-    global _graph_explorer
-    if _graph_explorer is None:
-        _graph_explorer = Agent(
-            name=AgentName.GRAPH_EXPLORER,
-            model=CanonModel.create(settings.fast_model),
-            description="Navigates relationships between memories using MongoDB. "
-            "Accepts entity IDs (hex strings) only — never names. "
-            "Returns connected context and relationship paths.",
-            instruction=GRAPH_EXPLORER_INSTRUCTION,
-            tools=[_build_mongo_read_toolset(), emit_checkpoint_tool],
-            output_key="graph_results",
-            after_tool_callback=graph_explorer_after_tool,
-        )
-    return _graph_explorer
-
-
 def build_orchestrator() -> Agent:
     """Construct the orchestrator agent for a single request."""
     tools: list = [
-        AgentTool(_get_semantic_retriever()),
-        AgentTool(_get_graph_explorer()),
+        AgentTool(get_semantic_retriever()),
+        AgentTool(get_graph_explorer()),
         canonize_node_tool,
         emit_checkpoint_tool,
     ]
@@ -287,11 +173,12 @@ async def initialize_agents() -> None:
     incur initialization latency. The shared read-only MCP toolset
     persists for the container lifetime.
     """
-    _get_semantic_retriever()
-    _get_graph_explorer()
+    get_semantic_retriever()
+    get_graph_explorer()
 
 
 async def cleanup_agents() -> None:
     """Close MCP subprocess connections. Called at container shutdown."""
-    if _read_toolset is not None:
-        await _read_toolset.close()
+    toolset = get_mongo_read_toolset()
+    if toolset is not None:
+        await toolset.close()

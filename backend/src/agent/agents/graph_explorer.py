@@ -2,8 +2,17 @@ from __future__ import annotations
 
 import logging
 
+from google.adk.agents import Agent
 from google.adk.tools.base_tool import BaseTool
+from google.adk.tools.mcp_tool import McpToolset
+from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
 from google.adk.tools.tool_context import ToolContext
+
+from src.agent.agent_platform import CanonModel
+from src.agent.constants import AgentName
+from src.agent.tools.emit_checkpoint import emit_checkpoint_tool
+from src.config import settings
+from src.mcp.mongo_connections import get_read_params
 
 logger = logging.getLogger(__name__)
 
@@ -123,3 +132,52 @@ async def graph_explorer_after_tool(
             response_str,
         )
     return None  # Don't modify the response
+
+
+_graph_explorer: Agent | None = None
+_read_toolset: McpToolset | None = None
+
+
+def _build_mongo_read_toolset() -> McpToolset:
+    global _read_toolset
+    if _read_toolset is not None:
+        return _read_toolset
+    _read_toolset = McpToolset(
+        connection_params=StdioConnectionParams(
+            server_params=get_read_params(),
+        ),
+        tool_filter=["find", "aggregate", "count"],
+    )
+    return _read_toolset
+
+
+def get_mongo_read_toolset() -> McpToolset:
+    """Return the singleton read-only MongoDB MCP toolset.
+
+    Exposed for lifecycle management — callers can close the underlying
+    subprocess connection via ``await toolset.close()``.
+    """
+    return _build_mongo_read_toolset()
+
+
+def get_graph_explorer() -> Agent:
+    """Return the singleton graph_explorer agent.
+
+    Lazy-initialises on first call so the MCP toolset is primed on demand.
+    """
+    global _graph_explorer
+    if _graph_explorer is None:
+        _graph_explorer = Agent(
+            name=AgentName.GRAPH_EXPLORER,
+            model=CanonModel.create(settings.fast_model),
+            description=(
+                "Navigates relationships between memories using MongoDB. "
+                "Accepts entity IDs (hex strings) only — never names. "
+                "Returns connected context and relationship paths."
+            ),
+            instruction=GRAPH_EXPLORER_INSTRUCTION,
+            tools=[_build_mongo_read_toolset(), emit_checkpoint_tool],
+            output_key="graph_results",
+            after_tool_callback=graph_explorer_after_tool,
+        )
+    return _graph_explorer

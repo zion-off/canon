@@ -29,10 +29,26 @@ from src.mcp.constants import (
     ToolName,
 )
 
+logger = logging.getLogger(__name__)
+
 _HEX24 = re.compile(r"^[0-9a-fA-F]{24}$")
 
 _OID_FIELDS = frozenset({"_id", "tenantId", "supersedes", "supersededBy"})
 _OID_ARRAY_FIELDS = frozenset({"relatedEntityIds"})
+
+_SAFE_PIPELINE_STAGES = frozenset(
+    {
+        "$match",
+        "$graphLookup",
+        "$project",
+        "$limit",
+        "$sort",
+        "$unwind",
+        "$rankFusion",
+        "$vectorSearch",
+        "$search",
+    }
+)
 
 
 class AmbientContextPlugin(BasePlugin):
@@ -58,18 +74,20 @@ class AmbientContextPlugin(BasePlugin):
 
         tenant_id = tool_context.state.get(SessionState.TENANT_ID)
         if not tenant_id:
-            logging.getLogger(__name__).warning(
+            logger.warning(
                 "ambient_context: no tenant_id in state | tool=%s",
                 tool.name,
             )
             return None
 
-        logging.getLogger(__name__).debug(
+        logger.debug(
             "ambient_context: injecting context | tool=%s tenant=%s",
             tool.name,
             tenant_id,
         )
         tool_args["database"] = Database.CANON
+        if not tool_args.get("collection"):
+            tool_args["collection"] = "nodes"
         self._ejsonize(tool_args)
 
         ejson_tenant = {"$oid": tenant_id}
@@ -166,5 +184,9 @@ class AmbientContextPlugin(BasePlugin):
                 ):
                     gl["restrictSearchWithMatch"] = {}
                 gl["restrictSearchWithMatch"]["tenantId"] = ejson_tenant
-                if "maxDepth" not in gl:
-                    gl["maxDepth"] = max_depth
+                gl["maxDepth"] = min(gl.get("maxDepth", max_depth), 3)
+
+            # Warn on unrecognized pipeline stages
+            for stage_key in stage:
+                if stage_key not in _SAFE_PIPELINE_STAGES:
+                    logger.warning("Unrecognized pipeline stage: %s", stage_key)

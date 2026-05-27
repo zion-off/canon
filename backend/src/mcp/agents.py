@@ -29,6 +29,8 @@ from src.mcp.tools import (
     hybrid_search_tool,
 )
 
+logger = logging.getLogger(__name__)
+
 MEMORY_NODE_SCHEMA = """\
 ## Memory Node Schema (memory_nodes collection)
 
@@ -209,6 +211,26 @@ def _summarize_tool_args(args: dict[str, Any]) -> str:
     return "(" + ", ".join(f"{k}={str(args[k])[:40]}" for k in keys) + ")"
 
 
+async def graph_explorer_after_tool(
+    tool: BaseTool,
+    args: dict[str, Any],
+    tool_context: ToolContext,
+    tool_response: Any,
+) -> Any | None:
+    """Observe graph_explorer tool responses for error patterns."""
+    # Delegate to shared tool-usage logging first
+    await log_tool_usage(tool, args, tool_context, tool_response)
+
+    response_str = str(tool_response) if tool_response else ""
+    if "error" in response_str.lower() or "Error" in response_str:
+        logger.warning(
+            "graph_explorer tool '%s' returned error-like response: %.200s",
+            tool.name,
+            response_str,
+        )
+    return None  # Don't modify the response
+
+
 _semantic_retriever: Agent | None = None
 _graph_explorer: Agent | None = None
 _read_toolset: McpToolset | None = None
@@ -255,7 +277,7 @@ def _get_graph_explorer() -> Agent:
             instruction=GRAPH_EXPLORER_INSTRUCTION,
             tools=[_build_mongo_read_toolset(), emit_checkpoint_tool],
             output_key="graph_results",
-            after_tool_callback=log_tool_usage,
+            after_tool_callback=graph_explorer_after_tool,
         )
     return _graph_explorer
 

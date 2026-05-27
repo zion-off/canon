@@ -17,7 +17,7 @@ from google.adk.tools.base_tool import BaseTool
 from google.genai import types
 from pydantic import BaseModel
 
-from src.mcp.constants import AgentName, SessionState, TempState
+from src.mcp.constants import AgentName, SessionState, TempState, ToolCallStatus
 from src.models.schemas import (
     SubagentInvokedEvent,
     SubagentInvokedPayload,
@@ -48,9 +48,9 @@ def _extract_status(result: Any) -> str:
         result_dict = result
     else:
         return "ok"
-    if "error" in result_dict:
-        return "error"
-    return str(result_dict.get("status", "ok"))
+    if "error" in result_dict or result_dict.get("status") == ToolCallStatus.ERROR:
+        return ToolCallStatus.ERROR
+    return ToolCallStatus.OK
 
 
 async def emit_tool_started(

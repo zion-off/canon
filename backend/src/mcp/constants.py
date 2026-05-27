@@ -67,6 +67,13 @@ class ToolName:
     READ_ONLY: Final[frozenset[str]] = frozenset({FIND, AGGREGATE, COUNT})
 
 
+class ToolCallStatus:
+    """Normalized status values emitted in tool_call_completed events."""
+
+    OK: Final = "ok"
+    ERROR: Final = "error"
+
+
 class Database:
     """MongoDB database names."""
 

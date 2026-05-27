@@ -6,7 +6,6 @@ import { formatTimestamp } from "@/lib/date-utils";
 
 const STATUS_DISPLAY: Record<string, string> = {
   ok: "Done",
-  success: "Done",
   error: "Failed",
 };
 
@@ -21,7 +20,7 @@ export function ToolCallTimeline({ pair }: ToolCallTimelineProps) {
     ? (AGENT_DISPLAY_NAMES[started.author] ?? started.author)
     : null;
   const isPending = completed === null;
-  const isSuccess = completed?.payload.status === "ok" || completed?.payload.status === "success";
+  const isSuccess = completed?.payload.status === "ok";
 
   return (
     <div>

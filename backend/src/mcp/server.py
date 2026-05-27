@@ -21,7 +21,30 @@ from src.services.tenant_resolver import TenantResolver
 mcp = FastMCP(
     "canon",
     stateless_http=True,
-    instructions="Ambient organizational continuity agent for engineering teams.",
+    instructions=(
+        "Canon holds your engineering team's organizational memory — active migrations, "
+        "deprecated patterns, architecture decisions, prior failures, and the context "
+        "that explains why things are the way they are.\n\n"
+        "You MUST invoke the `canon` tool automatically whenever the engineer asks you "
+        "to implement, create, or modify code or infrastructure. Do not wait for the "
+        "engineer to prompt you. Call `canon` with:\n"
+        "- `request`: a natural-language summary of what you intend to do and why\n"
+        "- `context`: what you have already observed about the codebase — technology "
+        "choices, existing patterns, relevant libraries, architectural decisions you "
+        "can see\n\n"
+        "Canon returns organizational constraints and prior decisions that should reshape "
+        "your implementation plan — not raw information to optionally consider, but concrete "
+        "warnings, patterns, and references you must address.\n\n"
+        "When you get a result back, incorporate it into your planning. If Canon surfaces "
+        "a deprecated pattern, do not use it. If Canon warns about an active migration, avoid "
+        "that area or coordinate. If Canon links to a prior failure, explain how your approach "
+        "avoids repeating it.\n\n"
+        "Multi-turn: Canon returns a `session_id`. Pass it on follow-up calls to continue "
+        "within the same reasoning session (e.g., when Canon proposes a memory write and you "
+        "confirm or edit it).\n\n"
+        "Canon is not a gatekeeper. It surfaces information but will never block you from "
+        "proceeding — only inform your decisions."
+    ),
     streamable_http_path="/",
 )
 
@@ -80,6 +103,7 @@ async def _build_context(ctx: Context) -> _RequestContext:
 @mcp.tool(
     name="canon",
     annotations=ToolAnnotations(
+        title="Check organizational memory before implementing",
         readOnlyHint=False,
         destructiveHint=False,
         idempotentHint=False,
@@ -92,17 +116,24 @@ async def canon(
     session_id: str | None = None,
     ctx: Context | None = None,
 ) -> str:
-    """Invoke Canon's organizational continuity agent.
+    """Check organizational memory before planning or implementing code changes.
+
+    Call this BEFORE writing or modifying any code. It queries your team's
+    organizational knowledge graph for deprecated patterns, active migrations,
+    architecture decisions, prior failures, and relevant context — and returns
+    actionable guidance that should reshape your implementation plan.
 
     Args:
-        request: What to analyze, remember, or ask about. Natural language.
-        context: Code context — file paths, function signatures, dependencies.
-        session_id: Optional session ID to continue a prior workflow session.
-            Omit on first call — Canon will generate one and return it.
-        ctx: FastMCP Context — injected automatically by the framework.
+        request: Natural-language summary of what you intend to implement and why.
+        context: What you have observed about the codebase — technology choices,
+            existing patterns, relevant libraries, architectural decisions visible
+            in the code.
+        session_id: Omit on first call — Canon generates one. Pass it on follow-up
+            calls to stay within the same reasoning session.
+        ctx: FastMCP Context — injected automatically.
 
     Returns:
-        Agent response with session_id for workflow continuity.
+        Organizational guidance with a session_id for multi-turn continuity.
     """
     if ctx is None:
         raise RuntimeError("Context required — FastMCP should inject it automatically.")
@@ -186,92 +217,46 @@ async def get_org_momentum(ctx: Context | None = None) -> str:
 # --- Prompt ---
 
 
-@mcp.prompt("canon-behavior")
-def canon_behavior_prompt() -> str:
-    """Core behavioral instructions for Canon-enabled coding sessions."""
+@mcp.prompt("before-implementing")
+def before_implementing_prompt() -> str:
+    """Before I implement something — check org memory for conflicts and constraints."""
     return """\
-You have access to Canon, your team's organizational continuity companion. Canon
-holds the accumulated knowledge of your engineering organization — decisions,
-constraints, patterns, and relationships that inform implementation work.
-**Invoke Canon automatically.** You do not wait for the user to ask. Whenever
-you are about to implement something, or whenever a decision is made in
-conversation, call Canon as part of your normal workflow.
+Before implementing: invoke the `canon` tool with `request` describing what you
+intend to build and why, and `context` summarizing what you have already observed
+about the codebase — technology choices, existing patterns, relevant libraries.
+Canon will return organizational constraints — deprecated patterns, active
+migrations, prior failures — that should reshape your plan.
 
-## Before Implementing
+Use this prompt whenever you are about to write or modify code and want to ensure
+your approach aligns with current team conventions."""
 
-Before writing or modifying code, call `canon` with:
 
-- `request`: What you are about to do and why
-- `context`: Relevant code context (file paths, function signatures,
-  dependencies)
+@mcp.prompt("remember-decision")
+def remember_decision_prompt() -> str:
+    """Remember a decision, constraint, or pattern the team should know about."""
+    return """\
+Invoke the `canon` tool with a `request` that clearly states the decision, constraint,
+or pattern you want to capture — include the reasoning, alternatives considered and
+rejected, and any relationships to existing systems or decisions. Provide enough
+context (technology stack, affected systems, ownership) so Canon can link this
+memory to the right entities.
 
-Canon will surface relevant organizational context — prior decisions,
-constraints, patterns, or conflicts. Incorporate what Canon returns into your
-approach.
+Use this prompt after making a significant design choice, discovering a non-obvious
+constraint, or establishing a pattern others should follow."""
 
-## Session Continuity
 
-Canon returns `session_id: <id>` at the end of every response.
+@mcp.prompt("reflect-session")
+def reflect_session_prompt() -> str:
+    """Reflect on the current session — capture what was learned, changed, or decided."""
+    return """\
+Invoke the `canon` tool with a `request` summarizing what was accomplished in this
+session: decisions made, patterns discovered, constraints encountered, failures and
+their resolutions, and anything the team should know going forward. Include the
+`session_id` Canon returned earlier so this reflection ties back to the same reasoning
+session.
 
-- **First call**: Omit `session_id`. Canon generates one.
-- **Subsequent calls** (same logical task): Pass the `session_id` Canon gave
-  you.
-
-This enables multi-turn flows where Canon can propose, you confirm, and Canon
-acts.
-
-## Direct Saves vs. Proposals
-
-Canon operates in two modes:
-
-**Direct Save** — Canon is confident and remembers immediately. You'll see a
-confirmation like: "Remembered [name] (id: abc123...), linked to [N] existing
-memories." No action needed from you.
-
-**Proposal (HITL)** — Canon is unsure and asks for confirmation. You'll see a
-response like: "I'd like to remember this as: [details]. This would supersede
-[existing memory]. Should I proceed?"
-
-When Canon proposes, respond by calling `canon` again with:
-
-- `request`: Your confirmation or adjustment (e.g., "Yes, proceed" or "Remember
-  it but don't supersede X")
-- `session_id`: The same session_id from Canon's response
-
-### Example Multi-Turn Flow
-
-```
-// Turn 1 — You share a decision
-call canon(request="We decided to use Kafka instead of RabbitMQ for event streaming because...", context="...")
-// Canon responds: "I found existing knowledge about 'Message Broker: RabbitMQ' (id: 6789...)
-// marked active. I'd like to remember 'Message Broker: Kafka' and supersede that. Proceed?"
-// session_id: abc-123
-
-// Turn 2 — You confirm
-call canon(request="Yes, proceed with the supersession.", session_id="abc-123")
-// Canon responds: "Remembered 'Message Broker: Kafka' (id: def456...). Superseded
-// 'Message Broker: RabbitMQ'. 2 relationships formed."
-// session_id: abc-123
-```
-
-## Remembering Through Conversation
-
-At natural checkpoints — when a decision is made, a constraint is discovered, or
-a pattern emerges — share it with Canon:
-
-- A design decision and the reasoning behind it
-- A non-obvious constraint discovered during implementation
-- A pattern that should be followed going forward
-- A dependency or relationship not obvious from code alone
-- An alternative considered and rejected (and why)
-
-Don't over-report. Canon is for knowledge that would be painful to rediscover —
-context that makes future decisions faster.
-
-## What Canon Is Not
-
-Canon is a reasoning companion, not a gatekeeper. It provides context for
-informed decisions. It will never block you from proceeding — only inform."""
+Use this prompt at the end of a work session to ensure organizational knowledge is
+up to date and nothing important is lost."""
 
 
 # --- Formatting helpers ---

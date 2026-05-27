@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from beanie.odm.operators.find.comparison import In
 from bson import ObjectId
@@ -39,19 +39,20 @@ mcp = FastMCP(
         "a deprecated pattern, do not use it. If Canon warns about an active migration, avoid "
         "that area or coordinate. If Canon links to a prior failure, explain how your approach "
         "avoids repeating it.\n\n"
-        "Multi-turn: Canon returns a `session_id`. Pass it on follow-up calls to continue "
-        "within the same reasoning session (e.g., when Canon proposes a memory write and you "
-        "confirm or edit it).\n\n"
+        "Multi-turn: Canon returns a `session_id` at the end of every response. Save it and "
+        "pass it back verbatim on subsequent calls to continue the same reasoning session. "
+        "NEVER invent or guess a session_id — only pass back the exact UUID Canon returned. "
+        "If you need a new session, omit the parameter entirely and Canon will generate one.\n\n"
         "Canon is not a gatekeeper. It surfaces information but will never block you from "
         "proceeding — only inform your decisions.\n\n"
         "## Writing effective queries\n\n"
         "Canon uses hybrid search: semantic embeddings (weighted 1.5x) combined with keyword "
         "search on name, description, and content (weighted 1.0x). Your `request` becomes the "
         "search query, so make it specific and domain-rich:\n\n"
-        "- Prefer natural language with concrete domain concepts: \"adding Redis caching to the "
-        "user session service to reduce database load\" — not \"adding caching\"\n"
+        '- Prefer natural language with concrete domain concepts: "adding Redis caching to the '
+        'user session service to reduce database load" — not "adding caching"\n'
         "- Include technology names, patterns, and architectural terms that would appear in "
-        "team discussions: \"JWT auth\", \"event sourcing\", \"Postgres migration\"\n"
+        'team discussions: "JWT auth", "event sourcing", "Postgres migration"\n'
         "- If referencing known team acronyms or identifiers (PROJ-123, gRPC, k8s), mention "
         "them explicitly — Canon does not have access to your repo\n\n"
         "Your `context` should summarize what you observe about the codebase — technology "
@@ -68,7 +69,7 @@ mcp = FastMCP(
         "- **status** (active, deprecated, in_progress, resolved, completed): embedded "
         "alongside the name and keyword-searchable. Canon weights active and in_progress "
         "nodes highest in its reasoning.\n"
-        "- **tags**: embedded for semantic search (appended as \"Tags: X, Y\" to the embedding "
+        '- **tags**: embedded for semantic search (appended as "Tags: X, Y" to the embedding '
         "text). Use tags for concepts that matter for retrieval but aren't explicit in the "
         "description — categorizations, domains, technology families.\n"
         "- **relationships**: nodes can link to other nodes (relatedEntityIds) and supersede "
@@ -133,11 +134,11 @@ async def _build_context(ctx: Context) -> _RequestContext:
 @mcp.tool(
     name="canon",
     annotations=ToolAnnotations(
-        title="Check organizational memory before implementing",
+        title="check organizational memory",
         readOnlyHint=False,
         destructiveHint=False,
         idempotentHint=False,
-        openWorldHint=False,
+        openWorldHint=True,
     ),
 )
 async def canon(
@@ -158,17 +159,33 @@ async def canon(
         context: What you have observed about the codebase — technology choices,
             existing patterns, relevant libraries, architectural decisions visible
             in the code.
-        session_id: Omit on first call — Canon generates one. Pass it on follow-up
-            calls to stay within the same reasoning session.
+        session_id: MUST be a UUID Canon returned in a previous response. NEVER
+            invent, guess, or generate this value. Omit it on the first call —
+            Canon will return one. On subsequent calls within the same session,
+            pass back exactly the session_id Canon gave you.
         ctx: FastMCP Context — injected automatically.
 
     Returns:
         Organizational guidance with a session_id for multi-turn continuity.
+        Always capture the session_id from the response and pass it back on
+        the next call. Do not modify it.
     """
     if ctx is None:
         raise RuntimeError("Context required — FastMCP should inject it automatically.")
     request_ctx = await _build_context(ctx)
     run_id = str(uuid4())
+
+    if session_id is not None:
+        try:
+            UUID(session_id)
+        except ValueError:
+            return (
+                "ERROR: The session_id you provided is not a valid UUID. "
+                "Canon only accepts session IDs it originally generated. "
+                "Omit session_id to start a new session, or pass back exactly "
+                "the session_id value from a previous Canon response."
+            )
+
     resolved_session_id = session_id or str(uuid4())
 
     log = logging.getLogger(__name__)
@@ -188,6 +205,7 @@ async def canon(
         tenant_id=request_ctx.tenant_id,
         user_id=request_ctx.user_id,
         session_id=resolved_session_id,
+        resolved_from_closed=session_id is not None,
         run_id=run_id,
         title=title,
         message=f"Request:\n{request}\n\nContext:\n{context}",
@@ -195,7 +213,11 @@ async def canon(
         invocation_args=RunStartedPayload(request=request, context=context),
     )
 
-    return f"{response}\n\n---\nsession_id: {resolved_session_id}"
+    return (
+        f"{response}\n\n---\nsession_id: {resolved_session_id}\n"
+        f"(Save this session_id and pass it back on your next canon call "
+        f"to continue this session.)"
+    )
 
 
 # --- Resources ---
@@ -281,9 +303,8 @@ def reflect_session_prompt() -> str:
     return """\
 Invoke the `canon` tool with a `request` summarizing what was accomplished in this
 session: decisions made, patterns discovered, constraints encountered, failures and
-their resolutions, and anything the team should know going forward. Include the
-`session_id` Canon returned earlier so this reflection ties back to the same reasoning
-session.
+their resolutions, and anything the team should know going forward. Pass the exact
+`session_id` Canon returned earlier — do not modify or invent it.
 
 Use this prompt at the end of a work session to ensure organizational knowledge is
 up to date and nothing important is lost."""

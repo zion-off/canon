@@ -130,10 +130,23 @@ export const ToolCallPairSchema = z.object({
   completed: ToolCallCompletedEventSchema.extend(identifiedEventFields).nullable(),
 });
 
+export const SubagentGroupSchema = z.object({
+  kind: z.literal(DISPLAY_KIND.SUBAGENT_GROUP),
+  stableId: z.number(),
+  agentInvocationId: z.string(),
+  agentName: z.string(),
+  timestamp: z.string().nullable(),
+  toolPairs: z.array(ToolCallPairSchema),
+});
+
 // z.union instead of z.discriminatedUnion because IdentifiedEventSchema is an
 // intersection (ZodIntersection), not a plain ZodObject. TypeScript still narrows
-// correctly on `kind` because both inferred types carry it as a literal.
-export const DisplayItemSchema = z.union([IdentifiedEventSchema, ToolCallPairSchema]);
+// correctly on `kind` because all inferred types carry it as a literal.
+export const DisplayItemSchema = z.union([
+  IdentifiedEventSchema,
+  ToolCallPairSchema,
+  SubagentGroupSchema,
+]);
 
 // ── TypeScript types ──────────────────────────────────────────────────────────
 
@@ -148,4 +161,5 @@ export type ToolCallStartedEvent = z.infer<typeof ToolCallStartedEventSchema>;
 export type ToolCallCompletedEvent = z.infer<typeof ToolCallCompletedEventSchema>;
 export type IdentifiedEvent = z.infer<typeof IdentifiedEventSchema>;
 export type ToolCallPair = z.infer<typeof ToolCallPairSchema>;
+export type SubagentGroup = z.infer<typeof SubagentGroupSchema>;
 export type DisplayItem = z.infer<typeof DisplayItemSchema>;

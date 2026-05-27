@@ -2,6 +2,7 @@
 
 import type { DisplayItem } from "@/lib/schemas/sessions";
 import { ToolCallTimeline } from "./ToolCallTimeline";
+import { SubagentGroupItem } from "./SubagentGroupItem";
 import { RunSeparator } from "./RunSeparator";
 import { formatTimestamp } from "@/lib/date-utils";
 import { isJsonContent } from "@/lib/text-utils";
@@ -16,15 +17,16 @@ export function EventItem({ item }: EventItemProps) {
     return <ToolCallTimeline pair={item} />;
   }
 
+  if (item.kind === DISPLAY_KIND.SUBAGENT_GROUP) {
+    return <SubagentGroupItem group={item} />;
+  }
+
   switch (item.type) {
     case EVENT_TYPE.RUN_STARTED:
       return <RunSeparator label="Run started" />;
 
     case EVENT_TYPE.RUN_COMPLETED:
       return <RunSeparator label="Run completed" />;
-
-    case EVENT_TYPE.SUBAGENT_INVOKED:
-      return null;
 
     case EVENT_TYPE.REASONING_CHECKPOINT:
       return (

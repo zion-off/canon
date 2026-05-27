@@ -52,6 +52,7 @@ export const EVENT_TYPE = {
 export const DISPLAY_KIND = {
   EVENT: "event",
   TOOL_CALL_PAIR: "tool_call_pair",
+  SUBAGENT_GROUP: "subagent_group",
 } as const;
 
 export const TOOL_NAME = {
@@ -78,6 +79,13 @@ export const TOOL_DISPLAY_NAMES: Record<string, string> = {
   [AGENT_NAME.SEMANTIC_RETRIEVER]: "Memory search",
   [AGENT_NAME.GRAPH_EXPLORER]: "Graph exploration",
 };
+
+// Tool names used by AgentTool wrapper calls — filtered out of the feed since
+// they duplicate the SubagentGroup that the subagent_invoked event creates.
+export const SUBAGENT_TOOL_NAMES: ReadonlySet<string> = new Set([
+  AGENT_NAME.SEMANTIC_RETRIEVER,
+  AGENT_NAME.GRAPH_EXPLORER,
+]);
 
 export const AGENT_DISPLAY_NAMES: Record<string, string> = {
   [AGENT_NAME.ORCHESTRATOR]: "Canon",

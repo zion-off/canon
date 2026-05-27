@@ -20,8 +20,8 @@ from typing import Any
 from beanie.odm.fields import PydanticObjectId
 from google.adk.tools.function_tool import FunctionTool
 from google.adk.tools.tool_context import ToolContext
-
 from mcp.types import TextContent
+
 from src.config import settings
 from src.mcp.agent_platform import CanonModel
 from src.mcp.constants import SessionState, TempState
@@ -33,6 +33,7 @@ from src.mcp.models import (
     HybridSearchResult,
     HybridSearchSuccess,
     MemoryNodeInput,
+    SearchResultItem,
 )
 from src.mcp.mongo_connections import call_aggregate
 from src.models.documents import MemoryNodeDocument
@@ -59,6 +60,31 @@ def build_embedding_text(doc: MemoryNodeInput) -> str:
     if doc.tags:
         lines.append("Tags: " + ", ".join(doc.tags))
     return "\n".join(filter(None, lines))
+
+
+def _enrich_search_result(
+    result: HybridSearchSuccess, limit: int = 10
+) -> HybridSearchSuccess:
+    """Populate note/next_actions based on result characteristics."""
+    if result.count == 0:
+        result.note = "No results — try broader terms or different keywords"
+        result.next_actions = [
+            "Retry with broader query",
+            "Report no relevant context found",
+        ]
+    elif result.count < 3:
+        result.note = "Few results — knowledge may be sparse on this topic"
+        result.next_actions = [
+            "Trace relationships from found IDs via graph_explorer",
+        ]
+    elif result.count >= limit:
+        result.note = "Results capped at limit — most relevant are first"
+        result.next_actions = ["Focus on top results for entity IDs to trace"]
+    else:
+        result.next_actions = [
+            "Trace relationships from found IDs via graph_explorer",
+        ]
+    return result
 
 
 async def hybrid_search(
@@ -99,7 +125,11 @@ async def hybrid_search(
             query,
             exc,
         )
-        return HybridSearchError(error=f"Embedding generation failed: {exc}")
+        return HybridSearchError(
+            error=f"Embedding generation failed: {exc}",
+            hint="Embedding model unavailable",
+            retry="Wait and retry. If persistent, surface the error.",
+        )
 
     log = logging.getLogger(__name__)
     log.debug(
@@ -198,14 +228,18 @@ async def hybrid_search(
                         item.text,
                     )
                     return HybridSearchError(
-                        error=f"MongoDB MCP aggregate failed: {item.text}"
+                        error=f"MongoDB MCP aggregate failed: {item.text}",
+                        hint="MongoDB query returned an error",
+                        retry="Simplify pipeline or try different query",
                     )
             log.warning(
                 "hybrid_search: aggregate returned error (no content) | query=%.80s",
                 query,
             )
             return HybridSearchError(
-                error="MongoDB MCP aggregate failed (unknown response)"
+                error="MongoDB MCP aggregate failed (unknown response)",
+                hint="MongoDB query returned an error",
+                retry="Simplify pipeline or try different query",
             )
 
         # Parse the result content into documents.
@@ -222,10 +256,13 @@ async def hybrid_search(
             except json.JSONDecodeError:
                 continue
 
-        return HybridSearchSuccess(
-            results=docs,
-            count=len(docs),
-            query=query,
+        return _enrich_search_result(
+            HybridSearchSuccess(
+                results=[SearchResultItem.model_validate(d) for d in docs],
+                count=len(docs),
+                query=query,
+            ),
+            limit,
         )
     except Exception as exc:
         log.warning(
@@ -233,7 +270,11 @@ async def hybrid_search(
             query,
             exc,
         )
-        return HybridSearchError(error=f"Hybrid search failed: {exc}")
+        return HybridSearchError(
+            error=f"Hybrid search failed: {exc}",
+            hint="Unexpected failure",
+            retry="Retry once. If persistent, continue without results.",
+        )
 
 
 # ─── Core Agent Tools ────────────────────────────────────────────────────────
@@ -274,30 +315,49 @@ async def canonize_node(
             doc = MemoryNodeInput.model_validate(document)
         except Exception as exc:
             log.warning("canonize_node: validation failed | error=%s", exc)
-            return CanonizeError(error=f"Invalid document: {exc}")
+            return CanonizeError(
+                error=f"Invalid document: {exc}",
+                hint="Document schema invalid",
+                retry="Check required fields: name, description, content, status",
+            )
     else:
         doc = document
 
     if len(doc.related_entity_ids) > 100:
-        return CanonizeError(error="relatedEntityIds exceeds maximum of 100 entries.")
+        return CanonizeError(
+            error="relatedEntityIds exceeds maximum of 100 entries.",
+            hint="Too many relationships specified",
+            retry="Limit relatedEntityIds to 20 most relevant",
+        )
 
     tenant_id_str = tool_context.state.get(SessionState.TENANT_ID)
     if not tenant_id_str:
-        return CanonizeError(error="No tenant context in session state.")
+        return CanonizeError(
+            error="No tenant context in session state.",
+            hint="Missing tenant context",
+        )
 
     try:
         tenant_oid = PydanticObjectId(tenant_id_str)
         related_entity_oids = [PydanticObjectId(rid) for rid in doc.related_entity_ids]
         related_existing_oids = [PydanticObjectId(rid) for rid in related_existing_ids]
     except Exception as exc:
-        return CanonizeError(error=f"Invalid ObjectId: {exc}")
+        return CanonizeError(
+            error=f"Invalid ObjectId: {exc}",
+            hint="Malformed ID",
+            retry="Verify IDs are 24-char hex from actual query results",
+        )
 
     supersedes_oid: PydanticObjectId | None = None
     if doc.supersedes:
         try:
             supersedes_oid = PydanticObjectId(doc.supersedes)
         except Exception as exc:
-            return CanonizeError(error=f"Invalid ObjectId in supersedes: {exc}")
+            return CanonizeError(
+                error=f"Invalid ObjectId in supersedes: {exc}",
+                hint="Malformed ID",
+                retry="Verify IDs are 24-char hex from actual query results",
+            )
 
     now = datetime.now(tz=UTC)
     embedding_text = build_embedding_text(doc)
@@ -309,7 +369,11 @@ async def canonize_node(
         )
     except Exception as exc:
         log.warning("canonize_node: embedding failed | error=%s", exc)
-        return CanonizeError(error=f"Embedding generation failed: {exc}")
+        return CanonizeError(
+            error=f"Embedding generation failed: {exc}",
+            hint="Embedding model unavailable",
+            retry="Wait and retry",
+        )
 
     node_doc = MemoryNodeDocument(
         tenantId=tenant_oid,
@@ -331,10 +395,16 @@ async def canonize_node(
     except Exception as exc:
         if "duplicate key" in str(exc).lower():
             return CanonizeError(
-                error=f"A node named '{doc.name}' already exists for this tenant."
+                error=f"A node named '{doc.name}' already exists for this tenant.",
+                hint="A memory with this name already exists",
+                retry="Use different name or supersede existing. Retrieve it first.",
             )
         log.warning("canonize_node: insert failed | name=%s error=%s", doc.name, exc)
-        return CanonizeError(error=f"Insert failed: {exc}")
+        return CanonizeError(
+            error=f"Insert failed: {exc}",
+            hint="Database write failed",
+            retry="Retry once. If persistent, surface the error.",
+        )
 
     new_id = node_doc.id
     relationships_formed = 0
@@ -394,7 +464,7 @@ async def emit_checkpoint(message: str, tool_context: ToolContext) -> dict[str, 
         tool_context.agent_name,
         message,
     )
-    return {"status": "emitted", "message": message}
+    return {"status": "ok", "message": message}
 
 
 # ─── Tool Instances ──────────────────────────────────────────────────────────

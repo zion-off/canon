@@ -19,7 +19,7 @@ export function McpConfigDisplay({
     {
       mcpServers: {
         canon: {
-          url: `${PUBLIC_API_URL}/mcp`,
+          url: `${PUBLIC_API_URL}/mcp/`,
           headers: { Authorization: `Bearer ${token}` },
         },
       },

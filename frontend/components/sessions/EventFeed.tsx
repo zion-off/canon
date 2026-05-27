@@ -17,6 +17,7 @@ interface RunBucket {
   runIndex: number;
   events: IdentifiedEvent[];
   timestamp: string | null;
+  message: string | null;
 }
 
 function groupEventsIntoRuns(events: IdentifiedEvent[]): RunBucket[] {
@@ -32,15 +33,16 @@ function groupEventsIntoRuns(events: IdentifiedEvent[]): RunBucket[] {
     }
   }
 
-  return Array.from(buckets.entries()).map(([runId, runEvents], index) => ({
-    runId,
-    runIndex: index + 1,
-    events: runEvents,
-    timestamp:
-      runEvents.find((e) => e.type === EVENT_TYPE.RUN_STARTED)?.timestamp ??
-      runEvents[0]?.timestamp ??
-      null,
-  }));
+  return Array.from(buckets.entries()).map(([runId, runEvents], index) => {
+    const runStarted = runEvents.find((e) => e.type === EVENT_TYPE.RUN_STARTED);
+    return {
+      runId,
+      runIndex: index + 1,
+      events: runEvents,
+      timestamp: runStarted?.timestamp ?? runEvents[0]?.timestamp ?? null,
+      message: runStarted?.type === EVENT_TYPE.RUN_STARTED ? runStarted.payload.message : null,
+    };
+  });
 }
 
 function toIdentifiedEvent(event: AgentEvent, stableId: number): IdentifiedEvent {
@@ -112,6 +114,7 @@ export function EventFeed({ sessionId, initialEvents, isLive }: EventFeedProps) 
           runIndex={run.runIndex}
           events={run.events}
           timestamp={run.timestamp}
+          message={run.message}
         />
       ))}
 

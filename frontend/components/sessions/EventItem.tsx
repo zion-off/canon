@@ -48,7 +48,7 @@ export function EventItem({ item }: EventItemProps) {
     case EVENT_TYPE.FINAL_RESPONSE:
       return (
         <div className="flex gap-3">
-          <div className="pt-1.5">
+          <div className="pt-1">
             <div className="w-2 h-2 rounded-full bg-canon-accent shrink-0" />
           </div>
           <div className="pb-1 min-w-0 flex-1">

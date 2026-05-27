@@ -29,6 +29,7 @@ from src.models.schemas import (
     ReasoningCheckpointPayload,
     RunCompletedEvent,
     RunStartedEvent,
+    RunStartedPayload,
     SessionResponse,
 )
 
@@ -160,7 +161,10 @@ async def run_agent(
         user_id=user_id,
         session_id=session_id,
         run_id=run_id,
-        event=RunStartedEvent(author=AgentName.ORCHESTRATOR),
+        event=RunStartedEvent(
+            author=AgentName.ORCHESTRATOR,
+            payload=RunStartedPayload(message=message),
+        ),
     )
 
     # Run orchestrator — the ReasoningFeedPlugin handles lifecycle events

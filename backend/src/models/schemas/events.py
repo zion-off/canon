@@ -11,7 +11,7 @@ from src.models.schemas._base import MongoModel
 
 
 class RunStartedPayload(BaseModel):
-    pass
+    message: str
 
 
 class RunCompletedPayload(BaseModel):
@@ -76,7 +76,7 @@ class AgentEventBase(MongoModel):
 
 class RunStartedEvent(AgentEventBase):
     type: Literal["run_started"] = EventType.RUN_STARTED
-    payload: RunStartedPayload = Field(default_factory=RunStartedPayload)
+    payload: RunStartedPayload
 
 
 class RunCompletedEvent(AgentEventBase):

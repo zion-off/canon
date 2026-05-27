@@ -54,53 +54,66 @@ class _AppState:
     agents_ready: bool = False
 
 
+# Create the FastMCP HTTP app at module level so it can be mounted before
+# FastAPI starts its lifespan.  The MCP lifespan (session manager) is
+# composed into the parent FastAPI lifespan below.
+_mcp_app = mcp.http_app(path="/")
+
+
 @contextlib.asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application lifespan — connect services, initialize agents, tear down."""
-    async with mcp.session_manager.run():
-        mongo = MongoProvider()
-        await mongo.connect()
-        app.state.mongo = mongo
-
-        event_feed = AgentEventFeed()
-        init_feed(event_feed)
-        app.state.event_feed = event_feed
-
-        # Defer agent initialization — requires Gemini and MongoDB MCP subprocess
-        try:
-            from src.agent.agents.orchestrator import cleanup_agents, initialize_agents
-            from src.mcp.mongo_connections import shutdown as mongo_mcp_shutdown
-            from src.mcp.mongo_connections import startup as mongo_mcp_startup
-
-            await mongo_mcp_startup()
-            await initialize_agents()
-            _AppState.agents_ready = True
-            logger.info("Canon ADK agents initialized")
-        except Exception:
-            logger.exception("Agent initialization failed — MCP tool calls will error")
-
+async def _combined_lifespan(app: FastAPI):
+    """Compose the FastMCP session-manager lifespan with the API lifespan."""
+    async with _mcp_app.lifespan(_mcp_app), _api_lifespan(app):
         yield
 
-        try:
-            from src.agent.agents.orchestrator import cleanup_agents
-            from src.mcp.mongo_connections import shutdown as mongo_mcp_shutdown
 
-            _AppState.agents_ready = False
-            await cleanup_agents()
-            await mongo_mcp_shutdown()
-        except Exception:
-            pass
+@contextlib.asynccontextmanager
+async def _api_lifespan(app: FastAPI):
+    """Application lifespan — connect services, initialize agents, tear down."""
+    mongo = MongoProvider()
+    await mongo.connect()
+    app.state.mongo = mongo
 
-        await mongo.disconnect()
-        logger.info("MongoDB disconnected")
+    event_feed = AgentEventFeed()
+    init_feed(event_feed)
+    app.state.event_feed = event_feed
+
+    try:
+        from src.agent.agents.orchestrator import cleanup_agents, initialize_agents
+        from src.mcp.mongo_connections import shutdown as mongo_mcp_shutdown
+        from src.mcp.mongo_connections import startup as mongo_mcp_startup
+
+        await mongo_mcp_startup()
+        await initialize_agents()
+        _AppState.agents_ready = True
+        logger.info("Canon ADK agents initialized")
+    except Exception:
+        logger.exception("Agent initialization failed — MCP tool calls will error")
+
+    yield
+
+    try:
+        from src.agent.agents.orchestrator import cleanup_agents
+        from src.mcp.mongo_connections import shutdown as mongo_mcp_shutdown
+
+        _AppState.agents_ready = False
+        await cleanup_agents()
+        await mongo_mcp_shutdown()
+    except Exception:
+        pass
+
+    await mongo.disconnect()
+    logger.info("MongoDB disconnected")
 
 
 app = FastAPI(
     title="Canon",
     description="Organizational continuity agent for engineering teams",
     version="0.1.0",
-    lifespan=lifespan,
+    lifespan=_combined_lifespan,
 )
+
+app.mount("/mcp", _mcp_app)
 
 
 @app.exception_handler(Exception)
@@ -114,8 +127,6 @@ async def _unexpected_exception_handler(
         content={"detail": "Internal server error"},
     )
 
-
-app.mount("/mcp", mcp.streamable_http_app())
 
 # REST API routers
 app.include_router(auth_router, prefix="/api/v1/auth")

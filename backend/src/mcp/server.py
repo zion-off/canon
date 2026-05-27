@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
+
+from src.mcp.middleware import AuthMiddleware
 
 _MCP_INSTRUCTIONS = """\
 Canon holds your engineering team's organizational memory — active migrations, \
@@ -24,10 +26,8 @@ a deprecated pattern, do not use it. If Canon warns about an active migration, a
 that area or coordinate. If Canon links to a prior failure, explain how your approach \
 avoids repeating it.
 
-Multi-turn: Canon returns a `session_id` at the end of every response. Save it and \
-pass it back verbatim on subsequent calls to continue the same reasoning session. \
-NEVER invent or guess a session_id — only pass back the exact UUID Canon returned. \
-If you need a new session, omit the parameter entirely and Canon will generate one.
+Multiple calls to `canon` within the same MCP session are automatically tracked — \
+you don't need to manage any session ID. The MCP transport handles session continuity.
 
 Canon is not a gatekeeper. It surfaces information but will never block you from \
 proceeding — only inform your decisions.
@@ -72,9 +72,8 @@ with these fields that affect future retrieval quality:
 
 mcp = FastMCP(
     "canon",
-    stateless_http=True,
     instructions=_MCP_INSTRUCTIONS,
-    streamable_http_path="/",
+    middleware=[AuthMiddleware()],
 )
 
 import src.mcp.prompts  # noqa: E402, F401

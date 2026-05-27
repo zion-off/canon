@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 from bson import ObjectId
-from mcp.server.fastmcp import Context
+from fastmcp import Context
 
 from src.mcp.context import build_context
 from src.mcp.server import mcp

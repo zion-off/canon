@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
-from uuid import UUID
 
 from bson import ObjectId
 from google.adk.agents.context_cache_config import ContextCacheConfig
@@ -41,7 +40,6 @@ async def run_agent(
     tenant_id: str,
     user_id: str,
     session_id: str,
-    resolved_from_closed: bool,
     run_id: str,
     title: str,
     message: str,
@@ -54,8 +52,8 @@ async def run_agent(
     workflow continuity (the ADK agent can reference prior context), but no
     server-side session state persists between HTTP requests.
 
-    When *resolved_from_closed* is True the client passed an existing
-    session_id — it must belong to this tenant.
+    session_id comes from the MCP transport and is guaranteed stable within
+    a client session.
     """
     log = logging.getLogger(__name__)
     log.info(
@@ -65,17 +63,6 @@ async def run_agent(
         session_id,
         run_id,
     )
-
-    # Defense-in-depth: should already be validated at the tool boundary.
-    try:
-        UUID(session_id)
-    except ValueError:
-        log.warning("run_agent: invalid session_id format | session=%s", session_id)
-        return (
-            "An internal error occurred: the session ID is not a valid UUID. "
-            "Canon only accepts session IDs it originally generated. "
-            "Start a new session by omitting the session_id parameter."
-        )
 
     tenant_oid = ObjectId(tenant_id)
     tenant = await TenantDocument.get(tenant_oid)
@@ -91,19 +78,6 @@ async def run_agent(
     now = datetime.now(UTC)
     session = await SessionDocument.find_one(SessionDocument.session_id == session_id)
     if session is None:
-        if resolved_from_closed:
-            log.warning(
-                "run_agent: session_id not found when client expected to resume | "
-                "session=%s tenant=%s",
-                session_id,
-                tenant_id,
-            )
-            return (
-                f"Error: the session_id '{session_id}' was not found. "
-                "It may have been deleted, expired, or it might be from a different "
-                "Canon account. Start a new session by omitting the session_id parameter."
-            )
-
         session = SessionDocument.model_construct(
             session_id=session_id,
             tenant_id=tenant_oid,
@@ -122,20 +96,6 @@ async def run_agent(
             title,
         )
     else:
-        if str(session.tenant_id) != tenant_id:
-            log.warning(
-                "run_agent: tenant mismatch on session resume | session=%s "
-                "session_tenant=%s request_tenant=%s",
-                session_id,
-                session.tenant_id,
-                tenant_id,
-            )
-            return (
-                f"Error: the session_id '{session_id}' belongs to a different "
-                "Canon account. You can only resume sessions from your own account. "
-                "Start a new session by omitting the session_id parameter."
-            )
-
         session.run_count += 1
         session.updated_at = now
         session.last_run_at = now

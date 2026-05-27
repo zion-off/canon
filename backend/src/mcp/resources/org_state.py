@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from beanie.odm.operators.find.comparison import In
 from bson import ObjectId
-from mcp.server.fastmcp import Context
+from fastmcp import Context
 
 from src.constants import Status
 from src.mcp.context import build_context

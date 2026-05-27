@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import logging
 
-from mcp.server.fastmcp import Context
+from fastmcp import Context
 
+from src.mcp.middleware import TENANT_STATE_KEY, USER_STATE_KEY
 from src.services.event_feed import AgentEventFeed, get_feed
-from src.services.tenant_resolver import TenantResolver
 
 
 class _RequestContext:
@@ -23,31 +23,21 @@ class _RequestContext:
 
 
 async def build_context(ctx: Context) -> _RequestContext:
-    """Extract tenant context from the MCP request's underlying HTTP transport."""
-    request = ctx.request_context.request
-    if request is None:
-        raise ValueError("No HTTP request available in MCP context")
-    auth_header = request.headers.get("Authorization", "")
-    token = auth_header[7:] if auth_header.startswith("Bearer ") else ""
+    """Read tenant context previously stashed by AuthMiddleware."""
+    tenant_id = await ctx.get_state(TENANT_STATE_KEY)
+    user_id = await ctx.get_state(USER_STATE_KEY)
+
+    if not tenant_id or not user_id:
+        raise ValueError("Not authenticated — AuthMiddleware must run first")
+
     log = logging.getLogger(__name__)
     log.debug(
-        "build_context: resolving tenant from token prefix=%s...",
-        token[:8] if token else "(none)",
-    )
-    resolver = TenantResolver()
-    tenant_ctx = await resolver.resolve(token)
-
-    if not tenant_ctx:
-        log.warning("build_context: invalid API token")
-        raise ValueError("Invalid API token")
-
-    log.info(
-        "build_context: resolved | tenant=%s user=%s",
-        tenant_ctx.tenant_id,
-        tenant_ctx.user_id,
+        "build_context: resolved from session state | tenant=%s user=%s",
+        tenant_id,
+        user_id,
     )
     return _RequestContext(
-        tenant_id=tenant_ctx.tenant_id,
-        user_id=tenant_ctx.user_id,
+        tenant_id=tenant_id,
+        user_id=user_id,
         event_feed=get_feed(),
     )

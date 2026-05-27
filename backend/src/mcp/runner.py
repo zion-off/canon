@@ -17,7 +17,6 @@ from src.mcp.agents import build_orchestrator
 from src.mcp.constants import (
     AgentName,
     SessionState,
-    ToolName,
 )
 from src.mcp.plugins.ambient_context import AmbientContextPlugin
 from src.mcp.plugins.reasoning_feed import ReasoningFeedPlugin
@@ -25,8 +24,6 @@ from src.models.documents import SessionDocument, TenantDocument
 from src.models.schemas import (
     FinalResponseEvent,
     FinalResponsePayload,
-    ReasoningCheckpointEvent,
-    ReasoningCheckpointPayload,
     RunCompletedEvent,
     RunStartedEvent,
     RunStartedPayload,
@@ -168,9 +165,8 @@ async def run_agent(
         ),
     )
 
-    # Run orchestrator — the ReasoningFeedPlugin handles lifecycle events
-    # automatically. This loop only detects reasoning checkpoints and the
-    # final response.
+    # Run orchestrator — ReasoningFeedPlugin handles all lifecycle events including
+    # checkpoints. This loop only captures the final response text.
     log.info(
         "run_agent: starting ADK run loop | run=%s model=%s",
         run_id,
@@ -183,26 +179,6 @@ async def run_agent(
         session_id=adk_session.id,
         new_message=content,
     ):
-        function_calls: list = getattr(event, "function_calls", None) or []
-        for fc in function_calls:
-            if fc.name == ToolName.EMIT_CHECKPOINT:
-                checkpoint_msg = fc.args.get("message", "") if fc.args else ""
-                log.info(
-                    "run_agent: checkpoint | run=%s msg=%s",
-                    run_id,
-                    checkpoint_msg[:120],
-                )
-                await event_feed.broadcast(
-                    tenant_id=tenant_id,
-                    user_id=user_id,
-                    session_id=session_id,
-                    run_id=run_id,
-                    event=ReasoningCheckpointEvent(
-                        author=AgentName.ORCHESTRATOR,
-                        payload=ReasoningCheckpointPayload(message=checkpoint_msg),
-                    ),
-                )
-
         if event.is_final_response() and event.content and event.content.parts:
             final_response = event.content.parts[0].text
         event_count += 1

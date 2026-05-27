@@ -17,8 +17,16 @@ from google.adk.tools.base_tool import BaseTool
 from google.genai import types
 from pydantic import BaseModel
 
-from src.mcp.constants import AgentName, SessionState, TempState, ToolCallStatus
+from src.mcp.constants import (
+    AgentName,
+    SessionState,
+    TempState,
+    ToolCallStatus,
+    ToolName,
+)
 from src.models.schemas import (
+    ReasoningCheckpointEvent,
+    ReasoningCheckpointPayload,
     SubagentInvokedEvent,
     SubagentInvokedPayload,
     ToolCallCompletedEvent,
@@ -195,7 +203,25 @@ class ReasoningFeedPlugin(BasePlugin):
         tool_args: dict[str, Any],
         tool_context: ToolContext,
     ) -> dict | None:
-        """Emit tool_call_started for orchestrator-level tool calls."""
+        """Emit tool_call_started, or reasoning_checkpoint for emit_checkpoint calls."""
+        if tool.name == ToolName.EMIT_CHECKPOINT:
+            message = tool_args.get("message", "") if tool_args else ""
+            logging.getLogger(__name__).info(
+                "reasoning_feed: checkpoint | agent=%s msg=%.120s",
+                tool_context.agent_name,
+                message,
+            )
+            await self._event_feed.broadcast(
+                tenant_id=tool_context.state.get(SessionState.TENANT_ID),
+                user_id=tool_context.state.get(SessionState.USER_ID),
+                session_id=tool_context.state.get(SessionState.SESSION_ID),
+                run_id=tool_context.state.get(SessionState.RUN_ID),
+                event=ReasoningCheckpointEvent(
+                    author=tool_context.agent_name,
+                    payload=ReasoningCheckpointPayload(message=message),
+                ),
+            )
+            return None
         await emit_tool_started(self._event_feed, tool, tool_args, tool_context)
         return None
 
@@ -207,7 +233,9 @@ class ReasoningFeedPlugin(BasePlugin):
         tool_context: ToolContext,
         result: Any,
     ) -> dict | None:
-        """Emit tool_call_completed for orchestrator-level tool calls."""
+        """Emit tool_call_completed; skip emit_checkpoint (handled in before_tool_callback)."""
+        if tool.name == ToolName.EMIT_CHECKPOINT:
+            return None
         await emit_tool_completed(
             self._event_feed, tool, tool_args, tool_context, result
         )

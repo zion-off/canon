@@ -25,7 +25,7 @@ const baseEventFields = {
 
 // ── Payload schemas ───────────────────────────────────────────────────────────
 
-export const RunStartedPayloadSchema = z.object({ message: z.string() });
+export const RunStartedPayloadSchema = z.object({ request: z.string(), context: z.string() });
 export const RunCompletedPayloadSchema = z.object({});
 
 export const ReasoningCheckpointPayloadSchema = z.object({

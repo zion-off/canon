@@ -45,6 +45,7 @@ async def run_agent(
     title: str,
     message: str,
     event_feed: AgentEventFeed,
+    invocation_args: RunStartedPayload | None = None,
 ) -> str:
     """Invoke the ADK orchestrator agent for a single request lifecycle.
 
@@ -163,7 +164,7 @@ async def run_agent(
         run_id=run_id,
         event=RunStartedEvent(
             author=AgentName.ORCHESTRATOR,
-            payload=RunStartedPayload(message=message),
+            payload=invocation_args or RunStartedPayload(request="", context=""),
         ),
     )
 

@@ -11,7 +11,8 @@ from src.models.schemas._base import MongoModel
 
 
 class RunStartedPayload(BaseModel):
-    message: str
+    request: str
+    context: str
 
 
 class RunCompletedPayload(BaseModel):

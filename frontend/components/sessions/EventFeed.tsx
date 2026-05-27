@@ -17,7 +17,7 @@ interface RunBucket {
   runIndex: number;
   events: IdentifiedEvent[];
   timestamp: string | null;
-  message: string | null;
+  invocationArgs: { request: string; context: string } | null;
 }
 
 function groupEventsIntoRuns(events: IdentifiedEvent[]): RunBucket[] {
@@ -40,7 +40,10 @@ function groupEventsIntoRuns(events: IdentifiedEvent[]): RunBucket[] {
       runIndex: index + 1,
       events: runEvents,
       timestamp: runStarted?.timestamp ?? runEvents[0]?.timestamp ?? null,
-      message: runStarted?.type === EVENT_TYPE.RUN_STARTED ? runStarted.payload.message : null,
+      invocationArgs:
+        runStarted?.type === EVENT_TYPE.RUN_STARTED
+          ? { request: runStarted.payload.request, context: runStarted.payload.context }
+          : null,
     };
   });
 }
@@ -114,7 +117,7 @@ export function EventFeed({ sessionId, initialEvents, isLive }: EventFeedProps) 
           runIndex={run.runIndex}
           events={run.events}
           timestamp={run.timestamp}
-          message={run.message}
+          invocationArgs={run.invocationArgs}
         />
       ))}
 

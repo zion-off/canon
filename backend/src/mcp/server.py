@@ -14,6 +14,7 @@ from src.constants import Status
 from src.mcp.agent_platform import CanonModel
 from src.mcp.runner import run_agent
 from src.models.documents import MemoryNodeDocument
+from src.models.schemas import RunStartedPayload
 from src.services.event_feed import AgentEventFeed, get_feed
 from src.services.tenant_resolver import TenantResolver
 
@@ -130,6 +131,7 @@ async def canon(
         title=title,
         message=f"Request:\n{request}\n\nContext:\n{context}",
         event_feed=request_ctx.event_feed,
+        invocation_args=RunStartedPayload(request=request, context=context),
     )
 
     return f"{response}\n\n---\nsession_id: {resolved_session_id}"

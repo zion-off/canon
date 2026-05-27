@@ -14,7 +14,7 @@ interface RunGroupProps {
   runIndex: number;
   events: IdentifiedEvent[];
   timestamp: string | null;
-  message: string | null;
+  invocationArgs: { request: string; context: string } | null;
 }
 
 type PairLocation =
@@ -100,7 +100,7 @@ function pairToolCallEvents(events: IdentifiedEvent[]): DisplayItem[] {
   return result;
 }
 
-export function RunGroup({ runIndex, events, timestamp, message }: RunGroupProps) {
+export function RunGroup({ runIndex, events, timestamp, invocationArgs }: RunGroupProps) {
   const visibleEvents = events.filter((e) => e.type !== EVENT_TYPE.RUN_STARTED);
   const displayItems = pairToolCallEvents(visibleEvents);
 
@@ -118,23 +118,22 @@ export function RunGroup({ runIndex, events, timestamp, message }: RunGroupProps
         )}
       </div>
 
-      {message && (
-        <div className="flex gap-3">
-          <div className="pt-1">
-            <div className="w-2 h-2 rounded-full bg-canon-accent shrink-0" />
-          </div>
-          <div className="pb-1 min-w-0 flex-1">
-            <span className="font-condensed font-bold text-xs uppercase tracking-wider text-canon-accent">
-              Harness Request
-            </span>
-            <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-canon-text">
-              {message}
-            </p>
-          </div>
-        </div>
-      )}
-
       <div className="space-y-2 border-l border-canon-border pl-4">
+        {invocationArgs && (
+          <div className="flex gap-3">
+            <div className="pt-1">
+              <div className="w-2 h-2 rounded-full bg-canon-accent shrink-0" />
+            </div>
+            <div className="pb-1 min-w-0 flex-1">
+              <span className="font-condensed font-bold text-xs uppercase tracking-wider text-canon-accent">
+                Harness Request
+              </span>
+              <pre className="mt-1 overflow-x-auto whitespace-pre-wrap font-mono text-xs text-canon-text-secondary">
+                {JSON.stringify(invocationArgs, null, 2)}
+              </pre>
+            </div>
+          </div>
+        )}
         {displayItems.map((item) => (
           <EventItem key={item.stableId} item={item} />
         ))}

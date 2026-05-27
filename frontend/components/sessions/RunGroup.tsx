@@ -247,7 +247,7 @@ export function RunGroup({ runIndex, events, timestamp, invocationArgs }: RunGro
             isLast={totalSlots === 1}
             lineActive={isRunActive}
           >
-            <div>
+            <div className="leading-4">
               <span className="font-condensed font-bold text-xs uppercase tracking-wider text-canon-accent">
                 Harness Request
               </span>
@@ -277,7 +277,7 @@ export function RunGroup({ runIndex, events, timestamp, invocationArgs }: RunGro
                 dot={dot}
                 dotPulse={isPending}
                 isLast={isLast}
-                lineActive={isRunActive}
+                lineActive={isRunActive && !isPending}
               >
                 <ToolCallContent pair={item} />
               </TimelineSlot>
@@ -285,13 +285,14 @@ export function RunGroup({ runIndex, events, timestamp, invocationArgs }: RunGro
           }
 
           if (item.kind === DISPLAY_KIND.SUBAGENT_GROUP) {
+            const hasActivePairs = item.toolPairs.some((p) => p.completed === null);
             return (
               <TimelineSlot
                 key={item.stableId}
                 dot="bg-canon-text-secondary"
                 dotPt="pt-1"
                 isLast={isLast}
-                lineActive={isRunActive}
+                lineActive={isRunActive && !hasActivePairs}
               >
                 <SubagentGroupItem group={item} />
               </TimelineSlot>

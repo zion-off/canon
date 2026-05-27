@@ -283,7 +283,7 @@ async def hybrid_search(
 async def canonize_node(
     document: MemoryNodeInput,
     rationale: str,
-    related_existing_ids: list[str],
+    reverse_link_ids: list[str],
     tool_context: ToolContext,
 ) -> CanonizeResult:
     """Persist an observation as a structured memory node in the knowledge graph.
@@ -302,7 +302,7 @@ async def canonize_node(
             (list of hex IDs to link from this node) and supersedes (hex ID of
             the node this one replaces).
         rationale: Why this node should exist.
-        related_existing_ids: Hex IDs of existing nodes whose relatedEntityIds
+        reverse_link_ids: Hex IDs of existing nodes whose relatedEntityIds
             should be updated to include this new node (reverse edges).
         tool_context: ADK tool context — injected automatically, do not pass.
 
@@ -323,13 +323,6 @@ async def canonize_node(
     else:
         doc = document
 
-    if len(doc.related_entity_ids) > 100:
-        return CanonizeError(
-            error="relatedEntityIds exceeds maximum of 100 entries.",
-            hint="Too many relationships specified",
-            retry="Limit relatedEntityIds to 20 most relevant",
-        )
-
     tenant_id_str = tool_context.state.get(SessionState.TENANT_ID)
     if not tenant_id_str:
         return CanonizeError(
@@ -340,7 +333,7 @@ async def canonize_node(
     try:
         tenant_oid = PydanticObjectId(tenant_id_str)
         related_entity_oids = [PydanticObjectId(rid) for rid in doc.related_entity_ids]
-        related_existing_oids = [PydanticObjectId(rid) for rid in related_existing_ids]
+        related_existing_oids = [PydanticObjectId(rid) for rid in reverse_link_ids]
     except Exception as exc:
         return CanonizeError(
             error=f"Invalid ObjectId: {exc}",

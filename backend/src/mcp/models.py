@@ -17,15 +17,16 @@ class MemoryNodeInput(BaseModel):
     All ID fields are plain hex strings — ObjectId coercion happens in the tool.
     """
 
-    name: str
+    name: str = Field(max_length=120, pattern=r"^[^\n\r]+$")
     description: str
     content: str
     status: Literal["active", "deprecated", "in_progress", "resolved", "completed"]
     tags: list[str] = Field(default_factory=list)
     related_entity_ids: list[str] = Field(
         default_factory=list,
+        max_length=20,
         alias="relatedEntityIds",
-        description="Hex-strings of existing nodes to link bidirectionally",
+        description="Hex-strings of existing nodes to link bidirectionally (max 20)",
     )
     supersedes: str | None = Field(
         default=None,

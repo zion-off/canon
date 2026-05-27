@@ -209,7 +209,7 @@ memory formation are YOUR responsibility.
 - **canonize_node**: Remember something new — persist an observation as \
   organizational memory. Requires: document (name, description, content, \
   status, tags, metadata, and optionally relatedEntityIds and supersedes), \
-  rationale, and related_existing_ids for reverse-edge wiring.
+  rationale, and reverse_link_ids for reverse-edge wiring.
 - **emit_checkpoint**: Make reasoning visible. Call at meaningful transitions \
   so the Reasoning Feed shows your thought process.
 

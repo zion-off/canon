@@ -29,7 +29,13 @@ export function ToolCallTimeline({ pair }: ToolCallTimelineProps) {
       <div className="flex gap-3">
         <div className="flex flex-col items-center pt-1.5">
           <div className="w-2 h-2 rounded-full bg-canon-accent shrink-0" />
-          <div className="w-px flex-1 bg-canon-border mt-1" />
+          <div
+            className={`w-px flex-1 mt-1 ${
+              isPending
+                ? "bg-[linear-gradient(to_bottom,_rgb(48,48,48)_0%,_rgb(48,48,48)_25%,_rgba(255,255,255,0.6)_50%,_rgb(48,48,48)_75%,_rgb(48,48,48)_100%)] bg-[length:100%_200%] [animation:shimmer_1.5s_linear_infinite]"
+                : "bg-canon-border"
+            }`}
+          />
         </div>
         <div className="pb-3 min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-4">

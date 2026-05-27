@@ -72,3 +72,12 @@ body {
   font-family: "ROM", sans-serif;
   min-height: 100vh;
 }
+
+@keyframes shimmer {
+  0% {
+    background-position: 0% 200%;
+  }
+  100% {
+    background-position: 0% 0%;
+  }
+}

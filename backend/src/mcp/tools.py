@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import UTC, datetime
 from typing import Any
 
@@ -37,6 +38,14 @@ from src.mcp.models import (
 )
 from src.mcp.mongo_connections import call_aggregate
 from src.models.documents import MemoryNodeDocument
+
+# The MongoDB MCP server wraps returned documents in a security block to guard
+# against prompt injection from user-supplied content.  The actual payload sits
+# between the opening and closing tags; we must extract it before JSON-parsing.
+_UNTRUSTED_CONTENT_RE = re.compile(
+    r"<untrusted-user-data-[^>]+>(.*?)</untrusted-user-data-[^>]+>",
+    re.DOTALL,
+)
 
 # ─── Embedding Utilities ─────────────────────────────────────────────────────
 
@@ -140,10 +149,14 @@ async def hybrid_search(
 
     extracted_keywords = keywords or [w for w in query.split() if len(w) > 2]
 
-    # Tenant scoping — normally AmbientContextPlugin injects this for LLM-
-    # initiated MCP calls, but this tool opens its own session internally.
     tenant_id = tool_context.state.get(SessionState.TENANT_ID) if tool_context else None
 
+    # Atlas Search engines ($vectorSearch, $search) do not deserialize EJSON
+    # in their filter parameters — {"$oid": "..."} is treated as a plain
+    # object, never matching a BSON ObjectId.  Tenant isolation is applied
+    # via a standard $match AFTER $rankFusion instead; the regular MongoDB
+    # query engine does deserialize EJSON correctly (same path used by
+    # AmbientContextPlugin for graph_explorer $match stages).
     vector_search_stage: dict[str, Any] = {
         "$vectorSearch": {
             "index": "vector_search_index",
@@ -153,41 +166,16 @@ async def hybrid_search(
             "limit": 20,
         }
     }
-    if tenant_id:
-        vector_search_stage["$vectorSearch"]["filter"] = {
-            "tenantId": {"$oid": tenant_id},
-        }
 
-    text_query = {
-        "text": {
-            "query": " ".join(extracted_keywords),
-            "path": ["name", "description", "content"],
+    text_search_stage: dict[str, Any] = {
+        "$search": {
+            "index": "text_search_index",
+            "text": {
+                "query": " ".join(extracted_keywords),
+                "path": ["name", "description", "content"],
+            },
         }
     }
-    if tenant_id:
-        text_search_stage: dict[str, Any] = {
-            "$search": {
-                "index": "text_search_index",
-                "compound": {
-                    "must": [text_query],
-                    "filter": [
-                        {
-                            "equals": {
-                                "path": "tenantId",
-                                "value": {"$oid": tenant_id},
-                            }
-                        }
-                    ],
-                },
-            }
-        }
-    else:
-        text_search_stage: dict[str, Any] = {
-            "$search": {
-                "index": "text_search_index",
-                **text_query,
-            }
-        }
 
     pipeline: list[dict[str, Any]] = [
         {
@@ -195,7 +183,9 @@ async def hybrid_search(
                 "input": {
                     "pipelines": {
                         "vector": [vector_search_stage],
-                        "text": [text_search_stage],
+                        # $search has no inherent limit unlike $vectorSearch —
+                        # $rankFusion requires every sub-pipeline to be bounded.
+                        "text": [text_search_stage, {"$limit": 20}],
                     }
                 },
                 "combination": {
@@ -203,6 +193,14 @@ async def hybrid_search(
                 },
             }
         },
+    ]
+
+    # Tenant filter via $match — applied post-fusion so the EJSON ObjectId
+    # is handled by mongod (not mongot/Atlas Search).
+    if tenant_id:
+        pipeline.append({"$match": {"tenantId": {"$oid": tenant_id}}})
+
+    pipeline += [
         {"$limit": limit},
         {
             "$project": {
@@ -250,18 +248,48 @@ async def hybrid_search(
             )
 
         # Parse the result content into documents.
+        # The MCP server wraps the actual payload in untrusted-user-data
+        # security blocks, but the preceding warning text also embeds the
+        # same tag inline ("...between the <tag> and </tag>..."), producing
+        # multiple regex matches.  Use findall and try each in order; the
+        # first match that parses as valid JSON is the real payload.
         docs: list[dict[str, Any]] = []
         for item in result.content:
             if not isinstance(item, TextContent) or not item.text:
                 continue
-            try:
-                parsed = json.loads(item.text)
-                if isinstance(parsed, list):
-                    docs.extend(parsed)
-                else:
-                    docs.append(parsed)
-            except json.JSONDecodeError:
+            raw = item.text
+
+            # Try each untrusted-user-data block in the item.
+            found = False
+            for inner in _UNTRUSTED_CONTENT_RE.findall(raw):
+                candidate = inner.strip()
+                if not candidate:
+                    continue
+                try:
+                    parsed = json.loads(candidate)
+                    docs.extend(parsed) if isinstance(parsed, list) else docs.append(parsed)
+                    found = True
+                    break
+                except json.JSONDecodeError:
+                    pass
+            if found:
                 continue
+
+            # No wrapper present — try the raw text directly.
+            try:
+                parsed = json.loads(raw)
+                docs.extend(parsed) if isinstance(parsed, list) else docs.append(parsed)
+                continue
+            except json.JSONDecodeError:
+                pass
+
+            # Plain-text informational items (e.g. "The aggregation resulted in
+            # N documents.") — not errors, nothing to parse.
+            log.debug(
+                "hybrid_search: skipping non-JSON item | query=%.80s content=%.120s",
+                query,
+                raw[:120],
+            )
 
         results = [SearchResultItem.model_validate(d) for d in docs]
         top_names = [r.name for r in results[:5]]

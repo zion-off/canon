@@ -61,7 +61,7 @@ export function ToolCallTimeline({ pair }: ToolCallTimelineProps) {
           <div
             className={`w-2 h-2 rounded-full shrink-0 ${
               isPending
-                ? "bg-canon-text-disabled animate-pulse"
+                ? "bg-canon-warning animate-pulse"
                 : isSuccess
                   ? "bg-canon-success"
                   : "bg-canon-error"
@@ -70,7 +70,7 @@ export function ToolCallTimeline({ pair }: ToolCallTimelineProps) {
         </div>
         <div className="pb-1 min-w-0 flex-1">
           {isPending ? (
-            <span className="text-xs text-canon-text-disabled italic">running…</span>
+            <span className="text-xs text-canon-warning italic">running…</span>
           ) : (
             <>
               <div className="flex items-baseline justify-between gap-4">

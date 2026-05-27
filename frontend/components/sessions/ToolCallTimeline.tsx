@@ -2,13 +2,8 @@
 
 import type { ToolCallPair } from "@/lib/schemas/sessions";
 import { HighlightedCode } from "./HighlightedCode";
-import { AGENT_DISPLAY_NAMES, TOOL_DISPLAY_NAMES } from "@/lib/constants";
+import { AGENT_DISPLAY_NAMES, TOOL_DISPLAY_NAMES, STATUS_DISPLAY } from "@/lib/constants";
 import { formatTimestamp } from "@/lib/date-utils";
-
-const STATUS_DISPLAY: Record<string, string> = {
-  ok: "Done",
-  error: "Failed",
-};
 
 interface ToolCallTimelineProps {
   pair: ToolCallPair;
@@ -32,7 +27,7 @@ export function ToolCallTimeline({ pair }: ToolCallTimelineProps) {
           <div
             className={`w-px flex-1 mt-1 ${
               isPending
-                ? "bg-[linear-gradient(to_bottom,_rgb(48,48,48)_0%,_rgb(48,48,48)_25%,_rgba(255,255,255,0.6)_50%,_rgb(48,48,48)_75%,_rgb(48,48,48)_100%)] bg-[length:100%_200%] [animation:shimmer_1.5s_linear_infinite]"
+                ? "bg-[linear-gradient(to_bottom,rgb(48,48,48)_0%,rgb(48,48,48)_25%,rgba(255,255,255,0.6)_50%,rgb(48,48,48)_75%,rgb(48,48,48)_100%)] bg-size-[100%_200%] animate-[shimmer_1.5s_linear_infinite]"
                 : "bg-canon-border"
             }`}
           />

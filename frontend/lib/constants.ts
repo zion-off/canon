@@ -55,6 +55,16 @@ export const DISPLAY_KIND = {
   SUBAGENT_GROUP: "subagent_group",
 } as const;
 
+export const TOOL_CALL_STATUS = {
+  OK: "ok",
+  ERROR: "error",
+} as const;
+
+export const STATUS_DISPLAY: Record<string, string> = {
+  [TOOL_CALL_STATUS.OK]: "Done",
+  [TOOL_CALL_STATUS.ERROR]: "Failed",
+} as const;
+
 export const TOOL_NAME = {
   EMIT_CHECKPOINT: "emit_checkpoint",
   HYBRID_SEARCH: "hybrid_search",

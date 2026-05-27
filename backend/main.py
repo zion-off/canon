@@ -68,7 +68,7 @@ async def lifespan(app: FastAPI):
 
         # Defer agent initialization — requires Gemini and MongoDB MCP subprocess
         try:
-            from src.mcp.agents import cleanup_agents, initialize_agents
+            from src.agent.agents.orchestrator import cleanup_agents, initialize_agents
             from src.mcp.mongo_connections import shutdown as mongo_mcp_shutdown
             from src.mcp.mongo_connections import startup as mongo_mcp_startup
 
@@ -82,7 +82,7 @@ async def lifespan(app: FastAPI):
         yield
 
         try:
-            from src.mcp.agents import cleanup_agents
+            from src.agent.agents.orchestrator import cleanup_agents
             from src.mcp.mongo_connections import shutdown as mongo_mcp_shutdown
 
             _AppState.agents_ready = False

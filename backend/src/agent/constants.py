@@ -1,4 +1,4 @@
-"""Central constants for the Canon MCP agent system.
+"""Central constants for the Canon ADK agent system.
 
 Every raw string — state keys, event types, agent names, temp keys,
 tool names, and database name — lives here, grouped by namespace so

@@ -1,4 +1,4 @@
-"""Pydantic models for Canon MCP tool inputs, outputs, and metadata.
+"""Pydantic models for Canon ADK tool inputs, outputs, and metadata.
 
 Replaces raw dictionaries with typed, validated models so every tool
 has a clear contract and the LLM gets proper JSON schemas.

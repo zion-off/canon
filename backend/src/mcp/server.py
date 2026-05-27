@@ -9,10 +9,10 @@ from bson import ObjectId
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
 
+from src.agent.agent_platform import CanonModel
+from src.agent.runner import run_agent
 from src.config import settings
 from src.constants import Status
-from src.mcp.agent_platform import CanonModel
-from src.mcp.runner import run_agent
 from src.models.documents import MemoryNodeDocument
 from src.models.schemas import RunStartedPayload
 from src.services.event_feed import AgentEventFeed, get_feed

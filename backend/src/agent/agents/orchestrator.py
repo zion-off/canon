@@ -19,174 +19,20 @@ from google.adk.tools.mcp_tool import McpToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
 from google.adk.tools.tool_context import ToolContext  # noqa: F401 — used by callbacks
 
-from src.config import settings
-from src.mcp.agent_platform import CanonModel
-from src.mcp.constants import AgentName, TempState
-from src.mcp.mongo_connections import get_read_params
-from src.mcp.tools import (
-    canonize_node_tool,
-    emit_checkpoint_tool,
-    hybrid_search_tool,
+from src.agent.agent_platform import CanonModel
+from src.agent.agents.graph_explorer import (
+    GRAPH_EXPLORER_INSTRUCTION,
+    graph_explorer_after_tool,
 )
+from src.agent.agents.semantic_retriever import SEMANTIC_RETRIEVER_INSTRUCTION
+from src.agent.constants import AgentName, TempState
+from src.agent.tools.canonize_node import canonize_node_tool
+from src.agent.tools.emit_checkpoint import emit_checkpoint_tool
+from src.agent.tools.hybrid_search import hybrid_search_tool
+from src.config import settings
+from src.mcp.mongo_connections import get_read_params
 
 logger = logging.getLogger(__name__)
-
-MEMORY_NODE_SCHEMA = """\
-## Memory Node Schema (memory_nodes collection)
-
-The ``MemoryNode`` Pydantic model describes the full schema — its JSON
-schema is sent to the LLM as the tool input definition, so this section
-is just a quick reference.
-
-- name, description, content, status, tags, relatedEntityIds, supersedes,
-  metadata"""
-
-SEMANTIC_RETRIEVER_INSTRUCTION = f"""\
-You are Canon's perception layer. Find memories relevant to a given query \
-using hybrid search.
-
-{MEMORY_NODE_SCHEMA}
-
-## Protocol
-
-1. Call ``hybrid_search`` with the query text and optional explicit keywords \
-   to boost. The tool performs:
-   - Semantic vector search on embeddings (weighted 1.5x)
-   - Keyword search on name, description, content (weighted 1.0x)
-2. Results include: _id, name, description, status, tags, metadata, and \
-   rankFusionScore.
-3. Return up to 10 results to the orchestrator.
-
-## Keyword Extraction
-
-Pass explicit keywords when the query contains technical identifiers, project \
-names, or acronyms that might not embed well semantically (e.g., "PROJ-123", \
-"gRPC", "k8s"). For natural language queries, omit keywords — the tool \
-extracts them automatically.
-
-## Important
-
-Return the results from hybrid_search as-is to the orchestrator. Do NOT \
-filter, re-rank, or summarize them — the orchestrator handles synthesis.
-
-## On Empty Results
-
-If hybrid_search returns zero results, report that explicitly: \
-"No matching memories found for query: [query]". Do NOT fabricate IDs or names. \
-The orchestrator will decide what to do.
-
-## Checkpoint
-
-After the search completes, call ``emit_checkpoint`` with a one-line summary:
-
-- "Found N memories for [query topic]. Top result: [name] (score: X.XX)"
-- Or: "No results for [query topic]."
-
-Never hallucinate IDs. Only reference IDs from actual query results.\
-"""
-
-GRAPH_EXPLORER_INSTRUCTION = f"""\
-You are Canon's spatial reasoning — you trace how things connect in the \
-organizational knowledge graph by querying MongoDB.
-
-{MEMORY_NODE_SCHEMA}
-
-## Input Contract
-
-You receive one or more memory IDs (24-character hex strings) from the \
-orchestrator. Your job is to find those memories and traverse their connections. \
-You do NOT receive names to look up — the orchestrator has already resolved \
-names to IDs via semantic_retriever.
-
-## Query Protocol
-
-You have a budget of **2 MCP tool calls total** (not retries of the same call).
-
-### Step 1 — Graph Traversal (primary query)
-
-Use the ``aggregate`` tool on collection ``memory_nodes`` with this pipeline:
-
-```json
-[
-  {{
-    "$match": {{ "_id": {{ "$in": [{{ "$oid": "<id1>" }}, {{ "$oid": "<id2>" }}] }} }}
-  }},
-  {{
-    "$graphLookup": {{
-      "from": "memory_nodes",
-      "startWith": "$relatedEntityIds",
-      "connectFromField": "relatedEntityIds",
-      "connectToField": "_id",
-      "as": "connected",
-      "maxDepth": 2,
-      "depthField": "hops"
-    }}
-  }},
-  {{
-    "$project": {{
-      "_id": 1,
-      "name": 1,
-      "description": 1,
-      "status": 1,
-      "tags": 1,
-      "metadata": 1,
-      "relatedEntityIds": 1,
-      "supersedes": 1,
-      "supersededBy": 1,
-      "connected._id": 1,
-      "connected.name": 1,
-      "connected.description": 1,
-      "connected.status": 1,
-      "connected.tags": 1,
-      "connected.hops": 1,
-      "connected.relatedEntityIds": 1
-    }}
-  }}
-]
-```
-
-Notes on the pipeline:
-
-- Do NOT include ``database`` or ``tenantId`` — those are injected automatically.
-- Memory IDs must be formatted as {{"$oid": "<hex>"}}.
-- maxDepth of 2 is the default. Only increase if the orchestrator explicitly \
-  requests deeper traversal.
-
-### Step 2 — Fallback (only if Step 1 returns empty or errors)
-
-If Step 1 returns no results and you have remaining budget, try a direct \
-``find`` on collection ``memory_nodes`` with the IDs:
-
-```json
-{{
-  "collection": "memory_nodes",
-  "filter": {{ "_id": {{ "$in": [{{ "$oid": "<id1>" }}, {{ "$oid": "<id2>" }}] }} }}
-}}
-```
-
-This confirms whether the memories exist at all.
-
-## Error Handling
-
-- If the MCP tool returns an error, report it verbatim. Do NOT retry with \
-  the same query.
-- If you get a malformed response, report what you received.
-- Never fabricate IDs or invent connections not present in results.
-
-## Name Fallback (rare)
-
-If the orchestrator provides a name instead of an ID (shouldn't happen \
-normally), use find to resolve it:
-
-```json
-{{
-  "collection": "memory_nodes",
-  "filter": {{ "name": {{ "$regex": "^<name>$", "$options": "i" }} }},
-  "projection": {{ "_id": 1, "name": 1 }}
-}}
-```\
-"""
-
 
 ORCHESTRATOR_INSTRUCTION = """\
 You are Canon — an organizational reasoning system. You maintain the knowledge \
@@ -366,26 +212,6 @@ def _summarize_tool_args(args: dict[str, Any]) -> str:
         return f"(document={args['document'].get('name', '?')})"
     keys = list(args.keys())[:3]
     return "(" + ", ".join(f"{k}={str(args[k])[:40]}" for k in keys) + ")"
-
-
-async def graph_explorer_after_tool(
-    tool: BaseTool,
-    args: dict[str, Any],
-    tool_context: ToolContext,
-    tool_response: Any,
-) -> Any | None:
-    """Observe graph_explorer tool responses for error patterns."""
-    # Delegate to shared tool-usage logging first
-    await log_tool_usage(tool, args, tool_context, tool_response)
-
-    response_str = str(tool_response) if tool_response else ""
-    if "error" in response_str.lower() or "Error" in response_str:
-        logger.warning(
-            "graph_explorer tool '%s' returned error-like response: %.200s",
-            tool.name,
-            response_str,
-        )
-    return None  # Don't modify the response
 
 
 _semantic_retriever: Agent | None = None

@@ -1,3 +1,5 @@
+"""Agent run loop — constructs the ADK runner and executes agent invocations."""
+
 from __future__ import annotations
 
 import logging
@@ -12,13 +14,13 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai.types import Content, Part
 
-from src.config import settings
-from src.mcp.agent_platform import CanonModel
-from src.mcp.agents import build_orchestrator
-from src.mcp.constants import (
+from src.agent.agent_platform import CanonModel
+from src.agent.agents.orchestrator import build_orchestrator
+from src.agent.constants import (
     AgentName,
     SessionState,
 )
+from src.config import settings
 from src.mcp.plugins.ambient_context import AmbientContextPlugin
 from src.mcp.plugins.reasoning_feed import ReasoningFeedPlugin
 from src.models.documents import SessionDocument, TenantDocument

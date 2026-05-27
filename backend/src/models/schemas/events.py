@@ -4,7 +4,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field
 
-from src.mcp.constants import EventType
+from src.agent.constants import EventType
 from src.models.schemas._base import MongoModel
 
 # ── Payload models ────────────────────────────────────────────────────────────

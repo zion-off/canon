@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import logging
+from typing import Annotated
 from uuid import uuid4
 
 from fastmcp import Context
 from fastmcp.tools import tool
 from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from src.agent.runner import run_agent
 from src.config import settings
@@ -22,11 +24,31 @@ from src.models.schemas import RunStartedPayload
         idempotentHint=False,
         openWorldHint=True,
     ),
+    description=(
+        "Check organizational memory before planning or implementing code changes. "
+        "Call this BEFORE writing or modifying any code. It queries your team's "
+        "organizational knowledge graph for deprecated patterns, active migrations, "
+        "architecture decisions, prior failures, and relevant context — and returns "
+        "actionable guidance that should reshape your implementation plan."
+    ),
 )
 async def canon(
-    request: str,
-    context: str = "",
-    ctx: Context | None = None,
+    ctx: Context,  # auto-excluded from MCP input schema by FastMCP
+    request: Annotated[
+        str,
+        Field(description="Natural-language summary of what you intend to implement and why."),
+    ],
+    context: Annotated[
+        str,
+        Field(
+            default="",
+            description=(
+                "What you have observed about the codebase — technology choices, "
+                "existing patterns, relevant libraries, architectural decisions "
+                "visible in the code."
+            ),
+        ),
+    ] = "",
 ) -> str:
     """Check organizational memory before planning or implementing code changes.
 
@@ -34,20 +56,7 @@ async def canon(
     organizational knowledge graph for deprecated patterns, active migrations,
     architecture decisions, prior failures, and relevant context — and returns
     actionable guidance that should reshape your implementation plan.
-
-    Args:
-        request: Natural-language summary of what you intend to implement and why.
-        context: What you have observed about the codebase — technology choices,
-            existing patterns, relevant libraries, architectural decisions visible
-            in the code.
-        ctx: FastMCP Context — injected automatically.
-
-    Returns:
-        Organizational guidance. Sessions are tracked automatically by the MCP
-        transport — no session_id argument needed.
     """
-    if ctx is None:
-        raise RuntimeError("Context required — FastMCP should inject it automatically.")
     set_mcp_context(ctx)
     log = logging.getLogger(__name__)
     request_ctx = await build_context(ctx)

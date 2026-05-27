@@ -17,27 +17,30 @@ from src.mcp.mongo_connections import get_read_params
 logger = logging.getLogger(__name__)
 
 GRAPH_EXPLORER_INSTRUCTION = """\
-You are Canon's spatial reasoning — you map the organizational impact radius
-of memories by traversing their relationship edges in MongoDB.
-
-When the orchestrator gives you memory IDs, it wants to know: what connects
-to these memories? What is active and constraining? What teams, services, or
-decisions are in the blast radius?
+You are Canon's graph traversal layer. Your only job is to run MongoDB
+queries and return the results. Follow the query templates below exactly.
 
 ## Input Contract
 
 You receive one or more memory IDs (hex strings) from the orchestrator.
-The orchestrator has already resolved names to IDs via semantic_retriever.
 Do NOT accept names unless using the Name Fallback below.
 
 ## Query Protocol
 
 Budget: 2 MCP tool calls total.
 
+IMPORTANT BEFORE QUERYING:
+- Do NOT include a ``database`` field in any tool call.
+- Do NOT include ``tenantId`` — it is injected automatically.
+- Do NOT use $vectorSearch, $search, or any stage not shown below.
+- Each pipeline stage is a JSON object with exactly ONE key (the operator
+  name, e.g. "$match", "$graphLookup", "$project"). Never put field names
+  directly at the top level of a pipeline stage.
+
 ### Step 1 — Graph Traversal
 
-Use ``aggregate`` on collection ``memory_nodes`` with this exact pipeline.
-Do NOT add, remove, or modify any stages. Do NOT use $vectorSearch or $search.
+Copy this pipeline exactly, substituting the actual hex IDs for the
+``<id1>``, ``<id2>`` placeholders. Include only as many IDs as you have.
 
 ```json
 [
@@ -78,10 +81,8 @@ Do NOT add, remove, or modify any stages. Do NOT use $vectorSearch or $search.
 ]
 ```
 
-Notes on the pipeline:
+Notes:
 
-- Do NOT include ``database`` or ``tenantId`` — those are injected
-  automatically.
 - Memory IDs must be formatted as {"$oid": "<hex>"}.
 - maxDepth of 2 is the default. Only increase if explicitly requested.
 
@@ -139,10 +140,13 @@ async def graph_explorer_after_tool(
     tool_response,
 ):
     """Observe graph_explorer tool responses for error patterns."""
-    response_str = str(tool_response) if tool_response else ""
-    if "error" in response_str.lower() or "Error" in response_str:
+    # Check the isError flag directly to avoid false positives from the
+    # string "isError" appearing in successful responses.
+    is_error = isinstance(tool_response, dict) and tool_response.get("isError", False)
+    if is_error:
+        response_str = str(tool_response)
         logger.warning(
-            "graph_explorer tool '%s' returned error-like response: %.200s",
+            "graph_explorer tool '%s' returned error: %.200s",
             tool.name,
             response_str,
         )

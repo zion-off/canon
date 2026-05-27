@@ -96,7 +96,25 @@ async def hybrid_search(
     limit: int = 10,
     tool_context: ToolContext | None = None,
 ) -> HybridSearchResult:
-    """Search memory nodes via hybrid semantic and keyword search."""
+    """Search memory nodes via hybrid semantic and keyword search.
+
+    Performs semantic vector search and full-text keyword search against
+    the memory node collection, then fuses results into a ranked list.
+
+    Args:
+        query: The natural-language search query for semantic retrieval.
+        keywords: Optional explicit keywords to boost in the full-text
+            search component. Defaults to None.
+        limit: Maximum number of results to return. Defaults to 10.
+        tool_context: The ADK tool context, providing session state
+            (tenant ID, user ID). Injected by the framework. Defaults to
+            None (allows standalone use outside ADK).
+
+    Returns:
+        A HybridSearchResult containing a list of search hits, each with
+        id, name, description, status, tags, score, match_type, and
+        optionally metadata and highlight.
+    """
     try:
         embedding = await CanonModel.embed(
             query, task_type="RETRIEVAL_QUERY", model=settings.embedding_model

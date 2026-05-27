@@ -14,7 +14,15 @@ from src.mcp.request_context import get_request_context
 
 
 async def emit_checkpoint(message: str, tool_context: ToolContext) -> dict[str, str]:
-    """Emit a reasoning checkpoint visible to the user."""
+    """Emit a reasoning checkpoint visible to the user in the Reasoning Feed.
+
+    Args:
+        message: The checkpoint message describing the reasoning milestone.
+        tool_context: The ADK tool context. Injected by the framework.
+
+    Returns:
+        A dict with "status" ("ok") and the "message" string.
+    """
     checkpoints: list[dict[str, Any]] = tool_context.state.get(
         TempState.CHECKPOINTS, []
     )

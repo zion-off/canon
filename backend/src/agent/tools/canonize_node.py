@@ -19,6 +19,7 @@ from src.agent.models import (
 )
 from src.agent.tools.hybrid_search import build_embedding_text
 from src.config import settings
+from src.mcp.request_context import get_request_context
 from src.models.documents import MemoryNodeDocument
 
 
@@ -27,8 +28,31 @@ async def canonize_node(
     rationale: str,
     reverse_link_ids: list[str],
     tool_context: ToolContext,
+    confirm: bool = False,
 ) -> CanonizeResult:
-    """Persist an observation as a structured memory node in the knowledge graph."""
+    """Persist an observation as a structured memory node in the knowledge graph.
+
+    If confirm is True, the user will be prompted to approve the memory
+    before it is written. On decline, a CanonizeError is returned.
+
+    Args:
+        document: The memory node to persist (name, description, content,
+            status, tags, metadata, and optionally relatedEntityIds and
+            supersedes).
+        rationale: Why this memory is being persisted — the reasoning
+            behind the decision.
+        reverse_link_ids: Entity IDs (hex strings) that should gain a
+            reverse relationship pointing back to the new node.
+        tool_context: The ADK tool context, providing session state
+            (tenant ID). Injected by the framework.
+        confirm: If True, elicit user confirmation before writing.
+            Defaults to False.
+
+    Returns:
+        CanonizeSuccess with node_id, name, and relationships_formed if
+        the node is written successfully, or CanonizeError with error,
+        hint, and optional retry guidance on failure.
+    """
     log = logging.getLogger(__name__)
     if isinstance(document, dict):
         try:
@@ -70,6 +94,26 @@ async def canonize_node(
                 error=f"Invalid ObjectId in supersedes: {exc}",
                 hint="Malformed ID",
                 retry="Verify IDs are 24-char hex from actual query results",
+            )
+
+    # --- HITL confirmation ---
+    if confirm:
+        try:
+            rc = get_request_context()
+            result = await rc.fastmcp_ctx.elicit(
+                message="Persist this memory?",
+                response_type=["Yes", "No"],
+                response_title=doc.name,
+                response_description=f"{doc.description}",
+            )
+            if result.action != "accept" or result.data == "No":
+                return CanonizeError(
+                    error="Memory persistence declined by user.",
+                    hint="User chose not to save this memory. Do not retry.",
+                )
+        except RuntimeError:
+            log.warning(
+                "canonize_node: HITL not available, proceeding without confirmation"
             )
 
     now = datetime.now(tz=UTC)

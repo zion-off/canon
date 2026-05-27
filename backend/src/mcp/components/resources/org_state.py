@@ -2,24 +2,21 @@ from __future__ import annotations
 
 from beanie.odm.operators.find.comparison import In
 from bson import ObjectId
-from fastmcp import Context
 from fastmcp.resources import resource
 
 from src.constants import Status
-from src.mcp.context import build_context
+from src.mcp.request_context import get_request_context
 from src.models.documents import MemoryNodeDocument
 
 
 @resource("canon://org/state")
-async def get_org_state(ctx: Context | None = None) -> str:
+async def get_org_state() -> str:
     """Synthesized organizational posture — what the org is currently doing.
 
     Projects the organization's active decisions, ongoing work, enforced
     patterns, and live constraints into a coherent situational awareness picture.
     """
-    if ctx is None:
-        raise RuntimeError("Context required — FastMCP should inject it automatically.")
-    request_ctx = await build_context(ctx)
+    request_ctx = get_request_context()
     tenant_oid = ObjectId(request_ctx.tenant_id)
     nodes = await MemoryNodeDocument.find(
         MemoryNodeDocument.tenant_id == tenant_oid,

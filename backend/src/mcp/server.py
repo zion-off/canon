@@ -6,7 +6,7 @@ from fastmcp import FastMCP
 from fastmcp.server.providers import FileSystemProvider
 
 from src.config import settings
-from src.mcp.middleware import AuthMiddleware
+from src.mcp.middlewares import AuthMiddleware, ContextMiddleware
 
 _MCP_INSTRUCTIONS = """\
 Canon holds your engineering team's organizational memory — active migrations, \
@@ -76,11 +76,15 @@ with these fields that affect future retrieval quality:
 
 _BASE_DIR = Path(__file__).parent
 
+_COMPONENTS_DIR = _BASE_DIR / "components"
+
 mcp = FastMCP(
     "canon",
     instructions=_MCP_INSTRUCTIONS,
-    middleware=[AuthMiddleware()],
+    middleware=[AuthMiddleware(), ContextMiddleware()],
     providers=[
-        FileSystemProvider(_BASE_DIR, reload=settings.environment == "development")
+        FileSystemProvider(
+            _COMPONENTS_DIR, reload=settings.environment == "development"
+        )
     ],
 )

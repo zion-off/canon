@@ -2,8 +2,7 @@
 
 Resolves the Bearer token from incoming requests, validates it against the
 api_tokens collection, and stashes the resolved tenant context on the MCP
-session so tools, resources, and prompts can retrieve it without repeating
-the lookup.
+session for downstream middlewares and handlers.
 """
 
 from __future__ import annotations
@@ -16,10 +15,8 @@ from fastmcp.exceptions import AuthorizationError
 from fastmcp.server.dependencies import get_http_request
 from fastmcp.server.middleware import CallNext, Middleware, MiddlewareContext
 
+from src.constants import SessionState
 from src.services.tenant_resolver import TenantResolver
-
-TENANT_STATE_KEY = "_canon_tenant"
-USER_STATE_KEY = "_canon_user"
 
 log = logging.getLogger(__name__)
 
@@ -47,8 +44,8 @@ class AuthMiddleware(Middleware):
 
         fastmcp_ctx = context.fastmcp_context
         if fastmcp_ctx is not None:
-            await fastmcp_ctx.set_state(TENANT_STATE_KEY, tenant_ctx.tenant_id)
-            await fastmcp_ctx.set_state(USER_STATE_KEY, tenant_ctx.user_id)
+            await fastmcp_ctx.set_state(SessionState.TENANT, tenant_ctx.tenant_id)
+            await fastmcp_ctx.set_state(SessionState.USER, tenant_ctx.user_id)
 
         log.info(
             "AuthMiddleware: resolved | tenant=%s user=%s",

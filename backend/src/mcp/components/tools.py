@@ -4,14 +4,13 @@ import logging
 from typing import Annotated
 from uuid import uuid4
 
-from fastmcp import Context
 from fastmcp.tools import tool
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from src.agent.runner import run_agent
 from src.config import settings
-from src.mcp.context import build_context, set_mcp_context
+from src.mcp.request_context import get_request_context
 from src.models.schemas import RunStartedPayload
 
 
@@ -33,10 +32,11 @@ from src.models.schemas import RunStartedPayload
     ),
 )
 async def canon(
-    ctx: Context,  # auto-excluded from MCP input schema by FastMCP
     request: Annotated[
         str,
-        Field(description="Natural-language summary of what you intend to implement and why."),
+        Field(
+            description="Natural-language summary of what you intend to implement and why."
+        ),
     ],
     context: Annotated[
         str,
@@ -57,12 +57,11 @@ async def canon(
     architecture decisions, prior failures, and relevant context — and returns
     actionable guidance that should reshape your implementation plan.
     """
-    set_mcp_context(ctx)
+    request_ctx = get_request_context()
     log = logging.getLogger(__name__)
-    request_ctx = await build_context(ctx)
     run_id = str(uuid4())
 
-    session_id = ctx.session_id
+    session_id = request_ctx.fastmcp_ctx.session_id
 
     log.info(
         "canon tool: invoked | tenant=%s session=%s run=%s request=%.120s",

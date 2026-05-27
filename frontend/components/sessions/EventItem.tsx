@@ -30,18 +30,13 @@ export function EventItem({ item }: EventItemProps) {
 
     case EVENT_TYPE.REASONING_CHECKPOINT:
       return (
-        <div className="border-l-2 border-l-canon-accent bg-canon-surface px-4 py-3">
-          <div className="flex items-center justify-between">
-            <span className="font-condensed font-bold text-xs uppercase tracking-wider text-canon-accent">
-              Reasoning
-            </span>
-            {item.timestamp && (
-              <span suppressHydrationWarning className="text-xs text-canon-text-secondary">
-                {formatTimestamp(item.timestamp)}
-              </span>
-            )}
+        <div className="flex gap-3">
+          <div className="pt-1.5 shrink-0">
+            <div className="w-2 h-2 rounded-full bg-canon-accent" />
           </div>
-          <p className="mt-2 whitespace-pre-wrap text-sm text-canon-text">{item.payload.message}</p>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-canon-text">
+            {item.payload.message}
+          </p>
         </div>
       );
 

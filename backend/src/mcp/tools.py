@@ -9,7 +9,7 @@ from mcp.types import ToolAnnotations
 
 from src.agent.runner import run_agent
 from src.config import settings
-from src.mcp.context import build_context
+from src.mcp.context import build_context, set_mcp_context
 from src.models.schemas import RunStartedPayload
 
 
@@ -48,6 +48,7 @@ async def canon(
     """
     if ctx is None:
         raise RuntimeError("Context required — FastMCP should inject it automatically.")
+    set_mcp_context(ctx)
     log = logging.getLogger(__name__)
     request_ctx = await build_context(ctx)
     run_id = str(uuid4())

@@ -10,6 +10,7 @@ from google.adk.tools.function_tool import FunctionTool
 from google.adk.tools.tool_context import ToolContext
 
 from src.agent.constants import TempState
+from src.mcp.context import get_mcp_context
 
 
 async def emit_checkpoint(message: str, tool_context: ToolContext) -> dict[str, str]:
@@ -24,6 +25,11 @@ async def emit_checkpoint(message: str, tool_context: ToolContext) -> dict[str, 
         tool_context.agent_name,
         message,
     )
+
+    ctx = get_mcp_context()
+    if ctx is not None:
+        await ctx.report_progress(progress=0, total=None, message=message)
+
     return {"status": "ok", "message": message}
 
 

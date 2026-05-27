@@ -1,11 +1,24 @@
 from __future__ import annotations
 
+import contextvars
 import logging
 
 from fastmcp import Context
 
 from src.mcp.middleware import TENANT_STATE_KEY, USER_STATE_KEY
 from src.services.event_feed import AgentEventFeed, get_feed
+
+_mcp_context: contextvars.ContextVar[Context | None] = contextvars.ContextVar(
+    "mcp_context", default=None
+)
+
+
+def set_mcp_context(ctx: Context) -> None:
+    _mcp_context.set(ctx)
+
+
+def get_mcp_context() -> Context | None:
+    return _mcp_context.get()
 
 
 class _RequestContext:

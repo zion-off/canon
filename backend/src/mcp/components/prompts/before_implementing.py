@@ -5,11 +5,16 @@ from fastmcp.prompts import prompt
 def before_implementing_prompt() -> str:
     """Before I implement something — check org memory for conflicts and constraints."""
     return """\
-Before implementing: invoke the `canon` tool with `request` describing what you
-intend to build and why, and `context` summarizing what you have already observed
-about the codebase — technology choices, existing patterns, relevant libraries.
-Canon will return organizational constraints — deprecated patterns, active
-migrations, prior failures — that should reshape your plan.
+Invoke the `canon` tool whenever you are about to recommend an implementation
+approach, make an architectural choice, select a technology or library, or give
+any advice that commits the engineer to a direction. Canon holds organizational
+memory that the codebase cannot tell you — and your recommendation may be
+technically correct but organizationally wrong without this context.
 
-Use this prompt whenever you are about to write or modify code and want to ensure
-your approach aligns with current team conventions."""
+When invoking: set `request` to describe the engineering intent (what you intend
+to recommend and why). Set `context` to summarize what you have already observed
+— the current technology stack, existing patterns, scope of the change, and any
+relevant codebase details.
+
+If Canon returns a reshaped plan, use that plan instead of your original
+recommendation."""

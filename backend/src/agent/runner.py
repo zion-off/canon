@@ -19,9 +19,9 @@ from src.agent.constants import (
     AgentName,
     SessionState,
 )
+from src.agent.plugins.ambient_context import AmbientContextPlugin
+from src.agent.plugins.reasoning_feed import ReasoningFeedPlugin
 from src.config import settings
-from src.mcp.plugins.ambient_context import AmbientContextPlugin
-from src.mcp.plugins.reasoning_feed import ReasoningFeedPlugin
 from src.models.documents import SessionDocument, TenantDocument
 from src.models.schemas import (
     FinalResponseEvent,

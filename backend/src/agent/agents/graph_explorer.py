@@ -36,15 +36,16 @@ Budget: 2 MCP tool calls total.
 
 ### Step 1 — Graph Traversal
 
-Use ``aggregate`` on collection ``memory_nodes`` with this pipeline:
+Use ``aggregate`` on collection ``memory_nodes`` with this exact pipeline.
+Do NOT add, remove, or modify any stages. Do NOT use $vectorSearch or $search.
 
 ```json
 [
-  {{
-    "$match": {{ "_id": {{ "$in": [{{ "$oid": "<id1>" }}, {{ "$oid": "<id2>" }}] }} }}
-  }},
-  {{
-    "$graphLookup": {{
+  {
+    "$match": { "_id": { "$in": [{ "$oid": "<id1>" }, { "$oid": "<id2>" }] } }
+  },
+  {
+    "$graphLookup": {
       "from": "memory_nodes",
       "startWith": "$relatedEntityIds",
       "connectFromField": "relatedEntityIds",
@@ -52,10 +53,10 @@ Use ``aggregate`` on collection ``memory_nodes`` with this pipeline:
       "as": "connected",
       "maxDepth": 2,
       "depthField": "hops"
-    }}
-  }},
-  {{
-    "$project": {{
+    }
+  },
+  {
+    "$project": {
       "_id": 1,
       "name": 1,
       "description": 1,
@@ -72,8 +73,8 @@ Use ``aggregate`` on collection ``memory_nodes`` with this pipeline:
       "connected.tags": 1,
       "connected.hops": 1,
       "connected.relatedEntityIds": 1
-    }}
-  }}
+    }
+  }
 ]
 ```
 
@@ -81,9 +82,8 @@ Notes on the pipeline:
 
 - Do NOT include ``database`` or ``tenantId`` — those are injected
   automatically.
-- Memory IDs must be formatted as {{"$oid": "<hex>"}}.
-- maxDepth of 2 is the default. Only increase if the orchestrator
-  explicitly requests deeper traversal.
+- Memory IDs must be formatted as {"$oid": "<hex>"}.
+- maxDepth of 2 is the default. Only increase if explicitly requested.
 
 ### Step 2 — Fallback (only if Step 1 returns empty or errors)
 
@@ -91,10 +91,10 @@ If Step 1 returns no results and you have remaining budget, try a direct
 ``find`` on collection ``memory_nodes`` with the IDs:
 
 ```json
-{{
+{
   "collection": "memory_nodes",
-  "filter": {{ "_id": {{ "$in": [{{ "$oid": "<id1>" }}, {{ "$oid": "<id2>" }}] }} }}
-}}
+  "filter": { "_id": { "$in": [{ "$oid": "<id1>" }, { "$oid": "<id2>" }] } }
+}
 ```
 
 This confirms whether the memories exist at all.
@@ -123,11 +123,11 @@ If the orchestrator provides a name instead of an ID (shouldn't happen
 normally), use find to resolve it:
 
 ```json
-{{
+{
   "collection": "memory_nodes",
-  "filter": {{ "name": {{ "$regex": "^<name>$", "$options": "i" }} }},
-  "projection": {{ "_id": 1, "name": 1 }}
-}}
+  "filter": { "name": { "$regex": "^<name>$", "$options": "i" } },
+  "projection": { "_id": 1, "name": 1 }
+}
 ```
 """
 

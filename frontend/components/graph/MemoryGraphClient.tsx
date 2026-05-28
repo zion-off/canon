@@ -353,7 +353,13 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
       <div className="flex min-h-0 flex-1">
         <div
           ref={graphContainerRef}
-          className={`relative min-h-0 ${selectedNode ? "w-[65%]" : "w-full"}`}
+          className={`relative min-h-0 bg-canon-bg ${selectedNode ? "w-[65%]" : "w-full"}`}
+          style={{
+            backgroundImage: `
+              radial-gradient(circle, ${GraphStyle.GRID.DOT_COLOR} ${GraphStyle.GRID.DOT_RADIUS}px, transparent ${GraphStyle.GRID.DOT_RADIUS}px)
+            `,
+            backgroundSize: `${GraphStyle.GRID.SPACING}px ${GraphStyle.GRID.SPACING}px`,
+          }}
           onMouseMove={handleMouseMove}
         >
           <ForceGraph2D
@@ -372,7 +378,7 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
             nodeLabel=""
             width={width}
             height={height}
-            backgroundColor={GraphStyle.BG}
+            backgroundColor="rgba(0,0,0,0)"
             cooldownTicks={Number.MAX_SAFE_INTEGER}
             d3AlphaDecay={0.02}
             d3VelocityDecay={0.4}

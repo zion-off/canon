@@ -28,8 +28,6 @@ export function tagColor(tag: string): string {
 }
 
 export const GraphStyle = {
-  BG: "#111111",
-
   TAG_PALETTE,
   tagColor,
 
@@ -45,6 +43,13 @@ export const GraphStyle = {
     if (node.tags.length === 0) return this.UNTAGGED_COLOR;
     const sortedTags = [...node.tags].sort();
     return this.tagColor(sortedTags[0]);
+  },
+
+  // Dot-grid background
+  GRID: {
+    DOT_COLOR: "rgba(212, 212, 212, 0.08)",
+    DOT_RADIUS: 1,
+    SPACING: 24,
   },
 
   // Node sizing

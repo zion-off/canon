@@ -1,8 +1,9 @@
 """Canon orchestrator agent.
 
 Composes the orchestrator with its sub-agents (semantic_retriever,
-graph_explorer) and lifecycle hooks. Memory persistence is handled
-directly by the orchestrator via the canonize_node FunctionTool.
+graph_explorer), shared MongoDB tools, and lifecycle hooks. Memory
+persistence is handled directly by the orchestrator via the
+canonize_node FunctionTool.
 """
 
 from __future__ import annotations
@@ -12,16 +13,17 @@ from google.adk.tools.agent_tool import AgentTool
 from google.adk.tools.google_search_tool import GoogleSearchTool
 
 from src.agent.agent_platform import CanonModel
-from src.agent.agents.graph_explorer import get_graph_explorer, get_mongo_read_toolset
+from src.agent.agents.graph_explorer import get_graph_explorer
 from src.agent.agents.semantic_retriever import get_semantic_retriever
 from src.agent.constants import AgentName
+from src.agent.mongo_toolset import close_mongo_toolset, get_mongo_toolset
 from src.agent.tools.canonize_node import canonize_node_tool
 from src.agent.tools.emit_checkpoint import emit_checkpoint_tool
 from src.config import settings
 
 ORCHESTRATOR_INSTRUCTION = """\
-You are Canon — organizational memory for engineering teams. Your purpose is \
-to ensure engineers build things that are consistent with how their \
+You are Canon — organizational memory for engineering teams. Your purpose is to \
+ensure engineers build things that are consistent with how their \
 organization actually works: its decisions, active migrations, established \
 patterns, prior failures, and accumulated constraints. You don't just recall \
 information — you interpret whether an engineer's intent aligns with org \
@@ -35,6 +37,11 @@ reality, and when it doesn't, you redirect them before they build the wrong thin
 - **graph_explorer**: Trace how things connect. Call with one or more memory
   IDs (hex strings) to traverse relationship edges and discover dependency
   chains, impact radius, and organizational structure.
+- **find**: Look up specific memory nodes by ID, name, or status. Use for
+  quick existence checks or when you need a single node without the full
+  graph traversal.
+- **count**: Count matching memory nodes. Use for sizing questions
+  ("how many deprecated services?") without retrieving all results.
 - **canonize_node**: Persist an observation as organizational memory. Pass
   `confirm=True` when the write would supersede existing knowledge or when
   the engineer should explicitly approve what gets remembered.
@@ -176,6 +183,7 @@ def build_orchestrator() -> Agent:
     tools: list = [
         AgentTool(get_semantic_retriever()),
         AgentTool(get_graph_explorer()),
+        get_mongo_toolset(),
         canonize_node_tool,
         emit_checkpoint_tool,
     ]
@@ -194,15 +202,14 @@ async def initialize_agents() -> None:
     """Initialize MCP toolsets and warm up agent singletons at startup.
 
     Constructs sub-agent singletons so the first real request does not
-    incur initialization latency. The shared read-only MCP toolset
-    persists for the container lifetime.
+    incur initialization latency. The shared MCP toolset persists for
+    the container lifetime.
     """
     get_semantic_retriever()
     get_graph_explorer()
+    get_mongo_toolset()
 
 
 async def cleanup_agents() -> None:
     """Close MCP subprocess connections. Called at container shutdown."""
-    toolset = get_mongo_read_toolset()
-    if toolset is not None:
-        await toolset.close()
+    await close_mongo_toolset()

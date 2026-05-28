@@ -1,11 +1,10 @@
-"""Canonize node tool — persists a memory node in the knowledge graph."""
+"""Canonize node tool — persists a memory node via the MongoDB MCP server."""
 
 from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
 
-from beanie.odm.fields import PydanticObjectId
 from google.adk.tools.function_tool import FunctionTool
 from google.adk.tools.tool_context import ToolContext
 
@@ -20,7 +19,7 @@ from src.agent.models import (
 from src.agent.tools.hybrid_search import build_embedding_text
 from src.config import settings
 from src.mcp.request_context import get_request_context
-from src.models.documents import MemoryNodeDocument
+from src.mcp.session_provider import call_tool
 
 
 async def canonize_node(
@@ -74,27 +73,38 @@ async def canonize_node(
             hint="Missing tenant context",
         )
 
-    try:
-        tenant_oid = PydanticObjectId(tenant_id_str)
-        related_entity_oids = [PydanticObjectId(rid) for rid in doc.related_entity_ids]
-        related_existing_oids = [PydanticObjectId(rid) for rid in reverse_link_ids]
-    except Exception as exc:
-        return CanonizeError(
-            error=f"Invalid ObjectId: {exc}",
-            hint="Malformed ID",
-            retry="Verify IDs are 24-char hex from actual query results",
-        )
+    oid_related: list[dict[str, str]] = []
+    oid_reverse: list[dict[str, str]] = []
+    oid_supersedes: dict[str, str] | None = None
 
-    supersedes_oid: PydanticObjectId | None = None
-    if doc.supersedes:
-        try:
-            supersedes_oid = PydanticObjectId(doc.supersedes)
-        except Exception as exc:
+    for rid in doc.related_entity_ids:
+        if len(rid) != 24:
             return CanonizeError(
-                error=f"Invalid ObjectId in supersedes: {exc}",
+                error=f"Invalid ObjectId: '{rid}' is not a 24-char hex string",
                 hint="Malformed ID",
                 retry="Verify IDs are 24-char hex from actual query results",
             )
+        oid_related.append({"$oid": rid})
+
+    for rid in reverse_link_ids:
+        if not rid:
+            continue
+        if len(rid) != 24:
+            return CanonizeError(
+                error=f"Invalid ObjectId in reverse_link: '{rid}' is not a 24-char hex string",
+                hint="Malformed ID",
+                retry="Verify IDs are 24-char hex from actual query results",
+            )
+        oid_reverse.append({"$oid": rid})
+
+    if doc.supersedes:
+        if len(doc.supersedes) != 24:
+            return CanonizeError(
+                error=f"Invalid ObjectId in supersedes: '{doc.supersedes}' is not a 24-char hex string",
+                hint="Malformed ID",
+                retry="Verify IDs are 24-char hex from actual query results",
+            )
+        oid_supersedes = {"$oid": doc.supersedes}
 
     # --- HITL confirmation ---
     if confirm:
@@ -132,68 +142,193 @@ async def canonize_node(
             retry="Wait and retry",
         )
 
-    node_doc = MemoryNodeDocument(
-        tenantId=tenant_oid,
-        name=doc.name,
-        description=doc.description,
-        content=doc.content,
-        status=doc.status,
-        tags=doc.tags,
-        metadata=doc.metadata,
-        relatedEntityIds=related_entity_oids,
-        supersedes=supersedes_oid,
-        embeddingText=embedding_text,
-        embedding=embedding,
-        createdAt=now,
-        updatedAt=now,
-    )
+    now_iso = now.isoformat()
+    insert_doc: dict[str, object] = {
+        "tenantId": {"$oid": tenant_id_str},
+        "name": doc.name,
+        "description": doc.description,
+        "content": doc.content,
+        "status": doc.status,
+        "tags": doc.tags,
+        "relatedEntityIds": oid_related,
+        "embeddingText": embedding_text,
+        "embedding": embedding,
+        "metadata": doc.metadata,
+        "createdAt": now_iso,
+        "updatedAt": now_iso,
+    }
+    if oid_supersedes is not None:
+        insert_doc["supersedes"] = oid_supersedes
+
     try:
-        await node_doc.insert()
+        insert_result = await call_tool(
+            "insertOne",
+            {
+                "collection": "memory_nodes",
+                "database": "canon",
+                "document": insert_doc,
+            },
+        )
     except Exception as exc:
-        if "duplicate key" in str(exc).lower():
+        error_str = str(exc).lower()
+        if "duplicate" in error_str:
             return CanonizeError(
                 error=f"A node named '{doc.name}' already exists for this tenant.",
                 hint="A memory with this name already exists",
                 retry="Use different name or supersede existing. Retrieve it first.",
             )
-        log.warning("canonize_node: insert failed | name=%s error=%s", doc.name, exc)
+        log.warning("canonize_node: insertOne failed | name=%s error=%s", doc.name, exc)
         return CanonizeError(
             error=f"Insert failed: {exc}",
             hint="Database write failed",
             retry="Retry once. If persistent, surface the error.",
         )
 
-    new_id = node_doc.id
+    if getattr(insert_result, "isError", False):
+        error_text = ""
+        for item in insert_result.content:
+            text = getattr(item, "text", "")
+            if text:
+                error_text = text
+                break
+        log.warning(
+            "canonize_node: insertOne returned error | name=%s error=%s",
+            doc.name,
+            error_text,
+        )
+        if "duplicate" in error_text.lower():
+            return CanonizeError(
+                error=f"A node named '{doc.name}' already exists for this tenant.",
+                hint="A memory with this name already exists",
+                retry="Use different name or supersede existing. Retrieve it first.",
+            )
+        return CanonizeError(
+            error=f"Insert failed: {error_text}",
+            hint="Database write returned an error",
+            retry="Retry once. If persistent, surface the error.",
+        )
+
+    # Extract inserted ID from MCP response
+    inserted_id = _extract_inserted_id(insert_result)
+    if not inserted_id:
+        log.warning(
+            "canonize_node: insertOne succeeded but could not extract inserted ID | name=%s",
+            doc.name,
+        )
+        return CanonizeError(
+            error="Node inserted but ID could not be extracted from MCP response. "
+            "The write may have succeeded but relationship wiring was skipped.",
+            hint="MCP response format unexpected — could not find insertedId",
+            retry="Use find to locate the newly inserted node by name, "
+            "then manually wire relationships with updateMany",
+        )
+
+    oid_new = {"$oid": inserted_id}
     relationships_formed = 0
 
-    if related_existing_oids:
-        await MemoryNodeDocument.find(
-            {"_id": {"$in": related_existing_oids}, "tenantId": tenant_oid}
-        ).update_many(
-            {"$addToSet": {"relatedEntityIds": new_id}, "$set": {"updatedAt": now}}
-        )
-        relationships_formed += len(related_existing_oids)
+    # Wire reverse relationships
+    for oid_target in oid_reverse:
+        if oid_target["$oid"] == inserted_id:
+            continue
+        try:
+            update_result = await call_tool(
+                "updateMany",
+                {
+                    "collection": "memory_nodes",
+                    "database": "canon",
+                    "filter": {
+                        "_id": oid_target,
+                        "tenantId": {"$oid": tenant_id_str},
+                    },
+                    "update": {
+                        "$addToSet": {"relatedEntityIds": oid_new},
+                        "$set": {"updatedAt": now_iso},
+                    },
+                },
+            )
+            if not getattr(update_result, "isError", False):
+                relationships_formed += 1
+        except Exception as exc:
+            log.warning(
+                "canonize_node: reverse link update failed | target=%s error=%s",
+                oid_target.get("$oid"),
+                exc,
+            )
 
-    if supersedes_oid:
-        await MemoryNodeDocument.find(
-            {"_id": supersedes_oid, "tenantId": tenant_oid}
-        ).update_many(
-            {"$set": {"supersededBy": new_id, "status": "deprecated", "updatedAt": now}}
-        )
-        relationships_formed += 1
+    # Wire supersession
+    if oid_supersedes is not None and oid_supersedes["$oid"] != inserted_id:
+        try:
+            supersede_result = await call_tool(
+                "updateMany",
+                {
+                    "collection": "memory_nodes",
+                    "database": "canon",
+                    "filter": {
+                        "_id": oid_supersedes,
+                        "tenantId": {"$oid": tenant_id_str},
+                    },
+                    "update": {
+                        "$set": {
+                            "supersededBy": oid_new,
+                            "status": "deprecated",
+                            "updatedAt": now_iso,
+                        },
+                    },
+                },
+            )
+            if not getattr(supersede_result, "isError", False):
+                relationships_formed += 1
+        except Exception as exc:
+            log.warning(
+                "canonize_node: supersede update failed | target=%s error=%s",
+                oid_supersedes.get("$oid"),
+                exc,
+            )
 
     log.info(
         "canonize_node: written | name=%s node_id=%s relationships=%d rationale=%.80s",
         doc.name,
-        new_id,
+        inserted_id,
         relationships_formed,
         rationale,
     )
     return CanonizeSuccess(
-        node_id=str(new_id),
+        node_id=inserted_id,
         name=doc.name,
         relationships_formed=relationships_formed,
     )
+
+
+def _extract_inserted_id(result: object) -> str | None:
+    """Extract the inserted document's _id from an MCP insertOne result.
+
+    The mongodb-mcp-server returns the inserted ID in various shapes.
+    We try common patterns: direct string, $oid dict, or structured content.
+    """
+    import json
+
+    for item in getattr(result, "content", []):
+        text = getattr(item, "text", "")
+        if not text:
+            continue
+        try:
+            doc = json.loads(text)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(doc, dict):
+            raw = doc.get("insertedId") or doc.get("_id")
+            if isinstance(raw, dict) and "$oid" in raw:
+                return raw["$oid"]
+            if isinstance(raw, str) and len(raw) == 24:
+                return raw
+            # Sometimes the entire document is returned
+            if "_id" in doc:
+                raw = doc["_id"]
+                if isinstance(raw, dict) and "$oid" in raw:
+                    return raw["$oid"]
+                if isinstance(raw, str) and len(raw) == 24:
+                    return raw
+    return None
 
 
 canonize_node_tool = FunctionTool(func=canonize_node)

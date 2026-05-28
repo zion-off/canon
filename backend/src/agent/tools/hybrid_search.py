@@ -6,9 +6,7 @@ the MongoDB MCP server.
 
 from __future__ import annotations
 
-import json
 import logging
-import re
 from typing import Any
 
 from google.adk.tools.function_tool import FunctionTool
@@ -24,12 +22,7 @@ from src.agent.models import (
     SearchResultItem,
 )
 from src.config import settings
-from src.mcp.mongo_connections import call_aggregate
-
-_UNTRUSTED_CONTENT_RE = re.compile(
-    r"<untrusted-user-data-[^>]+>(.*?)</untrusted-user-data-[^>]+>",
-    re.DOTALL,
-)
+from src.mcp.session_provider import call_tool, parse_mcp_docs
 
 
 def build_embedding_text(doc) -> str:
@@ -203,7 +196,14 @@ async def hybrid_search(
     )
 
     try:
-        result = await call_aggregate("memory_nodes", pipeline)
+        result = await call_tool(
+            "aggregate",
+            {
+                "collection": "memory_nodes",
+                "database": "canon",
+                "pipeline": pipeline,
+            },
+        )
 
         if result.isError:
             for item in result.content:
@@ -228,41 +228,7 @@ async def hybrid_search(
                 retry="Simplify pipeline or try different query",
             )
 
-        docs: list[dict[str, Any]] = []
-        for item in result.content:
-            if not isinstance(item, TextContent) or not item.text:
-                continue
-            raw = item.text
-
-            found = False
-            for inner in _UNTRUSTED_CONTENT_RE.findall(raw):
-                candidate = inner.strip()
-                if not candidate:
-                    continue
-                try:
-                    parsed = json.loads(candidate)
-                    docs.extend(parsed) if isinstance(parsed, list) else docs.append(
-                        parsed
-                    )
-                    found = True
-                    break
-                except json.JSONDecodeError:
-                    pass
-            if found:
-                continue
-
-            try:
-                parsed = json.loads(raw)
-                docs.extend(parsed) if isinstance(parsed, list) else docs.append(parsed)
-                continue
-            except json.JSONDecodeError:
-                pass
-
-            log.debug(
-                "hybrid_search: skipping non-JSON item | query=%.80s content=%.120s",
-                query,
-                raw[:120],
-            )
+        docs: list[dict[str, Any]] = parse_mcp_docs(result.content)
 
         results = [SearchResultItem.model_validate(d) for d in docs]
         top_names = [r.name for r in results[:5]]

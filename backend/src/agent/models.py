@@ -99,3 +99,23 @@ class CanonizeError(BaseModel):
 
 
 type CanonizeResult = CanonizeSuccess | CanonizeError
+
+
+class TraceGraphSuccess(BaseModel):
+    """Successful graph traversal with nodes and their connected graph."""
+
+    nodes: list[dict[str, Any]]
+    count: int
+    note: str | None = None
+    next_actions: list[str] = Field(default_factory=list)
+
+
+class TraceGraphError(BaseModel):
+    """Failed graph traversal."""
+
+    error: str
+    hint: str = ""
+    retry: str | None = None
+
+
+type TraceGraphResult = TraceGraphSuccess | TraceGraphError

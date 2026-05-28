@@ -1,182 +1,72 @@
+"""Graph explorer sub-agent — traverses memory node relationships.
+
+Receives memory IDs from the orchestrator and discovers connected context:
+dependency chains, supersession chains, and ownership structures. Uses
+trace_graph (FunctionTool) for graph traversal and find/count (McpToolset)
+for simple lookups.
+
+The LLM emits intent ("trace these IDs", "find nodes by name") — the
+harness builds all pipeline JSON in Python. The LLM never generates
+$graphLookup, $vectorSearch, or any aggregation pipeline syntax.
+"""
+
 from __future__ import annotations
 
-import logging
-
 from google.adk.agents import Agent
-from google.adk.tools.base_tool import BaseTool
-from google.adk.tools.mcp_tool import McpToolset
-from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
-from google.adk.tools.tool_context import ToolContext
 
 from src.agent.agent_platform import CanonModel
 from src.agent.constants import AgentName
+from src.agent.mongo_toolset import get_mongo_toolset
 from src.agent.tools.emit_checkpoint import emit_checkpoint_tool
+from src.agent.tools.trace_graph import trace_graph_tool
 from src.config import settings
-from src.mcp.mongo_connections import get_read_params
-
-logger = logging.getLogger(__name__)
 
 GRAPH_EXPLORER_INSTRUCTION = """\
-You are Canon's graph traversal layer. Your only job is to run MongoDB
-queries and return the results. Follow the query templates below exactly.
+You are Canon's graph traversal layer. Your job is to discover how memory
+nodes connect to each other — relationship paths, dependency chains,
+supersession structures, and ownership patterns.
 
-## Input Contract
+## Tools
 
-You receive one or more memory IDs (hex strings) from the orchestrator.
-Do NOT accept names unless using the Name Fallback below.
+- **trace_graph**: Trace relationship paths from memory node IDs.
+  The tool handles all graph traversal — just provide the hex IDs and
+  optionally a max_depth (defaults to 2).
+- **find**: Simple lookups by ID, name, or status when you need to confirm
+  existence or resolve a name to an ID.
+- **count**: Quick counts when the orchestrator needs sizing information.
+- **emit_checkpoint**: Report progress at key transitions.
 
-## Query Protocol
+## Protocol
 
-Budget: 2 MCP tool calls total.
-
-IMPORTANT BEFORE QUERYING:
-- Do NOT include a ``database`` field in any tool call.
-- Do NOT include ``tenantId`` — it is injected automatically.
-- Do NOT use $vectorSearch, $search, or any stage not shown below.
-- Each pipeline stage is a JSON object with exactly ONE key (the operator
-  name, e.g. "$match", "$graphLookup", "$project"). Never put field names
-  directly at the top level of a pipeline stage.
-
-### Step 1 — Graph Traversal
-
-Copy this pipeline exactly, substituting the actual hex IDs for the
-``<id1>``, ``<id2>`` placeholders. Include only as many IDs as you have.
-
-```json
-[
-  {
-    "$match": { "_id": { "$in": [{ "$oid": "<id1>" }, { "$oid": "<id2>" }] } }
-  },
-  {
-    "$graphLookup": {
-      "from": "memory_nodes",
-      "startWith": "$relatedEntityIds",
-      "connectFromField": "relatedEntityIds",
-      "connectToField": "_id",
-      "as": "connected",
-      "maxDepth": 2,
-      "depthField": "hops"
-    }
-  },
-  {
-    "$project": {
-      "_id": 1,
-      "name": 1,
-      "description": 1,
-      "status": 1,
-      "tags": 1,
-      "metadata": 1,
-      "relatedEntityIds": 1,
-      "supersedes": 1,
-      "supersededBy": 1,
-      "connected._id": 1,
-      "connected.name": 1,
-      "connected.description": 1,
-      "connected.status": 1,
-      "connected.tags": 1,
-      "connected.hops": 1,
-      "connected.relatedEntityIds": 1
-    }
-  }
-]
-```
-
-Notes:
-
-- Memory IDs must be formatted as {"$oid": "<hex>"}.
-- maxDepth of 2 is the default. Only increase if explicitly requested.
-
-### Step 2 — Fallback (only if Step 1 returns empty or errors)
-
-If Step 1 returns no results and you have remaining budget, try a direct
-``find`` on collection ``memory_nodes`` with the IDs:
-
-```json
-{
-  "collection": "memory_nodes",
-  "filter": { "_id": { "$in": [{ "$oid": "<id1>" }, { "$oid": "<id2>" }] } }
-}
-```
-
-This confirms whether the memories exist at all.
+1. Call **trace_graph** with the entity IDs from the orchestrator.
+   This is the primary tool — it discovers the connected graph in one call.
+2. If trace_graph returns no results, call **find** to confirm whether
+   the nodes exist at all (direct ID lookup).
+3. If the orchestrator provides names instead of IDs (rare), use **find**
+   to resolve them to IDs first, then call trace_graph.
 
 ## Output Structure
 
-Surface what matters most first. For each area where you found relevant nodes,
+Surface what matters most. For each area where you found relevant nodes,
 report:
 
-- **Active and in-progress nodes** — what is live and constraining right now
+- **Active and in-progress nodes** — what is live and constraining
 - **Supersession chains** — what replaced what, and why
 - **Ownership and dependent systems** — who owns this, what depends on it
 - **Historical context** — deprecated or completed nodes
 
 The orchestrator synthesizes — you discover and report the graph.
 
-## Error Handling
+## Budget
 
-- If the MCP tool returns an error, report it verbatim. Do NOT retry with
-  the same query.
-- Never fabricate IDs or invent connections not present in results.
+2 MCP tool calls total. emit_checkpoint does NOT count.
 
-## Name Fallback (rare)
-
-If the orchestrator provides a name instead of an ID (shouldn't happen
-normally), use find to resolve it:
-
-```json
-{
-  "collection": "memory_nodes",
-  "filter": { "name": { "$regex": "^<name>$", "$options": "i" } },
-  "projection": { "_id": 1, "name": 1 }
-}
-```
+If you exhaust your budget without resolution, report what you found and
+what remains unknown. Never fabricate IDs or invent connections.
 """
 
 
-async def graph_explorer_after_tool(
-    tool: BaseTool,
-    args: dict,
-    tool_context: ToolContext,
-    tool_response,
-):
-    """Observe graph_explorer tool responses for error patterns."""
-    # Check the isError flag directly to avoid false positives from the
-    # string "isError" appearing in successful responses.
-    is_error = isinstance(tool_response, dict) and tool_response.get("isError", False)
-    if is_error:
-        response_str = str(tool_response)
-        logger.warning(
-            "graph_explorer tool '%s' returned error: %.200s",
-            tool.name,
-            response_str,
-        )
-    return None  # Don't modify the response
-
-
 _graph_explorer: Agent | None = None
-_read_toolset: McpToolset | None = None
-
-
-def _build_mongo_read_toolset() -> McpToolset:
-    global _read_toolset
-    if _read_toolset is not None:
-        return _read_toolset
-    _read_toolset = McpToolset(
-        connection_params=StdioConnectionParams(
-            server_params=get_read_params(),
-        ),
-        tool_filter=["find", "aggregate", "count"],
-    )
-    return _read_toolset
-
-
-def get_mongo_read_toolset() -> McpToolset:
-    """Return the singleton read-only MongoDB MCP toolset.
-
-    Exposed for lifecycle management — callers can close the underlying
-    subprocess connection via ``await toolset.close()``.
-    """
-    return _build_mongo_read_toolset()
 
 
 def get_graph_explorer() -> Agent:
@@ -191,12 +81,10 @@ def get_graph_explorer() -> Agent:
             model=CanonModel.create(settings.reasoning_model),
             description=(
                 "Navigates relationships between memories using MongoDB. "
-                "Accepts entity IDs (hex strings) only — never names. "
-                "Returns connected context and relationship paths."
+                "Accepts entity IDs (hex strings) and returns connected context."
             ),
             instruction=GRAPH_EXPLORER_INSTRUCTION,
-            tools=[_build_mongo_read_toolset(), emit_checkpoint_tool],
+            tools=[get_mongo_toolset(), trace_graph_tool, emit_checkpoint_tool],
             output_key="graph_results",
-            after_tool_callback=graph_explorer_after_tool,
         )
     return _graph_explorer

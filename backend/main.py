@@ -80,10 +80,10 @@ async def _api_lifespan(app: FastAPI):
 
     try:
         from src.agent.agents.orchestrator import cleanup_agents, initialize_agents
-        from src.mcp.mongo_connections import shutdown as mongo_mcp_shutdown
-        from src.mcp.mongo_connections import startup as mongo_mcp_startup
+        from src.mcp.session_provider import shutdown as mcp_session_shutdown
+        from src.mcp.session_provider import startup as mcp_session_startup
 
-        await mongo_mcp_startup()
+        await mcp_session_startup()
         await initialize_agents()
         _AppState.agents_ready = True
         logger.info("Canon ADK agents initialized")
@@ -94,11 +94,11 @@ async def _api_lifespan(app: FastAPI):
 
     try:
         from src.agent.agents.orchestrator import cleanup_agents
-        from src.mcp.mongo_connections import shutdown as mongo_mcp_shutdown
+        from src.mcp.session_provider import shutdown as mcp_session_shutdown
 
         _AppState.agents_ready = False
         await cleanup_agents()
-        await mongo_mcp_shutdown()
+        await mcp_session_shutdown()
     except Exception:
         pass
 

@@ -240,9 +240,12 @@ export function NodeDetailEdit({
             type="button"
             onClick={handleSave}
             disabled={saving || !isValid || !isDirty}
-            className="flex-1 border border-canon-accent bg-canon-accent px-3 py-1.5 text-sm font-medium text-canon-bg hover:bg-canon-text hover:border-canon-text transition-colors disabled:opacity-50"
+            className="relative flex-1 overflow-hidden border border-canon-accent bg-canon-accent px-3 py-1.5 text-sm font-medium text-canon-bg hover:bg-canon-text hover:border-canon-text transition-colors disabled:opacity-50"
           >
-            {saving ? "Saving..." : "Save"}
+            {saving && (
+              <span className="animate-[sweep_1s_ease-in-out_infinite] absolute inset-y-0 w-16 bg-linear-to-r from-transparent via-canon-bg/8 to-transparent" />
+            )}
+            Save
           </button>
           <button
             type="button"

@@ -81,3 +81,12 @@ body {
     background-position: 0% 0%;
   }
 }
+
+@keyframes sweep {
+  from {
+    left: -4rem;
+  }
+  to {
+    left: 100%;
+  }
+}

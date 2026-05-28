@@ -42,7 +42,7 @@ export function NodeDetailPanel({
         <button
           type="button"
           onClick={onClose}
-          className="ml-2 shrink-0 p-1 text-canon-text-secondary hover:bg-white/[0.05] hover:text-canon-text transition-colors"
+          className="ml-2 shrink-0 p-1 text-canon-text-secondary hover:bg-white/5 hover:text-canon-text transition-colors"
           aria-label="Close panel"
         >
           <svg
@@ -61,7 +61,7 @@ export function NodeDetailPanel({
       <div className="flex-1 space-y-5 p-4">
         {node.tags.length > 0 && (
           <div>
-            <h3 className="mb-2 font-condensed font-bold text-xs uppercase tracking-[0.05em] text-canon-text-secondary">
+            <h3 className="mb-2 font-condensed font-bold text-xs uppercase tracking-wider text-canon-text-secondary">
               Tags
             </h3>
             <div className="flex flex-wrap gap-1.5">
@@ -78,7 +78,7 @@ export function NodeDetailPanel({
         )}
 
         <div>
-          <h3 className="mb-2 font-condensed font-bold text-xs uppercase tracking-[0.05em] text-canon-text-secondary">
+          <h3 className="mb-2 font-condensed font-bold text-xs uppercase tracking-wider text-canon-text-secondary">
             Description
           </h3>
           <p className="text-sm leading-relaxed text-canon-text">
@@ -88,7 +88,7 @@ export function NodeDetailPanel({
 
         {connectedNodes.length > 0 && (
           <div>
-            <h3 className="mb-2 font-condensed font-bold text-xs uppercase tracking-[0.05em] text-canon-text-secondary">
+            <h3 className="mb-2 font-condensed font-bold text-xs uppercase tracking-wider text-canon-text-secondary">
               Connected to
             </h3>
             <ul className="space-y-1">
@@ -97,7 +97,7 @@ export function NodeDetailPanel({
                   <button
                     type="button"
                     onClick={() => onSelectNode(cn.id)}
-                    className="w-full px-2 py-1 text-left text-sm text-canon-accent hover:bg-white/[0.05] transition-colors"
+                    className="w-full px-2 py-1 text-left text-sm text-canon-accent hover:bg-white/5 transition-colors"
                   >
                     {cn.name}
                   </button>
@@ -109,7 +109,7 @@ export function NodeDetailPanel({
 
         <div className="space-y-3">
           <div>
-            <h3 className="mb-1 font-condensed font-bold text-xs uppercase tracking-[0.05em] text-canon-text-secondary">
+            <h3 className="mb-1 font-condensed font-bold text-xs uppercase tracking-wider text-canon-text-secondary">
               Supersedes
             </h3>
             {supersedesNode ? (
@@ -125,7 +125,7 @@ export function NodeDetailPanel({
             )}
           </div>
           <div>
-            <h3 className="mb-1 font-condensed font-bold text-xs uppercase tracking-[0.05em] text-canon-text-secondary">
+            <h3 className="mb-1 font-condensed font-bold text-xs uppercase tracking-wider text-canon-text-secondary">
               Superseded by
             </h3>
             {supersededByNode ? (
@@ -145,13 +145,13 @@ export function NodeDetailPanel({
         <div className="border-t border-canon-border pt-4">
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div>
-              <span className="font-condensed font-bold uppercase tracking-[0.05em] text-canon-text-secondary">
+              <span className="font-condensed font-bold uppercase tracking-wider text-canon-text-secondary">
                 Created
               </span>
               <p className="mt-0.5 text-canon-text">{formatShortDate(node.createdAt)}</p>
             </div>
             <div>
-              <span className="font-condensed font-bold uppercase tracking-[0.05em] text-canon-text-secondary">
+              <span className="font-condensed font-bold uppercase tracking-wider text-canon-text-secondary">
                 Updated
               </span>
               <p className="mt-0.5 text-canon-text">{formatShortDate(node.updatedAt)}</p>

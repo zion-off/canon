@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { NodeObject, LinkObject } from "react-force-graph-2d";
 import type { GraphNode, GraphLink } from "@/lib/schemas/graph";
+import { GraphStyle } from "@/lib/graph-style";
 import { STATUS } from "@/lib/constants";
 import { GraphFilters } from "./GraphFilters";
 import { NodeDetailPanel } from "./NodeDetailPanel";
@@ -12,7 +13,6 @@ const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
   ssr: false,
 });
 
-// Extended types for D3 simulation
 type GraphNodeFG = GraphNode & NodeObject & { x?: number; y?: number };
 type GraphLinkFG = GraphLink & LinkObject;
 
@@ -25,67 +25,148 @@ interface MemoryGraphClientProps {
   graphData: GraphData;
 }
 
-function statusColor(status: string, supersededBy: string | null): string {
-  if (supersededBy) return "#444444";
-  switch (status) {
-    case STATUS.ACTIVE:
-      return "#d4d4d4";
-    case STATUS.IN_PROGRESS:
-      return "#c9951a";
-    case STATUS.DEPRECATED:
-      return "#444444";
-    case STATUS.RESOLVED:
-    case STATUS.COMPLETED:
-      return "#3d9e6a";
-    default:
-      return "#737373";
-  }
-}
+// ---------------------------------------------------------------------------
+// Animated node renderer
+// ---------------------------------------------------------------------------
 
 function renderNode(
   node: GraphNodeFG,
   ctx: CanvasRenderingContext2D,
   globalScale: number,
   isHighlighted: boolean,
+  isSearchMatch: boolean,
+  time: number,
 ): void {
-  const isRecent = Date.now() - new Date(node.updatedAt).getTime() < 7 * 86400000;
-  const radius = Math.sqrt((node.connections ?? 0) + 1) * 4;
+  const radius = GraphStyle.nodeRadius(node.connections ?? 0);
   const x = node.x ?? 0;
   const y = node.y ?? 0;
 
-  // Highlight ring for selected/hovered
-  if (isHighlighted) {
-    ctx.beginPath();
-    ctx.arc(x, y, radius + 4, 0, 2 * Math.PI);
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
-    ctx.lineWidth = 2 / globalScale;
-    ctx.stroke();
+  const isSuperseded = !!node.supersededBy;
+  const isDeprecated = node.status === STATUS.DEPRECATED && !node.supersededBy;
+  const isInProgress = node.status === STATUS.IN_PROGRESS && !node.supersededBy;
+  const isRecent =
+    !isSuperseded &&
+    !isDeprecated &&
+    Date.now() - new Date(node.updatedAt).getTime() < GraphStyle.RECENT.WINDOW_MS;
+
+  const tagColor = GraphStyle.nodeBaseColor(node);
+  const r = parseInt(tagColor.slice(1, 3), 16);
+  const g = parseInt(tagColor.slice(3, 5), 16);
+  const b = parseInt(tagColor.slice(5, 7), 16);
+
+  // Dim factor for deprecated / superseded
+  const dimAlpha = isSuperseded
+    ? GraphStyle.SUPERSEDED_ALPHA
+    : isDeprecated
+      ? GraphStyle.DEPRECATED_ALPHA
+      : 1;
+
+  // ---- Orb fill with radial gradient ----
+  // Subtle highlight at centre, darker rim for depth
+  const highlightMix = 0.25;
+  const hlR = Math.round(r + (255 - r) * highlightMix);
+  const hlG = Math.round(g + (255 - g) * highlightMix);
+  const hlB = Math.round(b + (255 - b) * highlightMix);
+  const rimR = Math.round(r * 0.55);
+  const rimG = Math.round(g * 0.55);
+  const rimB = Math.round(b * 0.55);
+
+  const grad = ctx.createRadialGradient(
+    x - radius * GraphStyle.SPECULAR_OFFSET_RATIO,
+    y - radius * GraphStyle.SPECULAR_OFFSET_RATIO,
+    0,
+    x,
+    y,
+    radius,
+  );
+
+  if (isInProgress) {
+    const { ALPHA_MIN, ALPHA_MAX, PERIOD_MS } = GraphStyle.IN_PROGRESS;
+    const t = (time % PERIOD_MS) / PERIOD_MS;
+    const ease = 0.5 - 0.5 * Math.cos(2 * Math.PI * t);
+    const pulse = (ALPHA_MIN + ease * (ALPHA_MAX - ALPHA_MIN)) * dimAlpha;
+    grad.addColorStop(0, `rgba(${hlR}, ${hlG}, ${hlB}, ${pulse})`);
+    grad.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${pulse})`);
+    grad.addColorStop(1, `rgba(${rimR}, ${rimG}, ${rimB}, ${pulse})`);
+  } else {
+    grad.addColorStop(0, `rgba(${hlR}, ${hlG}, ${hlB}, ${dimAlpha})`);
+    grad.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${dimAlpha})`);
+    grad.addColorStop(1, `rgba(${rimR}, ${rimG}, ${rimB}, ${dimAlpha})`);
   }
 
-  // Recent glow
-  if (isRecent) {
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, 2 * Math.PI);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // ---- Specular highlight dot ----
+  const specR = radius * GraphStyle.SPECULAR_DOT_RATIO;
+  if (specR > 1) {
+    const sx = x - radius * GraphStyle.SPECULAR_OFFSET_RATIO;
+    const sy = y - radius * GraphStyle.SPECULAR_OFFSET_RATIO;
     ctx.beginPath();
-    ctx.arc(x, y, radius + 3, 0, 2 * Math.PI);
-    ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+    ctx.arc(sx, sy, specR, 0, 2 * Math.PI);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
     ctx.fill();
   }
 
-  // Main circle
-  ctx.beginPath();
-  ctx.arc(x, y, radius, 0, 2 * Math.PI);
-  ctx.fillStyle = statusColor(node.status, node.supersededBy);
-  ctx.fill();
+  // ---- Recent update ring pulse ----
+  if (isRecent) {
+    const { ALPHA_MAX, PERIOD_MS } = GraphStyle.RECENT;
+    const t = (time % PERIOD_MS) / PERIOD_MS;
+    const ease = 0.5 - 0.5 * Math.cos(2 * Math.PI * t);
+    const alpha = ease * ALPHA_MAX;
+    const ringOuter = radius + 6;
 
-  // Label (only when zoomed in enough)
-  if (globalScale > 0.7) {
-    const label = node.name.slice(0, 30);
+    const ringGrad = ctx.createRadialGradient(x, y, radius, x, y, ringOuter);
+    ringGrad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${alpha})`);
+    ringGrad.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.beginPath();
+    ctx.arc(x, y, ringOuter, 0, 2 * Math.PI);
+    ctx.fillStyle = ringGrad;
+    ctx.fill();
+  }
+
+  // ---- Search-match breathing ring ----
+  if (isSearchMatch) {
+    const { ALPHA_MIN, ALPHA_MAX, PERIOD_MS } = GraphStyle.SEARCH;
+    const t = (time % PERIOD_MS) / PERIOD_MS;
+    const ease = 0.5 - 0.5 * Math.cos(2 * Math.PI * t);
+    const alpha = ALPHA_MIN + ease * (ALPHA_MAX - ALPHA_MIN);
+    const ringOuter = radius + 6;
+
+    const ringGrad = ctx.createRadialGradient(x, y, radius, x, y, ringOuter);
+    ringGrad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${alpha})`);
+    ringGrad.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.beginPath();
+    ctx.arc(x, y, ringOuter, 0, 2 * Math.PI);
+    ctx.fillStyle = ringGrad;
+    ctx.fill();
+  }
+
+  // ---- Highlight ring (selected / hovered) ----
+  if (isHighlighted && !isSearchMatch) {
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 4, 0, 2 * Math.PI);
+    ctx.strokeStyle = GraphStyle.HIGHLIGHT.COLOR;
+    ctx.lineWidth = GraphStyle.HIGHLIGHT.WIDTH / globalScale;
+    ctx.stroke();
+  }
+
+  // ---- Label ----
+  if (globalScale > GraphStyle.LABEL.SCALE_THRESHOLD) {
+    const label = node.name.slice(0, GraphStyle.LABEL.MAX_CHARS);
     ctx.font = `${11 / globalScale}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    ctx.fillStyle = "rgba(212, 212, 212, 0.85)";
+    ctx.fillStyle = GraphStyle.LABEL.COLOR;
     ctx.fillText(label, x, y + radius + 2 / globalScale);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
   const [tagFilter, setTagFilter] = useState("");
@@ -95,8 +176,21 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
   const graphContainerRef = useRef<HTMLDivElement>(null);
+  const animTimeRef = useRef(0);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
 
+  // ---- Animation time tracking ----
+  useEffect(() => {
+    let raf: number;
+    const loop = () => {
+      animTimeRef.current = performance.now();
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  // ---- Dimensions ----
   useEffect(() => {
     const measure = () => {
       if (graphContainerRef.current) {
@@ -117,14 +211,14 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
 
   const { width, height } = dimensions;
 
-  // Compute all unique tags for filter autocomplete
+  // ---- Tags ----
   const allTags = useMemo(() => {
     const tagSet = new Set<string>();
     graphData.nodes.forEach((n) => n.tags.forEach((t) => tagSet.add(t)));
     return Array.from(tagSet).sort();
   }, [graphData.nodes]);
 
-  // Apply filters
+  // ---- Filters ----
   const filteredData = useMemo(() => {
     let nodes = graphData.nodes;
 
@@ -146,7 +240,7 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
     return { nodes, links };
   }, [graphData, tagFilter]);
 
-  // Search highlight set
+  // ---- Search matches ----
   const searchHighlightIds = useMemo(() => {
     if (!searchQuery.trim()) return new Set<string>();
     const q = searchQuery.toLowerCase();
@@ -162,7 +256,7 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
     );
   }, [filteredData.nodes, searchQuery]);
 
-  // Get connected node IDs for selected node
+  // ---- Connected nodes ----
   const connectedNodeIds = useMemo(() => {
     if (!selectedNodeId) return [];
     const ids = new Set<string>();
@@ -180,9 +274,9 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
     [graphData.nodes, selectedNodeId],
   );
 
+  // ---- Handlers ----
   const handleNodeClick = useCallback((node: NodeObject) => {
-    const gNode = node as GraphNodeFG;
-    setSelectedNodeId(gNode.id);
+    setSelectedNodeId((node as GraphNodeFG).id);
   }, []);
 
   const handleNodeHover = useCallback((node: NodeObject | null) => {
@@ -199,34 +293,53 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
     [hoveredNode],
   );
 
+  // ---- Canvas node rendering ----
   const nodeCanvasObject = useCallback(
     (node: NodeObject, ctx: CanvasRenderingContext2D, globalScale: number) => {
       const gNode = node as GraphNodeFG;
-      const isHighlighted =
-        gNode.id === selectedNodeId ||
-        gNode.id === hoveredNode?.id ||
-        (searchHighlightIds.size > 0 && searchHighlightIds.has(gNode.id));
-      renderNode(gNode, ctx, globalScale, isHighlighted);
+      const isSelected = gNode.id === selectedNodeId;
+      const isHovered = gNode.id === hoveredNode?.id;
+      const isSearch = searchHighlightIds.size > 0 && searchHighlightIds.has(gNode.id);
+      const isHighlighted = isSelected || isHovered;
+      renderNode(gNode, ctx, globalScale, isHighlighted, isSearch, animTimeRef.current);
     },
     [selectedNodeId, hoveredNode, searchHighlightIds],
   );
 
-  const linkColor = useCallback((link: LinkObject) => {
-    const gLink = link as GraphLinkFG;
-    return gLink.type === "supersedes" ? "rgba(156, 163, 175, 0.4)" : "rgba(100, 116, 139, 0.25)";
-  }, []);
+  // ---- Canvas link rendering ----
+  const isSupersedes = (link: LinkObject) => (link as GraphLinkFG).type === "supersedes";
 
-  const linkDirectionalArrowLength = useCallback((link: LinkObject) => {
-    return (link as GraphLinkFG).type === "supersedes" ? 6 : 0;
-  }, []);
+  const linkColor = useCallback(
+    (link: LinkObject) =>
+      isSupersedes(link) ? GraphStyle.LINK.COLOR_SUPERSEDES : GraphStyle.LINK.COLOR_RELATED,
+    [],
+  );
 
-  const linkWidth = useCallback((link: LinkObject) => {
-    return (link as GraphLinkFG).type === "supersedes" ? 1 : 0.5;
-  }, []);
+  const linkWidth = useCallback(
+    (link: LinkObject) =>
+      isSupersedes(link) ? GraphStyle.LINK.WIDTH_SUPERSEDES : GraphStyle.LINK.WIDTH_RELATED,
+    [],
+  );
+
+  const linkDirectionalParticles = useCallback(
+    (link: LinkObject) => (isSupersedes(link) ? GraphStyle.LINK.SUPERSEDES_PARTICLE_COUNT : 0),
+    [],
+  );
+
+  const linkDirectionalParticleSpeed = useCallback(
+    (link: LinkObject) => (isSupersedes(link) ? GraphStyle.LINK.SUPERSEDES_PARTICLE_SPEED : 0),
+    [],
+  );
+
+  const linkDirectionalParticleWidth = useCallback(
+    (link: LinkObject) => (isSupersedes(link) ? GraphStyle.LINK.SUPERSEDES_PARTICLE_WIDTH : 0),
+    [],
+  );
+
+  const linkDirectionalParticleColor = useCallback(() => GraphStyle.LINK.COLOR_SUPERSEDES, []);
 
   return (
     <div className="flex h-full flex-col">
-      {/* Filters */}
       <GraphFilters
         tagFilter={tagFilter}
         onTagChange={setTagFilter}
@@ -237,9 +350,7 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
         linkCount={filteredData.links.length}
       />
 
-      {/* Graph + Detail panel */}
       <div className="flex min-h-0 flex-1">
-        {/* Graph container */}
         <div
           ref={graphContainerRef}
           className={`relative min-h-0 ${selectedNode ? "w-[65%]" : "w-full"}`}
@@ -253,20 +364,20 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
             onNodeClick={handleNodeClick}
             onNodeHover={handleNodeHover}
             linkColor={linkColor}
-            linkDirectionalArrowLength={linkDirectionalArrowLength}
-            linkDirectionalArrowRelPos={1}
-            linkLineDash={(link) => ((link as GraphLinkFG).type === "supersedes" ? [4, 2] : null)}
             linkWidth={linkWidth}
+            linkDirectionalParticles={linkDirectionalParticles}
+            linkDirectionalParticleSpeed={linkDirectionalParticleSpeed}
+            linkDirectionalParticleWidth={linkDirectionalParticleWidth}
+            linkDirectionalParticleColor={linkDirectionalParticleColor}
             nodeLabel=""
             width={width}
             height={height}
-            backgroundColor="#111111"
-            cooldownTicks={100}
+            backgroundColor={GraphStyle.BG}
+            cooldownTicks={Number.MAX_SAFE_INTEGER}
             d3AlphaDecay={0.02}
-            d3VelocityDecay={0.3}
+            d3VelocityDecay={0.4}
           />
 
-          {/* Custom tooltip */}
           {hoveredNode && (
             <div
               className="pointer-events-none absolute z-50 max-w-64 border border-canon-border bg-canon-surface px-3 py-2"
@@ -288,7 +399,6 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
           )}
         </div>
 
-        {/* Detail panel */}
         {selectedNode && (
           <div className="w-[35%]">
             <NodeDetailPanel

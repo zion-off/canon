@@ -42,9 +42,9 @@ async def run_agent(
     session_id: str,
     run_id: str,
     title: str,
-    message: str,
+    request: str,
     event_feed: AgentEventFeed,
-    invocation_args: RunStartedPayload | None = None,
+    context: str = "",
 ) -> str:
     """Invoke the ADK orchestrator agent for a single request lifecycle.
 
@@ -160,7 +160,7 @@ async def run_agent(
 
     content = Content(
         role="user",
-        parts=[Part.from_text(text=_build_message(message, session_summary))],
+        parts=[Part.from_text(text=_build_message(request, context, session_summary))],
     )
 
     # Emit run_started
@@ -171,7 +171,7 @@ async def run_agent(
         run_id=run_id,
         event=RunStartedEvent(
             author=AgentName.ORCHESTRATOR,
-            payload=invocation_args or RunStartedPayload(request="", context=""),
+            payload=RunStartedPayload(request=request, context=context),
         ),
     )
 
@@ -235,7 +235,7 @@ async def run_agent(
         log.debug("run_agent: generating session summary | run=%s", run_id)
         updated_summary = await _generate_session_summary(
             previous_summary=session_summary,
-            request=message,
+            request=request,
             response=final_response,
         )
         await SessionDocument.find_one(SessionDocument.session_id == session_id).set(
@@ -274,11 +274,14 @@ async def run_agent(
     )
 
 
-def _build_message(request: str, session_summary: str | None) -> str:
+def _build_message(request: str, context: str, session_summary: str | None) -> str:
     """Construct the message sent to the orchestrator, with session context."""
+    message = f"Request:\n{request}"
+    if context:
+        message = f"Context:\n{context}\n\n{message}"
     if session_summary:
-        return f"[Prior session context: {session_summary}]\n\nRequest:\n{request}"
-    return f"Request:\n{request}"
+        message = f"[Prior session context: {session_summary}]\n\n{message}"
+    return message
 
 
 async def _generate_session_summary(

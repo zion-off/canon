@@ -4,8 +4,6 @@ Searches memory nodes via hybrid semantic and keyword search using
 the MongoDB MCP server.
 """
 
-from __future__ import annotations
-
 import logging
 from typing import Any
 
@@ -21,8 +19,8 @@ from src.agent.models import (
     SearchResultItem,
 )
 from src.config import settings
-from src.mcp.session_provider import (
-    call_tool,
+from src.mcp.provider import call_tool
+from src.mcp.response import (
     extract_mcp_error_text,
     mcp_result_is_error,
     parse_mcp_docs,

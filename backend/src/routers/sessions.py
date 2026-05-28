@@ -10,18 +10,22 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from src.config import settings
-from src.dependencies import api_token_auth, get_event_feed, jwt_auth, stream_auth
+from src.dependencies import (
+    get_event_feed,
+    jwt_auth,
+    require_tenant_match,
+    stream_auth,
+)
 from src.models.documents import AgentEventDocument, SessionDocument
 from src.models.schemas import (
     AgentEvent,
+    AgentEventBase,
     JwtPayload,
     SessionResponse,
     StreamTokenResponse,
-    agent_event_from_document,
 )
 from src.services.event_feed import AgentEventFeed
 from src.services.jwt import issue_jwt
-from src.services.tenant_resolver import TenantContext
 
 router = APIRouter(tags=["sessions"])
 harness_router = APIRouter(tags=["harness-sessions"])
@@ -58,7 +62,7 @@ async def _list_events(tenant_id: str, session_id: str) -> list[AgentEvent]:
         .to_list()
     )
     return [
-        agent_event_from_document(
+        AgentEventBase.from_document(
             e.model_dump(by_alias=True, exclude={"tenant_id", "id"})
         )
         for e in events
@@ -100,11 +104,6 @@ def _jwt_tenant_id(user: JwtPayload) -> str:
     if not user.tenant_id:
         raise HTTPException(status_code=400, detail="User has no tenantId")
     return user.tenant_id
-
-
-def _check_tenant_match(path_tenant_id: str, ctx: TenantContext) -> None:
-    if path_tenant_id != ctx.tenant_id:
-        raise HTTPException(status_code=403, detail="Tenant ID mismatch")
 
 
 # ---------------------------------------------------------------------------
@@ -208,30 +207,24 @@ async def stream_session_events(
 
 @harness_router.get("/sessions")
 async def harness_list_sessions(
-    tenant_id: str,
-    ctx: TenantContext = Depends(api_token_auth),
+    tenant_id: str = Depends(require_tenant_match),
 ) -> list[SessionResponse]:
-    _check_tenant_match(tenant_id, ctx)
     return await _list_sessions(tenant_id)
 
 
 @harness_router.get("/sessions/{session_id}/events")
 async def harness_list_session_events(
     session_id: str,
-    tenant_id: str,
-    ctx: TenantContext = Depends(api_token_auth),
+    tenant_id: str = Depends(require_tenant_match),
 ) -> list[AgentEvent]:
-    _check_tenant_match(tenant_id, ctx)
     return await _list_events(tenant_id, session_id)
 
 
 @harness_router.get("/sessions/{session_id}/stream")
 async def harness_stream_session_events(
-    tenant_id: str,
     session_id: str,
-    ctx: TenantContext = Depends(api_token_auth),
+    tenant_id: str = Depends(require_tenant_match),
     event_feed: AgentEventFeed = Depends(get_event_feed),
     last_event_id: int = Query(default=0),
 ) -> StreamingResponse:
-    _check_tenant_match(tenant_id, ctx)
     return _stream_response(event_feed, tenant_id, session_id, last_event_id)

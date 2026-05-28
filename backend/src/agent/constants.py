@@ -46,6 +46,8 @@ class EventType:
     RUN_STARTED: Final = "run_started"
     RUN_COMPLETED: Final = "run_completed"
     FINAL_RESPONSE: Final = "final_response"
+    CONFIRMATION_REQUESTED: Final = "confirmation_requested"
+    CONFIRMATION_RECEIVED: Final = "confirmation_received"
 
 
 class AgentName:

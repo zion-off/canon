@@ -5,8 +5,6 @@ $graphLookup pipeline in Python and executes it through session_provider.
 The LLM never sees a pipeline stage.
 """
 
-from __future__ import annotations
-
 import logging
 from typing import Any
 
@@ -15,8 +13,8 @@ from google.adk.tools.tool_context import ToolContext
 
 from src.agent.constants import Collections, Database, SessionState
 from src.agent.models import TraceGraphError, TraceGraphResult, TraceGraphSuccess
-from src.mcp.session_provider import (
-    call_tool,
+from src.mcp.provider import call_tool
+from src.mcp.response import (
     extract_mcp_error_text,
     mcp_result_is_error,
     parse_mcp_docs,

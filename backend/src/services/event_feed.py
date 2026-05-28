@@ -3,14 +3,23 @@
 from __future__ import annotations
 
 import logging
-from asyncio import Lock, Queue
+from asyncio import Event, Lock, Queue
 from collections.abc import AsyncIterator
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from bson import ObjectId
 
 from src.models.documents import AgentEventDocument
-from src.models.schemas import AgentEvent, SessionResponse, agent_event_from_document
+from src.models.schemas import AgentEvent, AgentEventBase, SessionResponse
+
+
+@dataclass
+class PendingConfirmation:
+    confirmation_id: str
+    accepted: bool | None = None
+    response: str | None = None
+    resolved: Event = field(default_factory=Event)
 
 
 class _FeedState:
@@ -45,6 +54,8 @@ class AgentEventFeed:
         self._sequences: dict[str, int] = {}  # session_id → current sequence
         self._locks: dict[str, Lock] = {}  # session_id → sequence lock
         self._session_subscribers: dict[str, list[Queue[SessionResponse]]] = {}
+        self._pending_confirmations: dict[str, PendingConfirmation] = {}
+        self._confirm_lock = Lock()
 
     async def broadcast(
         self,
@@ -133,6 +144,36 @@ class AgentEventFeed:
                     len(self._subscribers[key]),
                 )
 
+    async def request_confirmation(self, confirmation_id: str) -> PendingConfirmation:
+        """Register a pending confirmation and return an awaitable handle.
+
+        The caller broadcasts the confirmation_requested event separately
+        with the full details (message, options, title, description), then
+        awaits ``pending.resolved`` which is set when
+        POST /agent/confirm/{confirmation_id} resolves it.
+        """
+        async with self._confirm_lock:
+            pending = PendingConfirmation(confirmation_id=confirmation_id)
+            self._pending_confirmations[confirmation_id] = pending
+        return pending
+
+    async def resolve_confirmation(
+        self, confirmation_id: str, accepted: bool, response: str | None = None
+    ) -> PendingConfirmation | None:
+        """Resolve a pending confirmation by confirmation_id.
+
+        Returns the resolved PendingConfirmation or None if not found / already resolved.
+        """
+        async with self._confirm_lock:
+            pending = self._pending_confirmations.get(confirmation_id)
+            if not pending or pending.resolved.is_set():
+                return None
+
+        pending.accepted = accepted
+        pending.response = response
+        pending.resolved.set()
+        return pending
+
     def cleanup_session(self, session_id: str) -> None:
         """Remove sequence tracking for a completed session."""
         self._sequences.pop(session_id, None)
@@ -180,7 +221,7 @@ class AgentEventFeed:
             .to_list(length=1000)
         )
         return [
-            agent_event_from_document(
+            AgentEventBase.from_document(
                 e.model_dump(by_alias=True, exclude={"tenant_id", "id"})
             )
             for e in documents

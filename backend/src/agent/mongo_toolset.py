@@ -15,7 +15,7 @@ from __future__ import annotations
 from google.adk.tools.mcp_tool import McpToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import StdioConnectionParams
 
-from src.mcp.session_provider import get_mcp_params
+from src.mcp.provider import get_mcp_params
 
 _mongo_toolset: McpToolset | None = None
 

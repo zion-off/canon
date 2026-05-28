@@ -1,14 +1,6 @@
-from __future__ import annotations
+"""MCP server instructions — loaded at startup, sent to LLM clients."""
 
-from pathlib import Path
-
-from fastmcp import FastMCP
-from fastmcp.server.providers import FileSystemProvider
-
-from src.config import settings
-from src.mcp.middlewares import AuthMiddleware, ContextMiddleware
-
-_MCP_INSTRUCTIONS = """\
+INSTRUCTIONS = """\
 Canon holds your engineering team's organizational memory — active migrations, \
 deprecated patterns, architecture decisions, prior failures, and the context \
 that explains why things are the way they are.
@@ -33,9 +25,6 @@ avoids repeating it.
 Multiple calls to `canon` within the same MCP session are automatically tracked — \
 you don't need to manage any session ID. The MCP transport handles session continuity.
 
-Canon is not a gatekeeper. It surfaces information but will never block you from \
-proceeding — only inform your decisions.
-
 ## Writing effective queries
 
 Canon uses hybrid search: semantic embeddings (weighted 1.5x) combined with keyword \
@@ -52,39 +41,4 @@ search query, so make it specific and domain-rich:
 Your `context` should summarize what you observe about the codebase — technology \
 choices, existing patterns, library versions, architectural conventions. This helps \
 Canon contextualize what it retrieves, but it is not used as a search query.
-
-## What Canon remembers and how
-
-When Canon persists organizational knowledge, it structures it as named memory nodes \
-with these fields that affect future retrieval quality:
-
-- **name and description**: embedded for semantic search AND indexed for keyword \
-  search. These carry the most retrieval weight — make them precise and descriptive.
-- **content**: the first 1500 characters are embedded for semantic search (the full \
-  content is stored and keyword-searchable). Front-load key concepts, decisions, and \
-  their rationale early in the content field.
-- **status** (active, deprecated, in_progress, resolved, completed): embedded \
-  alongside the name and keyword-searchable. Canon weights active and in_progress \
-  nodes highest in its reasoning.
-- **tags**: embedded for semantic search (appended as "Tags: X, Y" to the embedding \
-  text). Use tags for concepts that matter for retrieval but aren't explicit in the \
-  description — categorizations, domains, technology families.
-- **relationships**: nodes can link to other nodes (relatedEntityIds) and supersede \
-  old ones (supersedes). Canon traces these relationships during graph exploration to \
-  surface connected context.
 """
-
-_BASE_DIR = Path(__file__).parent
-
-_COMPONENTS_DIR = _BASE_DIR / "components"
-
-mcp = FastMCP(
-    "canon",
-    instructions=_MCP_INSTRUCTIONS,
-    middleware=[AuthMiddleware(), ContextMiddleware()],
-    providers=[
-        FileSystemProvider(
-            _COMPONENTS_DIR, reload=settings.environment == "development"
-        )
-    ],
-)

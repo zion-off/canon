@@ -48,6 +48,19 @@ class ToolCallCompletedPayload(BaseModel):
     agent_invocation_id: str | None = None
 
 
+class ConfirmationRequestedPayload(BaseModel):
+    confirmation_id: str = Field(alias="confirmationId")
+    message: str
+    options: list[str]
+    title: str | None = None
+    description: str | None = None
+
+
+class ConfirmationReceivedPayload(BaseModel):
+    accepted: bool
+    response: str | None = None
+
+
 # ── Base event ────────────────────────────────────────────────────────────────
 
 
@@ -70,6 +83,15 @@ class AgentEventBase(MongoModel):
     is_final: bool = Field(
         default=False, validation_alias="isFinal", serialization_alias="isFinal"
     )
+
+    @classmethod
+    def from_document(cls, doc: dict[str, Any]) -> AgentEvent:
+        """Reconstruct a typed event from a stored MongoDB document dict."""
+        event_type = doc.get("type", "")
+        subtype = _EVENT_REGISTRY.get(event_type)
+        if subtype is None:
+            raise ValueError(f"Unknown event type: {event_type!r}")
+        return subtype.model_validate(doc)
 
 
 # ── Typed event subclasses ────────────────────────────────────────────────────
@@ -110,6 +132,16 @@ class ToolCallCompletedEvent(AgentEventBase):
     payload: ToolCallCompletedPayload
 
 
+class ConfirmationRequestedEvent(AgentEventBase):
+    type: Literal["confirmation_requested"] = EventType.CONFIRMATION_REQUESTED
+    payload: ConfirmationRequestedPayload
+
+
+class ConfirmationReceivedEvent(AgentEventBase):
+    type: Literal["confirmation_received"] = EventType.CONFIRMATION_RECEIVED
+    payload: ConfirmationReceivedPayload
+
+
 # ── Discriminated union ───────────────────────────────────────────────────────
 
 AgentEvent = Annotated[
@@ -119,14 +151,15 @@ AgentEvent = Annotated[
     | FinalResponseEvent
     | SubagentInvokedEvent
     | ToolCallStartedEvent
-    | ToolCallCompletedEvent,
+    | ToolCallCompletedEvent
+    | ConfirmationRequestedEvent
+    | ConfirmationReceivedEvent,
     Field(discriminator="type"),
 ]
 
+# ── Event registry ────────────────────────────────────────────────────────────
 
-# ── Document → event factory ──────────────────────────────────────────────────
-
-_EVENT_REGISTRY: dict[str, type[AgentEventBase]] = {
+_EVENT_REGISTRY = {
     EventType.RUN_STARTED: RunStartedEvent,
     EventType.RUN_COMPLETED: RunCompletedEvent,
     EventType.REASONING_CHECKPOINT: ReasoningCheckpointEvent,
@@ -134,13 +167,6 @@ _EVENT_REGISTRY: dict[str, type[AgentEventBase]] = {
     EventType.SUBAGENT_INVOKED: SubagentInvokedEvent,
     EventType.TOOL_CALL_STARTED: ToolCallStartedEvent,
     EventType.TOOL_CALL_COMPLETED: ToolCallCompletedEvent,
+    EventType.CONFIRMATION_REQUESTED: ConfirmationRequestedEvent,
+    EventType.CONFIRMATION_RECEIVED: ConfirmationReceivedEvent,
 }
-
-
-def agent_event_from_document(doc: dict[str, Any]) -> AgentEvent:
-    """Reconstruct a typed AgentEvent from a stored MongoDB document dict."""
-    event_type = doc.get("type", "")
-    cls = _EVENT_REGISTRY.get(event_type)
-    if cls is None:
-        raise ValueError(f"Unknown event type: {event_type!r}")
-    return cls.model_validate(doc)  # type: ignore[return-value]

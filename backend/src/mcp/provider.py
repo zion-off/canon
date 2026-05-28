@@ -16,89 +16,16 @@ Module-level convenience functions (startup, shutdown, call_tool) delegate
 to a singleton SessionProvider instance. Tests can instantiate their own.
 """
 
-from __future__ import annotations
-
 import asyncio
-import contextlib
-import json
 import logging
-import re
 from typing import Any
 
-from mcp.client.stdio import StdioServerParameters, stdio_client
+from mcp.client.stdio import StdioServerParameters
 
-from mcp import ClientSession
 from src.config import settings
+from src.mcp.session import McpSession
 
 logger = logging.getLogger(__name__)
-
-_UNTRUSTED_CONTENT_RE = re.compile(
-    r"<untrusted-user-data-[^>]+>(.*?)</untrusted-user-data-[^>]+>",
-    re.DOTALL,
-)
-
-
-def mcp_result_is_error(result: Any) -> bool:
-    """Check whether an MCP CallToolResult indicates an error.
-
-    Uses defensive getattr to handle response objects that may or
-    may not carry an isError flag.
-    """
-    return bool(getattr(result, "isError", False))
-
-
-def extract_mcp_error_text(result: Any) -> str:
-    """Extract the first text content from a failed MCP CallToolResult.
-
-    Returns the first non-empty text string found in result.content,
-    or an empty string if nothing is extractable.
-    """
-    for item in getattr(result, "content", []):
-        text = getattr(item, "text", "")
-        if text:
-            return str(text)
-    return ""
-
-
-def parse_mcp_docs(content_items: list[Any]) -> list[dict[str, Any]]:
-    """Extract documents from MCP CallToolResult content items.
-
-    Handles TextContent with optional <untrusted-user-data> wrappers
-    produced by the mongodb-mcp-server. Returns a flat list of dicts.
-    """
-    docs: list[dict[str, Any]] = []
-    for item in content_items:
-        raw = getattr(item, "text", "")
-        if not raw:
-            continue
-
-        parsed = False
-        for inner in _UNTRUSTED_CONTENT_RE.findall(raw):
-            candidate = inner.strip()
-            if not candidate:
-                continue
-            try:
-                parsed_data = json.loads(candidate)
-                docs.extend(parsed_data) if isinstance(
-                    parsed_data, list
-                ) else docs.append(parsed_data)
-                parsed = True
-                break
-            except json.JSONDecodeError:
-                pass
-        if parsed:
-            continue
-
-        try:
-            parsed_data = json.loads(raw)
-            docs.extend(parsed_data) if isinstance(parsed_data, list) else docs.append(
-                parsed_data
-            )
-        except json.JSONDecodeError:
-            logger.debug(
-                "parse_mcp_docs: skipping non-JSON content | raw=%.120s", raw[:120]
-            )
-    return docs
 
 
 def get_mcp_params() -> StdioServerParameters:
@@ -119,8 +46,8 @@ def get_mcp_params() -> StdioServerParameters:
 class SessionProvider:
     """Long-lived MCP subprocess session for programmatic tool calls.
 
-    Manages the subprocess lifecycle, transparent reconnection on pipe
-    breaks, draining in-flight operations on shutdown, and provides a
+    Manages subprocess lifecycle via McpSession, transparent reconnection on
+    pipe breaks, draining in-flight operations on shutdown, and provides a
     single call_tool entrypoint for all FunctionTools.
 
     A module-level singleton (_provider) is used for the application lifespan.
@@ -129,9 +56,7 @@ class SessionProvider:
     """
 
     def __init__(self) -> None:
-        self._session: ClientSession | None = None
-        self._read_ctx: Any = None
-        self._session_ctx: Any = None
+        self._mcp: McpSession | None = None
         self._shutting_down = asyncio.Event()
         self._in_flight = 0
         self._lock = asyncio.Lock()
@@ -142,14 +67,8 @@ class SessionProvider:
         self._shutting_down.clear()
         self._drained.clear()
         self._in_flight = 0
-        params = get_mcp_params()
-        self._read_ctx = stdio_client(params)
-        read, write = await self._read_ctx.__aenter__()
-        self._session_ctx = ClientSession(read, write)
-        session = await self._session_ctx.__aenter__()
-        await session.initialize()
-        self._session = session
-        logger.info("session_provider: MCP session initialized")
+        self._mcp = McpSession(get_mcp_params())
+        await self._mcp.start()
 
     async def stop(self) -> None:
         """Close the session and terminate the subprocess.
@@ -174,15 +93,10 @@ class SessionProvider:
                         self._in_flight,
                     )
 
-        if self._session_ctx is not None:
-            await self._session_ctx.__aexit__(None, None, None)
-            self._session_ctx = None
+        if self._mcp is not None:
+            await self._mcp.stop()
+            self._mcp = None
 
-        if self._read_ctx is not None:
-            await self._read_ctx.__aexit__(None, None, None)
-            self._read_ctx = None
-
-        self._session = None
         logger.info("session_provider: MCP subprocess shut down")
 
     async def __aenter__(self) -> SessionProvider:
@@ -212,8 +126,8 @@ class SessionProvider:
         if self._shutting_down.is_set():
             raise RuntimeError("MCP session is shutting down")
 
-        session = self._session
-        if session is None:
+        mcp = self._mcp
+        if mcp is None:
             raise RuntimeError("MCP session not started — has start() been called?")
 
         async with self._lock:
@@ -228,7 +142,7 @@ class SessionProvider:
         try:
             for attempt in range(2):
                 try:
-                    return await session.call_tool(name, arguments)
+                    return await mcp.call_tool(name, arguments)
                 except (BrokenPipeError, ConnectionResetError, OSError) as exc:
                     if attempt == 0:
                         logger.warning(
@@ -237,7 +151,10 @@ class SessionProvider:
                             name,
                             exc,
                         )
-                        session = await self._reconnect()
+                        await mcp.stop()
+                        self._mcp = McpSession(get_mcp_params())
+                        await self._mcp.start()
+                        mcp = self._mcp
                     else:
                         raise RuntimeError(
                             f"MCP tool call '{name}' failed after reconnect: {exc}"
@@ -247,35 +164,6 @@ class SessionProvider:
                 self._in_flight -= 1
                 if self._in_flight == 0:
                     self._drained.set()
-
-    async def _reconnect(self) -> ClientSession:
-        """Tear down the existing session/transport and start a fresh one."""
-        logger.warning("session_provider: session lost, reconnecting")
-
-        if self._shutting_down.is_set():
-            raise RuntimeError("MCP session is shutting down")
-
-        if self._session_ctx is not None:
-            with contextlib.suppress(Exception):
-                await self._session_ctx.__aexit__(None, None, None)
-            self._session_ctx = None
-
-        if self._read_ctx is not None:
-            with contextlib.suppress(Exception):
-                await self._read_ctx.__aexit__(None, None, None)
-            self._read_ctx = None
-
-        self._session = None
-
-        params = get_mcp_params()
-        self._read_ctx = stdio_client(params)
-        read, write = await self._read_ctx.__aenter__()
-        self._session_ctx = ClientSession(read, write)
-        session = await self._session_ctx.__aenter__()
-        await session.initialize()
-        self._session = session
-        logger.info("session_provider: session reconnected")
-        return session
 
 
 # --- Module-level singleton for application lifespan ---

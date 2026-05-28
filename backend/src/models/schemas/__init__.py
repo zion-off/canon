@@ -1,4 +1,10 @@
 from src.models.schemas._base import MongoModel
+from src.models.schemas.agent import (
+    AgentConfirmRequest,
+    AgentConfirmResponse,
+    AgentRunRequest,
+    AgentRunResponse,
+)
 from src.models.schemas.auth import (
     JwtPayload,
     LoginRequest,
@@ -11,6 +17,10 @@ from src.models.schemas.auth import (
 from src.models.schemas.events import (
     AgentEvent,
     AgentEventBase,
+    ConfirmationReceivedEvent,
+    ConfirmationReceivedPayload,
+    ConfirmationRequestedEvent,
+    ConfirmationRequestedPayload,
     FinalResponseEvent,
     FinalResponsePayload,
     ReasoningCheckpointEvent,
@@ -24,7 +34,6 @@ from src.models.schemas.events import (
     ToolCallCompletedPayload,
     ToolCallStartedEvent,
     ToolCallStartedPayload,
-    agent_event_from_document,
 )
 from src.models.schemas.graph import (
     GraphLink,
@@ -50,8 +59,16 @@ from src.models.schemas.teams import (
 )
 
 __all__ = [
+    "AgentConfirmRequest",
+    "AgentConfirmResponse",
+    "AgentRunRequest",
+    "AgentRunResponse",
     "AgentEvent",
     "AgentEventBase",
+    "ConfirmationReceivedEvent",
+    "ConfirmationReceivedPayload",
+    "ConfirmationRequestedEvent",
+    "ConfirmationRequestedPayload",
     "FinalResponseEvent",
     "FinalResponsePayload",
     "ReasoningCheckpointEvent",
@@ -65,7 +82,6 @@ __all__ = [
     "ToolCallCompletedPayload",
     "ToolCallStartedEvent",
     "ToolCallStartedPayload",
-    "agent_event_from_document",
     "CreateInviteResponse",
     "CreateTeamRequest",
     "CreateTeamResponse",

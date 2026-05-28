@@ -1,7 +1,5 @@
 """Canonize node tool — persists a memory node via the MongoDB MCP server."""
 
-from __future__ import annotations
-
 import logging
 from datetime import UTC, datetime
 
@@ -21,12 +19,16 @@ from src.agent.models import (
     MemoryNodeInput,
 )
 from src.config import settings
-from src.mcp.request_context import get_request_context
-from src.mcp.session_provider import (
-    call_tool,
+from src.mcp.provider import call_tool
+from src.mcp.response import (
     extract_mcp_error_text,
     mcp_result_is_error,
 )
+from src.models.schemas import (
+    ConfirmationRequestedEvent,
+    ConfirmationRequestedPayload,
+)
+from src.services.event_feed import get_feed
 
 
 async def canonize_node(
@@ -116,21 +118,37 @@ async def canonize_node(
     # --- HITL confirmation ---
     if confirm:
         try:
-            rc = get_request_context()
-            result = await rc.fastmcp_ctx.elicit(
-                message="Persist this memory?",
-                response_type=["Yes", "No"],
-                response_title=doc.name,
-                response_description=f"{doc.description}",
+            feed = get_feed()
+            confirmation_id = f"{tool_context.state.get(SessionState.SESSION_ID)}:{tool_context.state.get(SessionState.RUN_ID)}:canonize"
+            pending = await feed.request_confirmation(
+                confirmation_id=confirmation_id,
             )
-            if result.action != "accept" or result.data == "No":
+            await feed.broadcast(
+                tenant_id=tenant_id_str,
+                user_id=tool_context.state.get(SessionState.USER_ID) or "",
+                session_id=tool_context.state.get(SessionState.SESSION_ID) or "",
+                run_id=tool_context.state.get(SessionState.RUN_ID) or "",
+                event=ConfirmationRequestedEvent(
+                    author="canonize_node",
+                    payload=ConfirmationRequestedPayload(
+                        confirmationId=confirmation_id,
+                        message="Persist this memory?",
+                        options=["Yes", "No"],
+                        title=doc.name,
+                        description=doc.description,
+                    ),
+                ),
+            )
+            await pending.resolved.wait()
+
+            if not pending.accepted:
                 return CanonizeError(
                     error="Memory persistence declined by user.",
                     hint="User chose not to save this memory. Do not retry.",
                 )
         except RuntimeError:
             log.warning(
-                "canonize_node: HITL not available, proceeding without confirmation"
+                "canonize_node: confirmation protocol not available, proceeding without confirmation"
             )
 
     now = datetime.now(tz=UTC)

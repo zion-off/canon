@@ -12,6 +12,8 @@ from functools import cached_property
 import google.genai as genai
 from google.adk.models.google_llm import Gemini
 
+from src.agent.constants import Embedding
+
 
 class _GenaiClient:
     """Module-level singleton container for the Vertex AI client."""
@@ -92,7 +94,7 @@ class CanonModel:
             contents=text,
             config=types.EmbedContentConfig(
                 task_type=task_type,
-                output_dimensionality=768,
+                output_dimensionality=Embedding.DIMENSIONS,
             ),
         )
         if not response.embeddings:

@@ -11,10 +11,9 @@ from typing import Any
 
 from google.adk.tools.function_tool import FunctionTool
 from google.adk.tools.tool_context import ToolContext
-from mcp.types import TextContent
 
-from src.agent.agent_platform import CanonModel
-from src.agent.constants import SessionState
+from src.agent.constants import Collections, Database, IndexNames, SessionState
+from src.agent.embedding_utils import EmbeddingError, generate_embedding
 from src.agent.models import (
     HybridSearchError,
     HybridSearchResult,
@@ -22,40 +21,12 @@ from src.agent.models import (
     SearchResultItem,
 )
 from src.config import settings
-from src.mcp.session_provider import call_tool, parse_mcp_docs
-
-
-def build_embedding_text(doc) -> str:
-    """Build a retrieval-optimized semantic representation of a memory node."""
-    from src.agent.models import MemoryNodeInput
-
-    if not isinstance(doc, MemoryNodeInput):
-        lines: list[str] = []
-        if isinstance(doc, dict):
-            header = doc.get("name", "")
-            if doc.get("status"):
-                header += f" [{doc['status']}]"
-            lines.append(header)
-            if doc.get("description"):
-                lines.append(str(doc["description"]))
-            if doc.get("content"):
-                lines.append(str(doc["content"])[:1500])
-            if doc.get("tags"):
-                lines.append("Tags: " + ", ".join(doc["tags"]))
-        return "\n".join(filter(None, lines))
-
-    lines: list[str] = []
-    header = doc.name
-    if doc.status:
-        header += f" [{doc.status}]"
-    lines.append(header)
-    if doc.description:
-        lines.append(doc.description)
-    if doc.content:
-        lines.append(doc.content[:1500])
-    if doc.tags:
-        lines.append("Tags: " + ", ".join(doc.tags))
-    return "\n".join(filter(None, lines))
+from src.mcp.session_provider import (
+    call_tool,
+    extract_mcp_error_text,
+    mcp_result_is_error,
+    parse_mcp_docs,
+)
 
 
 def _enrich_search_result(
@@ -109,20 +80,14 @@ async def hybrid_search(
         optionally metadata and highlight.
     """
     try:
-        embedding = await CanonModel.embed(
-            query, task_type="RETRIEVAL_QUERY", model=settings.embedding_model
-        )
-    except Exception as exc:
-        logging.getLogger(__name__).warning(
-            "hybrid_search: embedding failed | query=%.80s error=%s",
+        embedding = await generate_embedding(
             query,
-            exc,
+            task_type="RETRIEVAL_QUERY",
+            model=settings.embedding_model,
+            context_label="hybrid_search",
         )
-        return HybridSearchError(
-            error=f"Embedding generation failed: {exc}",
-            hint="Embedding model unavailable",
-            retry="Wait and retry. If persistent, surface the error.",
-        )
+    except EmbeddingError as exc:
+        return exc.as_hybrid_search_error()
 
     log = logging.getLogger(__name__)
     log.info(
@@ -137,7 +102,7 @@ async def hybrid_search(
 
     vector_search_stage: dict[str, Any] = {
         "$vectorSearch": {
-            "index": "vector_search_index",
+            "index": IndexNames.VECTOR_SEARCH,
             "queryVector": embedding,
             "path": "embedding",
             "numCandidates": 100,
@@ -147,7 +112,7 @@ async def hybrid_search(
 
     text_search_stage: dict[str, Any] = {
         "$search": {
-            "index": "text_search_index",
+            "index": IndexNames.TEXT_SEARCH,
             "text": {
                 "query": " ".join(extracted_keywords),
                 "path": ["name", "description", "content"],
@@ -199,25 +164,25 @@ async def hybrid_search(
         result = await call_tool(
             "aggregate",
             {
-                "collection": "memory_nodes",
-                "database": "canon",
+                "collection": Collections.MEMORY_NODES,
+                "database": Database.CANON,
                 "pipeline": pipeline,
             },
         )
 
-        if result.isError:
-            for item in result.content:
-                if isinstance(item, TextContent):
-                    log.warning(
-                        "hybrid_search: aggregate returned error | query=%.80s error=%s",
-                        query,
-                        item.text,
-                    )
-                    return HybridSearchError(
-                        error=f"MongoDB MCP aggregate failed: {item.text}",
-                        hint="MongoDB query returned an error",
-                        retry="Simplify pipeline or try different query",
-                    )
+        if mcp_result_is_error(result):
+            error_text = extract_mcp_error_text(result)
+            if error_text:
+                log.warning(
+                    "hybrid_search: aggregate returned error | query=%.80s error=%s",
+                    query,
+                    error_text,
+                )
+                return HybridSearchError(
+                    error=f"MongoDB MCP aggregate failed: {error_text}",
+                    hint="MongoDB query returned an error",
+                    retry="Simplify pipeline or try different query",
+                )
             log.warning(
                 "hybrid_search: aggregate returned error (no content) | query=%.80s",
                 query,

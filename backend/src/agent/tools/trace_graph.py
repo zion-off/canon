@@ -13,9 +13,14 @@ from typing import Any
 from google.adk.tools.function_tool import FunctionTool
 from google.adk.tools.tool_context import ToolContext
 
-from src.agent.constants import SessionState
+from src.agent.constants import Collections, Database, SessionState
 from src.agent.models import TraceGraphError, TraceGraphResult, TraceGraphSuccess
-from src.mcp.session_provider import call_tool, parse_mcp_docs
+from src.mcp.session_provider import (
+    call_tool,
+    extract_mcp_error_text,
+    mcp_result_is_error,
+    parse_mcp_docs,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -130,7 +135,7 @@ async def trace_graph(
         },
         {
             "$graphLookup": {
-                "from": "memory_nodes",
+                "from": Collections.MEMORY_NODES,
                 "startWith": "$relatedEntityIds",
                 "connectFromField": "relatedEntityIds",
                 "connectToField": "_id",
@@ -176,8 +181,8 @@ async def trace_graph(
         result = await call_tool(
             "aggregate",
             {
-                "collection": "memory_nodes",
-                "database": "canon",
+                "collection": Collections.MEMORY_NODES,
+                "database": Database.CANON,
                 "pipeline": pipeline,
             },
         )
@@ -189,12 +194,8 @@ async def trace_graph(
             retry="Retry once. If persistent, surface the error.",
         )
 
-    if getattr(result, "isError", False):
-        error_text = ""
-        for item in result.content:
-            if hasattr(item, "text"):
-                error_text = str(item.text)
-                break
+    if mcp_result_is_error(result):
+        error_text = extract_mcp_error_text(result)
         log.warning(
             "trace_graph: aggregate returned error | ids=%s error=%s",
             entity_ids,
@@ -214,8 +215,8 @@ async def trace_graph(
             find_result = await call_tool(
                 "find",
                 {
-                    "collection": "memory_nodes",
-                    "database": "canon",
+                    "collection": Collections.MEMORY_NODES,
+                    "database": Database.CANON,
                     "filter": {"_id": {"$in": oid_values}},
                 },
             )
@@ -227,7 +228,7 @@ async def trace_graph(
                 retry="Verify entity IDs are valid 24-char hex strings from actual query results",
             )
 
-        if not getattr(find_result, "isError", False):
+        if not mcp_result_is_error(find_result):
             docs = parse_mcp_docs(find_result.content)
 
     docs = _unwrap_oids(docs)

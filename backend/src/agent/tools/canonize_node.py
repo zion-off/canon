@@ -8,18 +8,25 @@ from datetime import UTC, datetime
 from google.adk.tools.function_tool import FunctionTool
 from google.adk.tools.tool_context import ToolContext
 
-from src.agent.agent_platform import CanonModel
-from src.agent.constants import SessionState
+from src.agent.constants import Collections, Database, SessionState
+from src.agent.embedding_utils import (
+    EmbeddingError,
+    build_embedding_text,
+    generate_embedding,
+)
 from src.agent.models import (
     CanonizeError,
     CanonizeResult,
     CanonizeSuccess,
     MemoryNodeInput,
 )
-from src.agent.tools.hybrid_search import build_embedding_text
 from src.config import settings
 from src.mcp.request_context import get_request_context
-from src.mcp.session_provider import call_tool
+from src.mcp.session_provider import (
+    call_tool,
+    extract_mcp_error_text,
+    mcp_result_is_error,
+)
 
 
 async def canonize_node(
@@ -129,18 +136,14 @@ async def canonize_node(
     now = datetime.now(tz=UTC)
     embedding_text = build_embedding_text(doc)
     try:
-        embedding = await CanonModel.embed(
+        embedding = await generate_embedding(
             embedding_text,
             task_type="RETRIEVAL_DOCUMENT",
             model=settings.embedding_model,
+            context_label="canonize_node",
         )
-    except Exception as exc:
-        log.warning("canonize_node: embedding failed | error=%s", exc)
-        return CanonizeError(
-            error=f"Embedding generation failed: {exc}",
-            hint="Embedding model unavailable",
-            retry="Wait and retry",
-        )
+    except EmbeddingError as exc:
+        return exc.as_canonize_error()
 
     now_iso = now.isoformat()
     insert_doc: dict[str, object] = {
@@ -164,8 +167,8 @@ async def canonize_node(
         insert_result = await call_tool(
             "insertOne",
             {
-                "collection": "memory_nodes",
-                "database": "canon",
+                "collection": Collections.MEMORY_NODES,
+                "database": Database.CANON,
                 "document": insert_doc,
             },
         )
@@ -184,13 +187,8 @@ async def canonize_node(
             retry="Retry once. If persistent, surface the error.",
         )
 
-    if getattr(insert_result, "isError", False):
-        error_text = ""
-        for item in insert_result.content:
-            text = getattr(item, "text", "")
-            if text:
-                error_text = text
-                break
+    if mcp_result_is_error(insert_result):
+        error_text = extract_mcp_error_text(insert_result)
         log.warning(
             "canonize_node: insertOne returned error | name=%s error=%s",
             doc.name,
@@ -234,8 +232,8 @@ async def canonize_node(
             update_result = await call_tool(
                 "updateMany",
                 {
-                    "collection": "memory_nodes",
-                    "database": "canon",
+                    "collection": Collections.MEMORY_NODES,
+                    "database": Database.CANON,
                     "filter": {
                         "_id": oid_target,
                         "tenantId": {"$oid": tenant_id_str},
@@ -246,7 +244,7 @@ async def canonize_node(
                     },
                 },
             )
-            if not getattr(update_result, "isError", False):
+            if not mcp_result_is_error(update_result):
                 relationships_formed += 1
         except Exception as exc:
             log.warning(
@@ -261,8 +259,8 @@ async def canonize_node(
             supersede_result = await call_tool(
                 "updateMany",
                 {
-                    "collection": "memory_nodes",
-                    "database": "canon",
+                    "collection": Collections.MEMORY_NODES,
+                    "database": Database.CANON,
                     "filter": {
                         "_id": oid_supersedes,
                         "tenantId": {"$oid": tenant_id_str},
@@ -276,7 +274,7 @@ async def canonize_node(
                     },
                 },
             )
-            if not getattr(supersede_result, "isError", False):
+            if not mcp_result_is_error(supersede_result):
                 relationships_formed += 1
         except Exception as exc:
             log.warning(

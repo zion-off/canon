@@ -85,3 +85,24 @@ class Database:
     """MongoDB database names."""
 
     CANON: Final = "canon"
+
+
+class Collections:
+    """MongoDB collection names."""
+
+    MEMORY_NODES: Final = "memory_nodes"
+    AGENT_EVENTS: Final = "agent_events"
+    SESSIONS: Final = "sessions"
+
+
+class IndexNames:
+    """Atlas Search and Vector Search index names."""
+
+    VECTOR_SEARCH: Final = "vector_search_index"
+    TEXT_SEARCH: Final = "text_search_index"
+
+
+class Embedding:
+    """Embedding model configuration constants."""
+
+    DIMENSIONS: Final = 768

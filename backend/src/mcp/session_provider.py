@@ -38,6 +38,28 @@ _UNTRUSTED_CONTENT_RE = re.compile(
 )
 
 
+def mcp_result_is_error(result: Any) -> bool:
+    """Check whether an MCP CallToolResult indicates an error.
+
+    Uses defensive getattr to handle response objects that may or
+    may not carry an isError flag.
+    """
+    return bool(getattr(result, "isError", False))
+
+
+def extract_mcp_error_text(result: Any) -> str:
+    """Extract the first text content from a failed MCP CallToolResult.
+
+    Returns the first non-empty text string found in result.content,
+    or an empty string if nothing is extractable.
+    """
+    for item in getattr(result, "content", []):
+        text = getattr(item, "text", "")
+        if text:
+            return str(text)
+    return ""
+
+
 def parse_mcp_docs(content_items: list[Any]) -> list[dict[str, Any]]:
     """Extract documents from MCP CallToolResult content items.
 

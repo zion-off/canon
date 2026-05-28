@@ -8,6 +8,7 @@ from beanie import init_beanie
 from pymongo import ASCENDING, DESCENDING, TEXT, AsyncMongoClient, IndexModel
 from pymongo.asynchronous.database import AsyncDatabase
 
+from src.agent.constants import Collections, Embedding, IndexNames
 from src.config import settings
 from src.models.documents import (
     AgentEventDocument,
@@ -32,8 +33,6 @@ class MongoProvider:
 
     async def connect(self) -> None:
         """Initialize the MongoDB client and register Beanie document models."""
-        from pymongo import AsyncMongoClient
-
         self._client = AsyncMongoClient(self._uri)
         self._db = self._client[settings.database_name]
         await init_beanie(
@@ -86,7 +85,7 @@ class MongoProvider:
                 ),
                 IndexModel([("sessionId", ASCENDING)], unique=True),
             ],
-            "memory_nodes": [
+            Collections.MEMORY_NODES: [
                 IndexModel([("tenantId", ASCENDING), ("name", ASCENDING)], unique=True),
                 IndexModel([("tenantId", ASCENDING), ("status", ASCENDING)]),
                 IndexModel([("tenantId", ASCENDING), ("relatedEntityIds", ASCENDING)]),
@@ -127,14 +126,14 @@ class MongoProvider:
         # ── Search Indexes (Atlas Local / Atlas only) ───────────────────
         search_indexes = [
             {
-                "name": "vector_search_index",
+                "name": IndexNames.VECTOR_SEARCH,
                 "type": "vectorSearch",
                 "definition": {
                     "fields": [
                         {
                             "type": "vector",
                             "path": "embedding",
-                            "numDimensions": 768,
+                            "numDimensions": Embedding.DIMENSIONS,
                             "similarity": "cosine",
                         },
                         {
@@ -153,7 +152,7 @@ class MongoProvider:
                 },
             },
             {
-                "name": "text_search_index",
+                "name": IndexNames.TEXT_SEARCH,
                 "type": "search",
                 "definition": {
                     "mappings": {
@@ -181,7 +180,7 @@ class MongoProvider:
             try:
                 await db.command(
                     "createSearchIndexes",
-                    "memory_nodes",
+                    Collections.MEMORY_NODES,
                     indexes=[index_def],
                 )
             except Exception:

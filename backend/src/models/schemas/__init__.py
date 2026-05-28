@@ -25,7 +25,13 @@ from src.models.schemas.events import (
     ToolCallStartedPayload,
     agent_event_from_document,
 )
-from src.models.schemas.graph import GraphLink, GraphNode, GraphResponse
+from src.models.schemas.graph import (
+    GraphLink,
+    GraphNode,
+    GraphResponse,
+    UpdateNodeRequest,
+    UpdateNodeResponse,
+)
 from src.models.schemas.sessions import SessionListResponse, SessionResponse
 from src.models.schemas.teams import (
     CreateInviteResponse,
@@ -82,5 +88,7 @@ __all__ = [
     "TokenItemResponse",
     "TokenListResponse",
     "TokenResponse",
+    "UpdateNodeRequest",
+    "UpdateNodeResponse",
     "UserResponse",
 ]

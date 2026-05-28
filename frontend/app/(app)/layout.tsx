@@ -17,7 +17,7 @@ export default async function AppLayout({
   return (
     <div className="min-h-screen flex flex-col">
       <AppHeader userRole={user.role} />
-      <main className="flex-1 px-5">{children}</main>
+      <main className="flex flex-1 flex-col overflow-hidden px-5">{children}</main>
     </div>
   );
 }

@@ -169,6 +169,7 @@ function renderNode(
 // ---------------------------------------------------------------------------
 
 export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
+  const [localGraph, setLocalGraph] = useState(graphData);
   const [tagFilter, setTagFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -178,6 +179,13 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
   const graphContainerRef = useRef<HTMLDivElement>(null);
   const animTimeRef = useRef(0);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+
+  const handleNodeUpdated = useCallback((updated: GraphNode) => {
+    setLocalGraph((prev) => ({
+      ...prev,
+      nodes: prev.nodes.map((n) => (n.id === updated.id ? updated : n)),
+    }));
+  }, []);
 
   // ---- Animation time tracking ----
   useEffect(() => {
@@ -214,13 +222,13 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
   // ---- Tags ----
   const allTags = useMemo(() => {
     const tagSet = new Set<string>();
-    graphData.nodes.forEach((n) => n.tags.forEach((t) => tagSet.add(t)));
+    localGraph.nodes.forEach((n) => n.tags.forEach((t) => tagSet.add(t)));
     return Array.from(tagSet).sort();
-  }, [graphData.nodes]);
+  }, [localGraph.nodes]);
 
   // ---- Filters ----
   const filteredData = useMemo(() => {
-    let nodes = graphData.nodes;
+    let nodes = localGraph.nodes;
 
     if (tagFilter) {
       nodes = nodes.filter((n) =>
@@ -229,7 +237,7 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
     }
 
     const nodeIds = new Set(nodes.map((n) => n.id));
-    const links = graphData.links.filter((l) => {
+    const links = localGraph.links.filter((l) => {
       const src =
         typeof l.source === "object" ? (l.source as GraphNodeFG).id : (l.source as string);
       const tgt =
@@ -238,7 +246,7 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
     });
 
     return { nodes, links };
-  }, [graphData, tagFilter]);
+  }, [localGraph, tagFilter]);
 
   // ---- Search matches ----
   const searchHighlightIds = useMemo(() => {
@@ -260,18 +268,18 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
   const connectedNodeIds = useMemo(() => {
     if (!selectedNodeId) return [];
     const ids = new Set<string>();
-    graphData.links.forEach((link) => {
+    localGraph.links.forEach((link) => {
       const src = typeof link.source === "object" ? (link.source as GraphNodeFG).id : link.source;
       const tgt = typeof link.target === "object" ? (link.target as GraphNodeFG).id : link.target;
       if (src === selectedNodeId) ids.add(tgt);
       if (tgt === selectedNodeId) ids.add(src);
     });
     return Array.from(ids);
-  }, [selectedNodeId, graphData.links]);
+  }, [selectedNodeId, localGraph.links]);
 
   const selectedNode = useMemo(
-    () => graphData.nodes.find((n) => n.id === selectedNodeId) ?? null,
-    [graphData.nodes, selectedNodeId],
+    () => localGraph.nodes.find((n) => n.id === selectedNodeId) ?? null,
+    [localGraph.nodes, selectedNodeId],
   );
 
   // ---- Handlers ----
@@ -339,7 +347,7 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
   const linkDirectionalParticleColor = useCallback(() => GraphStyle.LINK.COLOR_SUPERSEDES, []);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex flex-1 flex-col overflow-hidden">
       <GraphFilters
         tagFilter={tagFilter}
         onTagChange={setTagFilter}
@@ -409,10 +417,11 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
           <div className="w-[35%]">
             <NodeDetailPanel
               node={selectedNode}
-              allNodes={graphData.nodes}
+              allNodes={localGraph.nodes}
               connectedNodeIds={connectedNodeIds}
               onClose={() => setSelectedNodeId(null)}
               onSelectNode={setSelectedNodeId}
+              onNodeUpdated={handleNodeUpdated}
             />
           </div>
         )}

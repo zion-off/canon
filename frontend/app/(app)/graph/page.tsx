@@ -10,11 +10,5 @@ export const metadata: Metadata = {
 export default async function GraphPage() {
   const graphData = await getGraph();
 
-  return (
-    <div className="flex flex-col" style={{ height: "calc(100vh - 40px)" }}>
-      <div className="min-h-0 flex-1">
-        <MemoryGraphClient graphData={graphData} />
-      </div>
-    </div>
-  );
+  return <MemoryGraphClient graphData={graphData} />;
 }

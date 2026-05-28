@@ -188,7 +188,7 @@ def get_graph_explorer() -> Agent:
     if _graph_explorer is None:
         _graph_explorer = Agent(
             name=AgentName.GRAPH_EXPLORER,
-            model=CanonModel.create(settings.fast_model),
+            model=CanonModel.create(settings.reasoning_model),
             description=(
                 "Navigates relationships between memories using MongoDB. "
                 "Accepts entity IDs (hex strings) only — never names. "

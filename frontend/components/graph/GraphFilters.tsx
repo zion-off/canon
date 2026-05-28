@@ -82,7 +82,7 @@ export function GraphFilters({
       />
 
       <span className="ml-auto font-condensed font-bold text-xs uppercase tracking-wider text-canon-text-secondary">
-        {nodeCount} nodes · {linkCount} edges
+        {nodeCount} memories · {linkCount} connections
       </span>
     </div>
   );

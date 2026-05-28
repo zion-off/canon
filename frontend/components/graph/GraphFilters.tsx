@@ -77,7 +77,7 @@ export function GraphFilters({
         type="text"
         value={searchQuery}
         onChange={(e) => onSearchChange(e.target.value)}
-        placeholder="Search nodes…"
+        placeholder="Search memories…"
         className={`w-48 ${inputBase}`}
       />
 

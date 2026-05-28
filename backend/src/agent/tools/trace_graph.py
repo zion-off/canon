@@ -47,9 +47,7 @@ def _enrich_trace_result(
     entity_count: int,
 ) -> TraceGraphSuccess:
     """Populate note/next_actions based on graph traversal results."""
-    total_connected = sum(
-        len(node.get("connected", [])) for node in docs
-    )
+    total_connected = sum(len(node.get("connected", [])) for node in docs)
 
     if total_connected == 0:
         return TraceGraphSuccess(

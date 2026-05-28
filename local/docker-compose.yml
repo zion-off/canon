@@ -34,6 +34,7 @@ services:
       - .env
     environment:
       - ENVIRONMENT=development
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3200}
       - GOOGLE_APPLICATION_CREDENTIALS=/gcp/credentials.json
       - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}
       - MONGODB_URI=${MONGODB_URI:-mongodb://mongo:27017/canon}
@@ -63,6 +64,7 @@ services:
       - .env
     environment:
       - API_URL=${API_URL:-http://backend:8000}
+      - BACKEND_SSE_URL=${BACKEND_SSE_URL:-http://localhost:8400}
       - JWT_SECRET=${JWT_SECRET}
     depends_on:
       - backend

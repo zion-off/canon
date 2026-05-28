@@ -3,14 +3,22 @@
 import { useRef } from "react";
 import { AgentEventSchema } from "@/lib/schemas/sessions";
 import type { AgentEvent } from "@/lib/schemas/sessions";
+import { StreamUrlResponseSchema } from "@/lib/schemas/auth";
 import { useEventSource } from "./useEventSource";
+
+async function fetchStreamUrl(path: string): Promise<string | null> {
+  const res = await fetch(path);
+  if (!res.ok) return null;
+  const body = StreamUrlResponseSchema.parse(await res.json());
+  return body.backendUrl;
+}
 
 /**
  * SSE hook for per‑session agent event streams.
  *
- * Wraps `useEventSource` with session‑specific URL construction and replay‑position
- * tracking so callers only need to provide `sessionId`, a callback, and whether
- * to connect.
+ * Wraps ``useEventSource`` with session-specific URL construction and
+ * replay-position tracking.  Connects via the edge route to obtain a
+ * short-lived stream token, then opens EventSource directly to the backend.
  */
 export function useEventStream(
   sessionId: string,
@@ -23,7 +31,7 @@ export function useEventStream(
   useEventSource(
     () => {
       const after = lastSequenceRef.current ?? 0;
-      return `/api/stream/${sessionId}?after=${after}`;
+      return fetchStreamUrl(`/api/stream/${sessionId}?after=${after}`);
     },
     (data) => {
       const event = AgentEventSchema.parse(data);

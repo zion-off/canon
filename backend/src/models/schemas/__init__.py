@@ -5,6 +5,7 @@ from src.models.schemas.auth import (
     LoginResponse,
     MeResponse,
     RegisterRequest,
+    StreamTokenResponse,
     UserResponse,
 )
 from src.models.schemas.events import (
@@ -84,6 +85,7 @@ __all__ = [
     "RegisterRequest",
     "SessionListResponse",
     "SessionResponse",
+    "StreamTokenResponse",
     "TeamResponse",
     "TokenItemResponse",
     "TokenListResponse",

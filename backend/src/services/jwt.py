@@ -15,10 +15,12 @@ def issue_jwt(
     name: str,
     tenant_id: str | None,
     role: str | None,
+    lifetime: timedelta | None = None,
 ) -> str:
-    """Issue a signed JWT with configurable expiry.
+    """Issue a signed JWT.
 
-    Uses the algorithm and secret from centralized settings.
+    ``lifetime`` defaults to ``jwt_expiry_days``; for stream tokens pass
+    ``timedelta(hours=settings.stream_token_expiry_hours)``.
     """
     now = datetime.now(UTC)
     payload = {
@@ -28,6 +30,6 @@ def issue_jwt(
         "tenantId": tenant_id,
         "role": role,
         "iat": now,
-        "exp": now + timedelta(days=settings.jwt_expiry_days),
+        "exp": now + (lifetime or timedelta(days=settings.jwt_expiry_days)),
     }
     return pyjwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)

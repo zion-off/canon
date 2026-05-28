@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import type { SessionResponse } from "@/lib/schemas/sessions";
 import { SessionResponseSchema } from "@/lib/schemas/sessions";
+import { StreamUrlResponseSchema } from "@/lib/schemas/auth";
 import { useEventSource } from "@/hooks/useEventSource";
 import { SessionRow } from "./SessionRow";
 
@@ -28,6 +29,13 @@ function mergeSessions(prev: SessionResponse[], incoming: SessionResponse): Sess
   return copy;
 }
 
+async function fetchSessionsStreamUrl(): Promise<string | null> {
+  const res = await fetch("/api/sessions/stream");
+  if (!res.ok) return null;
+  const body = StreamUrlResponseSchema.parse(await res.json());
+  return body.backendUrl;
+}
+
 export function LiveSessionList({ mySessions, teamSessions, currentUserId }: LiveSessionListProps) {
   const [activeTab, setActiveTab] = useState<"yours" | "team">("yours");
   const [myState, setMyState] = useState(mySessions);
@@ -47,7 +55,7 @@ export function LiveSessionList({ mySessions, teamSessions, currentUserId }: Liv
     [currentUserId],
   );
 
-  useEventSource(() => "/api/sessions/stream", onSession, true);
+  useEventSource(fetchSessionsStreamUrl, onSession, true);
 
   const sessions = activeTab === "yours" ? myState : teamState;
 

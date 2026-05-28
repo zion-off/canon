@@ -26,6 +26,7 @@ import os
 
 import uvicorn
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from src.config import settings
@@ -111,6 +112,14 @@ app = FastAPI(
     description="Organizational continuity agent for engineering teams",
     version="0.1.0",
     lifespan=_combined_lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins.split(",") if settings.cors_origins else [],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.mount("/mcp", _mcp_app)

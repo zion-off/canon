@@ -3,20 +3,24 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from datetime import timedelta
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
-from src.dependencies import api_token_auth, get_event_feed, jwt_auth
+from src.config import settings
+from src.dependencies import api_token_auth, get_event_feed, jwt_auth, stream_auth
 from src.models.documents import AgentEventDocument, SessionDocument
 from src.models.schemas import (
     AgentEvent,
     JwtPayload,
     SessionResponse,
+    StreamTokenResponse,
     agent_event_from_document,
 )
 from src.services.event_feed import AgentEventFeed
+from src.services.jwt import issue_jwt
 from src.services.tenant_resolver import TenantContext
 
 router = APIRouter(tags=["sessions"])
@@ -127,15 +131,41 @@ async def _sessions_sse_stream(
         yield f"data: {session.model_dump_json(by_alias=True)}\n\n"
 
 
+async def _create_stream_token(user: JwtPayload) -> str:
+    return issue_jwt(
+        user.sub,
+        user.email,
+        user.name,
+        user.tenant_id,
+        user.role,
+        timedelta(hours=settings.stream_token_expiry_hours),
+    )
+
+
+@router.post("/stream/token", response_model=StreamTokenResponse)
+async def create_sessions_stream_token(
+    user: JwtPayload = Depends(jwt_auth),
+) -> StreamTokenResponse:
+    return StreamTokenResponse(token=await _create_stream_token(user))
+
+
 @router.get("/stream")
 async def stream_sessions(
-    user: JwtPayload = Depends(jwt_auth),
+    user: JwtPayload = Depends(stream_auth),
     event_feed: AgentEventFeed = Depends(get_event_feed),
 ) -> StreamingResponse:
     return StreamingResponse(
         _sessions_sse_stream(event_feed, _jwt_tenant_id(user)),
         media_type="text/event-stream",
     )
+
+
+@router.post("/{session_id}/stream/token", response_model=StreamTokenResponse)
+async def create_session_stream_token(
+    session_id: str,
+    user: JwtPayload = Depends(jwt_auth),
+) -> StreamTokenResponse:
+    return StreamTokenResponse(token=await _create_stream_token(user))
 
 
 @router.get("/{session_id}")
@@ -164,7 +194,7 @@ async def list_session_events(
 @router.get("/{session_id}/stream")
 async def stream_session_events(
     session_id: str,
-    user: JwtPayload = Depends(jwt_auth),
+    user: JwtPayload = Depends(stream_auth),
     event_feed: AgentEventFeed = Depends(get_event_feed),
     last_event_id: int = Query(default=0),
 ) -> StreamingResponse:

@@ -53,3 +53,7 @@ class MeResponse(BaseModel):
     name: str
     tenant_id: str | None = Field(default=None, alias="tenantId")
     role: str | None = None
+
+
+class StreamTokenResponse(BaseModel):
+    token: str

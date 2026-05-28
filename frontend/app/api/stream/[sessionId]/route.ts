@@ -1,8 +1,12 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { COOKIE_NAME, API_V1_SESSIONS } from "@/lib/constants";
-import { API_URL } from "@/lib/config";
+import { COOKIE_NAME } from "@/lib/constants";
+import { API_URL, BACKEND_SSE_URL } from "@/lib/config";
+import {
+  StreamTokenResponseSchema,
+  StreamUrlResponseSchema,
+} from "@/lib/schemas/auth";
 
 export const runtime = "edge";
 
@@ -11,32 +15,41 @@ export async function GET(
   { params }: { params: Promise<{ sessionId: string }> },
 ) {
   const { sessionId } = await params;
-  // Edge Runtime: read cookie from the request directly (no next/headers)
   const token = request.cookies.get(COOKIE_NAME)?.value;
 
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const url = new URL(request.url);
-  const after = url.searchParams.get("after") ?? "0";
+  const after = new URL(request.url).searchParams.get("after") ?? "0";
 
-  const upstreamUrl = new URL(`${API_V1_SESSIONS}/${sessionId}/stream`, API_URL);
-  upstreamUrl.searchParams.set("last_event_id", after);
+  const streamTokenRes = await fetch(
+    `${API_URL}/api/v1/sessions/${sessionId}/stream/token`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
 
-  const upstream = await fetch(upstreamUrl.toString(), {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (!upstream.ok) {
-    return NextResponse.json({ error: "Upstream error" }, { status: upstream.status });
+  if (!streamTokenRes.ok) {
+    return NextResponse.json(
+      { error: "Failed to issue stream token" },
+      { status: streamTokenRes.status },
+    );
   }
 
-  return new Response(upstream.body, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-    },
-  });
+  const { token: streamToken } = StreamTokenResponseSchema.parse(
+    await streamTokenRes.json(),
+  );
+
+  const backendUrl = new URL(
+    `api/v1/sessions/${sessionId}/stream`,
+    BACKEND_SSE_URL,
+  );
+  backendUrl.searchParams.set("token", streamToken);
+  backendUrl.searchParams.set("last_event_id", after);
+
+  return NextResponse.json(
+    StreamUrlResponseSchema.parse({ backendUrl: backendUrl.toString() }),
+  );
 }

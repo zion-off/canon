@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     mongodb_uri: str
     jwt_secret: str
 
+    # ─── CORS Configuration ───────────────────────────────────────────────
+    cors_origins: str = ""
+
     # ─── Model Configuration ─────────────────────────────────────────────
     reasoning_model: str = Field(
         default="gemini-3.1-pro",
@@ -56,6 +59,7 @@ class Settings(BaseSettings):
     # ─── JWT Configuration ───────────────────────────────────────────────
     jwt_algorithm: str = "HS256"
     jwt_expiry_days: int = 7
+    stream_token_expiry_hours: int = 2
 
 
 # Eagerly instantiated — resolves .env on first import.

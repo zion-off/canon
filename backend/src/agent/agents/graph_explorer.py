@@ -59,7 +59,7 @@ The orchestrator synthesizes — you discover and report the graph.
 
 ## Budget
 
-2 MCP tool calls total. emit_checkpoint does NOT count.
+2 tool calls total (trace_graph counts; find/count count; emit_checkpoint does NOT).
 
 If you exhaust your budget without resolution, report what you found and
 what remains unknown. Never fabricate IDs or invent connections.

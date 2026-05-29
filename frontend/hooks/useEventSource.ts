@@ -41,7 +41,7 @@ export function useEventSource(
       if (unmounted) return;
 
       const url = await buildUrlRef.current();
-      if (!url) return;
+      if (!url || unmounted) return;
 
       source = new EventSource(url);
 

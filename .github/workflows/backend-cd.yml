@@ -46,3 +46,4 @@ jobs:
             CANON_REASONING_MODEL=${{ vars.CANON_REASONING_MODEL }}
             CANON_FAST_MODEL=${{ vars.CANON_FAST_MODEL }}
             CANON_EMBEDDING_MODEL=${{ vars.CANON_EMBEDDING_MODEL }}
+            SIGNUP_ALLOWLIST=${{ vars.SIGNUP_ALLOWLIST }}

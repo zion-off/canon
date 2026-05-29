@@ -58,7 +58,10 @@ class SessionService:
             SessionDocument.find(*base).count(),
             SessionDocument.find(*page).sort("-lastRunAt").limit(limit).to_list(),
         )
-        items = [SessionResponse.model_validate(s.model_dump(by_alias=True)) for s in sessions]
+        items = [
+            SessionResponse.model_validate(s.model_dump(by_alias=True))
+            for s in sessions
+        ]
         next_cursor = items[-1].last_run_at if len(items) == limit else None
         return SessionListResponse(sessions=items, total=total, nextCursor=next_cursor)
 

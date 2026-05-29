@@ -39,7 +39,9 @@ class AuthService:
             "iat": now,
             "exp": now + (lifetime or timedelta(days=settings.jwt_expiry_days)),
         }
-        return pyjwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+        return pyjwt.encode(
+            payload, settings.jwt_secret, algorithm=settings.jwt_algorithm
+        )
 
     @staticmethod
     def issue_stream_token(user: JwtPayload) -> str:

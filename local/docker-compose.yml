@@ -48,6 +48,7 @@ services:
       - CANON_REASONING_MODEL=${CANON_REASONING_MODEL:-gemini-3.1-pro}
       - CANON_FAST_MODEL=${CANON_FAST_MODEL:-gemini-3.1-flash}
       - CANON_EMBEDDING_MODEL=${CANON_EMBEDDING_MODEL:-text-embedding-004}
+      - SIGNUP_ALLOWLIST=${SIGNUP_ALLOWLIST:-}
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1"]
       interval: 5s

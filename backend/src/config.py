@@ -56,10 +56,26 @@ class Settings(BaseSettings):
     # ─── Environment ─────────────────────────────────────────────────────
     environment: str = "production"
 
+    # ─── Signup Restrictions ────────────────────────────────────────────
+    signup_allowlist: str = ""
+    """Comma or whitespace-separated email addresses allowed to register.
+    When empty (the default), all signups are permitted."""
+
     # ─── JWT Configuration ───────────────────────────────────────────────
     jwt_algorithm: str = "HS256"
     jwt_expiry_days: int = 7
     stream_token_expiry_hours: int = 2
+
+    # ─── Computed ───────────────────────────────────────────────────────
+    @property
+    def allowed_signup_emails(self) -> frozenset[str]:
+        """Parsed, lowercased allowlist as a frozenset for O(1) lookup."""
+        raw = self.signup_allowlist.strip()
+        if not raw:
+            return frozenset()
+        return frozenset(
+            email.strip().lower() for email in raw.replace(",", " ").split()
+        )
 
 
 # Eagerly instantiated — resolves .env on first import.

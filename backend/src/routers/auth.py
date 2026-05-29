@@ -7,6 +7,7 @@ import bcrypt
 import pymongo.errors
 from fastapi import APIRouter, Depends, HTTPException
 
+from src.config import settings
 from src.dependencies import jwt_auth
 from src.models.documents import TenantDocument, UserDocument
 from src.models.schemas import (
@@ -28,6 +29,13 @@ async def register(
 ) -> LoginResponse:
     """Create account, return JWT. No auth required."""
     email = body.email.strip().lower()
+
+    allowlist = settings.allowed_signup_emails
+    if allowlist and email not in allowlist:
+        raise HTTPException(
+            status_code=403, detail="Signups are restricted to allowed email addresses"
+        )
+
     password_hash = (
         await asyncio.to_thread(bcrypt.hashpw, body.password.encode(), bcrypt.gensalt())
     ).decode()

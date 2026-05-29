@@ -30,8 +30,6 @@ def _jwt_tenant_id(user: JwtPayload) -> str:
     return user.tenant_id
 
 
-
-
 @router.get("")
 async def list_sessions(
     user: JwtPayload = Depends(jwt_auth),
@@ -41,7 +39,9 @@ async def list_sessions(
 ) -> SessionListResponse:
     tenant_id = _jwt_tenant_id(user)
     if scope == "me":
-        return await SessionService.list_sessions(tenant_id, user_id=user.sub, limit=limit, before=before)
+        return await SessionService.list_sessions(
+            tenant_id, user_id=user.sub, limit=limit, before=before
+        )
     return await SessionService.list_sessions(tenant_id, limit=limit, before=before)
 
 

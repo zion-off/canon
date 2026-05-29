@@ -75,7 +75,9 @@ async def create_team(
         last_used_at=None,
     ).insert()
 
-    token = AuthService.issue_jwt(user_id, user.email, user.name, str(tenant_id), Role.OWNER)
+    token = AuthService.issue_jwt(
+        user_id, user.email, user.name, str(tenant_id), Role.OWNER
+    )
 
     return CreateTeamResponse(
         token=token,
@@ -123,7 +125,9 @@ async def join_team(
     if not tenant:
         raise HTTPException(status_code=404, detail="Team not found")
 
-    token = AuthService.issue_jwt(user_id, user.email, user.name, str(tenant_id), Role.MEMBER)
+    token = AuthService.issue_jwt(
+        user_id, user.email, user.name, str(tenant_id), Role.MEMBER
+    )
 
     return JoinTeamResponse(
         token=token,

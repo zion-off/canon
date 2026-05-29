@@ -3,7 +3,7 @@
 Serves REST API routes for the frontend and the MCP proxy:
 - /api/v1/auth       — authentication
 - /api/v1/teams      — team management
-- /api/v1/sessions   — session listing, events, SSE streaming
+- /api/v1/sessions   — session listing, events, SSE streaming (frontend)
 - /api/v1/graph      — knowledge graph
 - /api/v1/agent      — agent invocation (for MCP proxy)
 - /api/v1/resources  — org-state, org-momentum (for MCP proxy)
@@ -25,7 +25,6 @@ from src.routers.auth import router as auth_router
 from src.routers.graph import router as graph_router
 from src.routers.prompts import router as prompts_router
 from src.routers.resources import router as resources_router
-from src.routers.sessions import harness_router
 from src.routers.sessions import router as sessions_router
 from src.routers.teams import router as teams_router
 
@@ -52,7 +51,6 @@ app.add_exception_handler(Exception, unexpected_exception_handler)
 app.include_router(auth_router, prefix="/api/v1/auth")
 app.include_router(teams_router, prefix="/api/v1/teams")
 app.include_router(sessions_router, prefix="/api/v1/sessions")
-app.include_router(harness_router, prefix="/api/v1/tenants/{tenant_id}")
 app.include_router(graph_router, prefix="/api/v1/graph")
 app.include_router(agent_router, prefix="/api/v1/agent")
 app.include_router(resources_router, prefix="/api/v1/resources")

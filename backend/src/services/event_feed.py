@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 
 from bson import ObjectId
 
+from src.agent.constants import EventType
 from src.models.documents import AgentEventDocument
 from src.models.schemas import AgentEvent, AgentEventBase, SessionResponse
 
@@ -110,6 +111,48 @@ class AgentEventFeed:
         )
         for queue in subscribers:
             await queue.put(event)
+
+    def create_run_queue(self, tenant_id: str, session_id: str) -> Queue[AgentEvent]:
+        """Eagerly register a subscriber queue before a run starts.
+
+        Must be called before asyncio.create_task() to guarantee no events are
+        dropped between task start and the first queue.get().
+        """
+        key = f"{tenant_id}:{session_id}"
+        queue: Queue[AgentEvent] = Queue()
+        if key not in self._subscribers:
+            self._subscribers[key] = []
+        self._subscribers[key].append(queue)
+        return queue
+
+    async def iter_run(
+        self,
+        tenant_id: str,
+        session_id: str,
+        run_id: str,
+        queue: Queue[AgentEvent],
+    ) -> AsyncIterator[AgentEvent]:
+        """Iterate events for a specific run, stopping after run_completed.
+
+        Filters out events from other runs sharing the same session queue.
+        The queue must have been registered via create_run_queue() before the
+        agent task started.
+        """
+        key = f"{tenant_id}:{session_id}"
+        log = logging.getLogger(__name__)
+        try:
+            while True:
+                event = await queue.get()
+                if event.run_id != run_id:
+                    continue
+                yield event
+                if event.type == EventType.RUN_COMPLETED:
+                    break
+        finally:
+            self._subscribers[key].remove(queue)
+            if not self._subscribers[key]:
+                del self._subscribers[key]
+            log.debug("event_feed: iter_run cleanup | key=%s run=%s", key, run_id)
 
     async def subscribe(
         self, tenant_id: str, session_id: str

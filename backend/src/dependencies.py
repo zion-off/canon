@@ -74,13 +74,3 @@ async def api_token_auth(
     if not ctx:
         raise HTTPException(status_code=401, detail="Invalid API token")
     return ctx
-
-
-async def require_tenant_match(
-    tenant_id: str,
-    ctx: TenantContext = Depends(api_token_auth),
-) -> str:
-    """Validates the query-param tenant_id matches the authenticated tenant."""
-    if tenant_id != ctx.tenant_id:
-        raise HTTPException(status_code=403, detail="Tenant ID mismatch")
-    return tenant_id

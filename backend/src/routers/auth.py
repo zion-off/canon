@@ -17,7 +17,7 @@ from src.models.schemas import (
     RegisterRequest,
     UserResponse,
 )
-from src.services.jwt import issue_jwt
+from src.services.auth import AuthService
 
 router = APIRouter(tags=["auth"])
 
@@ -47,7 +47,7 @@ async def register(
         raise HTTPException(
             status_code=409, detail="Email already registered"
         ) from None
-    token = issue_jwt(str(user.id), email, body.name, None, None)
+    token = AuthService.issue_jwt(str(user.id), email, body.name, None, None)
     return LoginResponse(
         token=token,
         user=UserResponse.model_validate(user.model_dump(by_alias=True)),
@@ -65,7 +65,7 @@ async def login(
     ):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     tenant_id = str(user.tenant_id) if user.tenant_id else None
-    token = issue_jwt(
+    token = AuthService.issue_jwt(
         str(user.id),
         user.email,
         user.name,

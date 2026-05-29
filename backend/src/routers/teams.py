@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import secrets
 from datetime import UTC, datetime, timedelta
-from hashlib import sha256
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
@@ -31,19 +30,9 @@ from src.models.schemas import (
     TokenItemResponse,
     TokenListResponse,
 )
-from src.services.jwt import issue_jwt
+from src.services.auth import AuthService
 
 router = APIRouter(tags=["teams"])
-
-
-def _hash_token(raw: str) -> str:
-    """Produce a hex-encoded SHA-256 hash of a raw API token."""
-    return sha256(raw.encode()).hexdigest()
-
-
-def _slugify(name: str) -> str:
-    """Convert a team name to a URL-safe slug."""
-    return name.strip().lower().replace(" ", "-")
 
 
 @router.post("/create", response_model=CreateTeamResponse)
@@ -55,7 +44,7 @@ async def create_team(
     if user.tenant_id:
         raise HTTPException(status_code=409, detail="User already belongs to a team")
     user_id = user.sub
-    slug = _slugify(body.name)
+    slug = body.name.strip().lower().replace(" ", "-")
 
     tenant = TenantDocument.model_construct(
         name=body.name,
@@ -76,17 +65,17 @@ async def create_team(
     )
 
     # Generate default API token
-    raw_token = f"ct_{secrets.token_urlsafe(32)}"
+    raw_token = AuthService.generate_api_token()
     await ApiTokenDocument.model_construct(
         tenant_id=tenant_id,
         user_id=user_id,
-        token_hash=_hash_token(raw_token),
+        token_hash=AuthService.hash_token(raw_token),
         label="Default",
         created_at=datetime.now(UTC),
         last_used_at=None,
     ).insert()
 
-    token = issue_jwt(user_id, user.email, user.name, str(tenant_id), Role.OWNER)
+    token = AuthService.issue_jwt(user_id, user.email, user.name, str(tenant_id), Role.OWNER)
 
     return CreateTeamResponse(
         token=token,
@@ -134,7 +123,7 @@ async def join_team(
     if not tenant:
         raise HTTPException(status_code=404, detail="Team not found")
 
-    token = issue_jwt(user_id, user.email, user.name, str(tenant_id), Role.MEMBER)
+    token = AuthService.issue_jwt(user_id, user.email, user.name, str(tenant_id), Role.MEMBER)
 
     return JoinTeamResponse(
         token=token,
@@ -202,12 +191,12 @@ async def create_token(
         raise HTTPException(status_code=400, detail="User does not belong to a team")
 
     now = datetime.now(UTC)
-    raw_token = f"ct_{secrets.token_urlsafe(32)}"
+    raw_token = AuthService.generate_api_token()
 
     await ApiTokenDocument.model_construct(
         tenant_id=ObjectId(user.tenant_id),
         user_id=user.sub,
-        token_hash=_hash_token(raw_token),
+        token_hash=AuthService.hash_token(raw_token),
         label=body.label,
         created_at=now,
         last_used_at=None,

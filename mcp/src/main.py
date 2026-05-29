@@ -13,7 +13,7 @@ from fastmcp.server.providers import FileSystemProvider
 from src.config import settings
 from src.instructions import INSTRUCTIONS
 
-_COMPONENTS_DIR = Path(__file__).parent / "src" / "components"
+_COMPONENTS_DIR = Path(__file__).parent / "components"
 
 mcp = FastMCP(
     "canon",

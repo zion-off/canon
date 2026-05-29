@@ -1,0 +1,33 @@
+name: ci / mcp
+
+on:
+  pull_request:
+    paths:
+      - mcp/**
+      - .github/workflows/mcp-ci.yml
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: mcp
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          uv python install 3.12
+          uv sync --all-groups
+
+      - name: Ruff check
+        run: uv run ruff check
+
+      - name: Build check
+        run: uv build

@@ -19,3 +19,4 @@ class SessionResponse(MongoModel):
 
 class SessionListResponse(BaseModel):
     sessions: list[SessionResponse]
+    next_cursor: str | None = Field(default=None, alias="nextCursor")

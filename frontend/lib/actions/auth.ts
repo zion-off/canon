@@ -6,9 +6,13 @@ import { AuthResponseSchema, MeResponseSchema } from "@/lib/schemas/auth";
 import type { AuthResponse, MeResponse } from "@/lib/schemas/auth";
 import { COOKIE_NAME, API_V1_AUTH, ROUTE_LOGIN } from "@/lib/constants";
 import { API_URL } from "@/lib/config";
-import { handleErrorResponse, logout, setAuthCookie } from "@/lib/api-utils";
+import { logout, setAuthCookie } from "@/lib/api-utils";
 
-export async function login(email: string, password: string): Promise<AuthResponse["user"]> {
+export type AuthActionResult =
+  | { success: true; user: AuthResponse["user"] }
+  | { success: false; error: string };
+
+export async function login(email: string, password: string): Promise<AuthActionResult> {
   const res = await fetch(`${API_URL}/${API_V1_AUTH}/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -18,21 +22,24 @@ export async function login(email: string, password: string): Promise<AuthRespon
   if (!res.ok) {
     if (res.status === 401) {
       const err = await res.json().catch(() => null);
-      throw new Error(err?.detail ?? "Invalid credentials");
+      return { success: false, error: err?.detail ?? "Invalid credentials" };
     }
-    await handleErrorResponse(res);
+    const body = await res.json().catch(() => null);
+    const detail =
+      body && typeof body.detail === "string" ? body.detail : `Request failed: ${res.status}`;
+    return { success: false, error: detail };
   }
 
   const data = AuthResponseSchema.parse(await res.json());
   await setAuthCookie(data.token);
-  return data.user;
+  return { success: true, user: data.user };
 }
 
 export async function register(
   email: string,
   name: string,
   password: string,
-): Promise<AuthResponse["user"]> {
+): Promise<AuthActionResult> {
   const res = await fetch(`${API_URL}/${API_V1_AUTH}/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -41,14 +48,17 @@ export async function register(
 
   if (!res.ok) {
     if (res.status === 409) {
-      throw new Error("Email already registered");
+      return { success: false, error: "Email already registered" };
     }
-    await handleErrorResponse(res);
+    const body = await res.json().catch(() => null);
+    const detail =
+      body && typeof body.detail === "string" ? body.detail : `Request failed: ${res.status}`;
+    return { success: false, error: detail };
   }
 
   const data = AuthResponseSchema.parse(await res.json());
   await setAuthCookie(data.token);
-  return data.user;
+  return { success: true, user: data.user };
 }
 
 export { logout };

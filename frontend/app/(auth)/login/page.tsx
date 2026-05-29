@@ -24,13 +24,13 @@ export default function LoginPage() {
 
     setIsPending(true);
     setError(null);
-    try {
-      await login(email, password);
-      router.push(ROUTE_DASHBOARD);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred.");
+    const result = await login(email, password);
+    if (!result.success) {
+      setError(result.error);
       setIsPending(false);
+      return;
     }
+    router.push(ROUTE_DASHBOARD);
   }
 
   return (

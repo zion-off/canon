@@ -30,13 +30,13 @@ export default function RegisterPage() {
 
     setIsPending(true);
     setError(null);
-    try {
-      await register(email, name, password);
-      router.push(ROUTE_ONBOARDING);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred.");
+    const result = await register(email, name, password);
+    if (!result.success) {
+      setError(result.error);
       setIsPending(false);
+      return;
     }
+    router.push(ROUTE_ONBOARDING);
   }
 
   return (

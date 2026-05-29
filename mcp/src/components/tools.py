@@ -13,10 +13,8 @@ from pydantic import Field
 
 from src.config import settings
 from src.constants import (
-    APIRoute,
     AuthScheme,
     EventPayload,
-    HttpHeader,
     ToolName,
 )
 from src.sse import consume_sse
@@ -63,9 +61,9 @@ async def canon(
 ) -> str:
     """Check organizational memory before implementing code changes.
 
-    POSTs to the backend /agent/run endpoint, then opens an SSE stream to
-    /sessions/{id}/stream to consume events. Reacts to confirmation requests
-    via elicit() and reports progress via report_progress().
+    POSTs to /agent/run, which starts the agent and streams SSE events directly
+    in the response. Progress and confirmation requests are handled inline;
+    the connection closes naturally after run_completed.
     """
     if not fastmcp_ctx:
         return "Error: no MCP context available"
@@ -77,32 +75,13 @@ async def canon(
     auth_header = f"{AuthScheme.BEARER} {settings.canon_api_token}"
 
     async with httpx.AsyncClient(timeout=httpx.Timeout(300)) as client:
-        run_resp = await client.post(
-            f"{settings.canon_backend_url}{APIRoute.AGENT_RUN}",
-            json={
+        return await consume_sse(
+            client=client,
+            body={
                 EventPayload.SESSION_ID: session_id,
                 EventPayload.REQUEST: request,
                 EventPayload.CONTEXT: context,
             },
-            headers={HttpHeader.AUTHORIZATION: auth_header},
-        )
-        if run_resp.status_code != 200:
-            log.error("Agent run failed: %s %s", run_resp.status_code, run_resp.text)
-            return f"Error: backend returned {run_resp.status_code}"
-
-        run_data = run_resp.json()
-        tenant_id = run_data.get(EventPayload.TENANT_ID)
-        log.info(
-            "canon: started | tenant=%s session=%s run=%s",
-            tenant_id,
-            session_id,
-            run_data.get(EventPayload.RUN_ID),
-        )
-
-        return await consume_sse(
-            client=client,
-            tenant_id=tenant_id,
-            session_id=session_id,
             auth_header=auth_header,
             fastmcp_ctx=fastmcp_ctx,
         )

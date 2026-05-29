@@ -72,8 +72,6 @@ class APIRoute:
     """
 
     AGENT_RUN: Final = "/api/v1/agent/run"
-    SESSION_STREAM: Final = "/api/v1/sessions/{session_id}/stream"
-    HARNESS_SESSION_STREAM: Final = "/api/v1/tenants/{tenant_id}/sessions/{session_id}/stream"
     CONFIRM: Final = "/api/v1/agent/confirm/{confirmation_id}"
     PROMPTS: Final = "/api/v1/prompts"
     RESOURCES: Final = "/api/v1/resources"

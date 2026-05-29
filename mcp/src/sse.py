@@ -16,45 +16,46 @@ from src.constants import (
     EventPayload,
     EventType,
     HttpHeader,
-    QueryParam,
     SSEField,
     ToolCallStatus,
 )
 
 log = logging.getLogger(__name__)
 
-_SSE_LINE_RE = re.compile(r"^(id|event|data):\s*(\S[^\n]*)")
+_SSE_LINE_RE = re.compile(r"^(event|data):\s*(\S[^\n]*)")
 
 
 async def consume_sse(
     client: httpx.AsyncClient,
-    tenant_id: str,
-    session_id: str,
+    body: dict,
     auth_header: str,
     fastmcp_ctx: Context,
 ) -> str:
-    """Consume SSE events and return the final response text."""
+    """POST to /agent/run and consume the SSE stream, returning the final response.
+
+    Reads until the server closes the connection (after run_completed). Progress
+    events and confirmation requests are handled inline; the last seen
+    final_response text is returned.
+    """
     final_text: str = ""
-    sse_url = f"{settings.canon_backend_url}{APIRoute.HARNESS_SESSION_STREAM.format(tenant_id=tenant_id, session_id=session_id)}"
+    url = f"{settings.canon_backend_url}{APIRoute.AGENT_RUN}"
 
     async with client.stream(
-        "GET",
-        sse_url,
-        params={QueryParam.LAST_EVENT_ID: 0},
+        "POST",
+        url,
+        json=body,
         headers={HttpHeader.AUTHORIZATION: auth_header},
     ) as response:
         if response.status_code != 200:
-            log.error("SSE stream failed: %s", response.status_code)
+            log.error("Agent run stream failed: %s", response.status_code)
             return "Error: could not connect to event stream"
 
-        event_id: str | None = None
         data_lines: list[str] = []
 
         async for line in response.aiter_lines():
             if not line.strip():
                 if data_lines:
                     result = await _handle_event(
-                        event_id,
                         "\n".join(data_lines),
                         fastmcp_ctx,
                         client,
@@ -62,8 +63,6 @@ async def consume_sse(
                     )
                     if result is not None:
                         final_text = result
-                        break
-                    event_id = None
                     data_lines = []
                 continue
 
@@ -72,22 +71,19 @@ async def consume_sse(
                 continue
 
             field, value = match.group(1), match.group(2)
-            if field == SSEField.ID:
-                event_id = value
-            elif field == SSEField.DATA:
+            if field == SSEField.DATA:
                 data_lines.append(value)
 
     return final_text or "No response was generated."
 
 
 async def _handle_event(
-    event_id: str | None,
     data: str,
     fastmcp_ctx: Context,
     client: httpx.AsyncClient,
     auth_header: str,
 ) -> str | None:
-    """Handle a single SSE event. Returns final_text if this is a final_response."""
+    """Handle a single SSE event. Returns the response text for final_response, else None."""
     try:
         payload = json.loads(data)
     except json.JSONDecodeError:
@@ -146,6 +142,7 @@ async def _handle_event(
             await client.post(
                 f"{settings.canon_backend_url}{APIRoute.CONFIRM.format(confirmation_id=confirmation_id)}",
                 json={EventPayload.ACCEPTED: accepted},
+                headers={HttpHeader.AUTHORIZATION: auth_header},
             )
 
     elif event_type == EventType.FINAL_RESPONSE:

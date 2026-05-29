@@ -14,7 +14,7 @@ COPY --from=node /opt /opt
 
 RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
     ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx && \
-    apt-get update && apt-get install -y --no-install-recommends libatomic1 && \
+    apt-get update && apt-get install -y --no-install-recommends libatomic1 curl && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml uv.lock ./

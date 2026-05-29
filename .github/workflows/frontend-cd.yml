@@ -42,7 +42,7 @@ jobs:
           service: canon-frontend
           image: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/canon/frontend:${{ github.sha }}
           region: us-central1
-          flags: --min-instances=1 --max-instances=1
+          flags: --scaling=1
           env_vars: |-
             API_URL=${{ secrets.CANON_BACKEND_URL }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}

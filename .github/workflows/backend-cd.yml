@@ -38,7 +38,7 @@ jobs:
           service: canon-backend
           image: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/canon/backend:${{ github.sha }}
           region: us-central1
-          flags: --vpc-connector=canon-connector --vpc-egress=all-traffic --memory=2Gi --cpu=2 --cpu-boost --min-instances=1 --max-instances=1 --startup-probe=timeoutSeconds=240,periodSeconds=240,failureThreshold=5,tcpSocket.port=8080
+          flags: --vpc-connector=canon-connector --vpc-egress=all-traffic --memory=2Gi --cpu=2 --cpu-boost --scaling=1 --startup-probe=timeoutSeconds=240,periodSeconds=240,failureThreshold=5,tcpSocket.port=8080
           env_vars: |-
             MONGODB_URI=${{ secrets.MONGODB_URI }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}

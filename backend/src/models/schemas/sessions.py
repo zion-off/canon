@@ -19,4 +19,5 @@ class SessionResponse(MongoModel):
 
 class SessionListResponse(BaseModel):
     sessions: list[SessionResponse]
+    total: int
     next_cursor: str | None = Field(default=None, alias="nextCursor")

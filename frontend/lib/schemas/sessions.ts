@@ -150,7 +150,14 @@ export const DisplayItemSchema = z.union([
 
 // ── TypeScript types ──────────────────────────────────────────────────────────
 
+export const SessionListResponseSchema = z.object({
+  sessions: z.array(SessionResponseSchema),
+  total: z.number().int(),
+  nextCursor: z.string().nullable(),
+});
+
 export type SessionResponse = z.infer<typeof SessionResponseSchema>;
+export type SessionListResponse = z.infer<typeof SessionListResponseSchema>;
 export type AgentEvent = z.infer<typeof AgentEventSchema>;
 export type RunStartedEvent = z.infer<typeof RunStartedEventSchema>;
 export type RunCompletedEvent = z.infer<typeof RunCompletedEventSchema>;

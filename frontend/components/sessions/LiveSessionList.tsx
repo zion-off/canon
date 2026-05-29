@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import type { SessionResponse } from "@/lib/schemas/sessions";
+import { useState, useCallback, useEffect, useRef } from "react";
+import type { SessionResponse, SessionListResponse } from "@/lib/schemas/sessions";
 import { SessionResponseSchema } from "@/lib/schemas/sessions";
 import { StreamUrlResponseSchema } from "@/lib/schemas/auth";
 import { useEventSource } from "@/hooks/useEventSource";
+import { listSessions, listMySessions } from "@/lib/actions/sessions";
 import { SessionRow } from "./SessionRow";
 
 const colHeader =
@@ -16,8 +17,8 @@ const tabActive = "text-canon-text border-canon-text";
 const tabInactive = "text-canon-text-secondary border-transparent hover:text-canon-text";
 
 interface LiveSessionListProps {
-  mySessions: SessionResponse[];
-  teamSessions: SessionResponse[];
+  mySessions: SessionListResponse;
+  teamSessions: SessionListResponse;
   currentUserId: string;
 }
 
@@ -38,8 +39,17 @@ async function fetchSessionsStreamUrl(): Promise<string | null> {
 
 export function LiveSessionList({ mySessions, teamSessions, currentUserId }: LiveSessionListProps) {
   const [activeTab, setActiveTab] = useState<"yours" | "team">("yours");
-  const [myState, setMyState] = useState(mySessions);
-  const [teamState, setTeamState] = useState(teamSessions);
+
+  const [myState, setMyState] = useState(mySessions.sessions);
+  const [myTotal, setMyTotal] = useState(mySessions.total);
+  const [myNextCursor, setMyNextCursor] = useState(mySessions.nextCursor);
+
+  const [teamState, setTeamState] = useState(teamSessions.sessions);
+  const [teamTotal, setTeamTotal] = useState(teamSessions.total);
+  const [teamNextCursor, setTeamNextCursor] = useState(teamSessions.nextCursor);
+
+  const [loading, setLoading] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const onSession = useCallback(
     (data: unknown) => {
@@ -47,9 +57,17 @@ export function LiveSessionList({ mySessions, teamSessions, currentUserId }: Liv
       if (!parsed.success) return;
       const incoming = parsed.data;
 
-      setTeamState((prev) => mergeSessions(prev, incoming));
+      setTeamState((prev) => {
+        const isNew = !prev.some((s) => s.sessionId === incoming.sessionId);
+        if (isNew) setTeamTotal((t) => t + 1);
+        return mergeSessions(prev, incoming);
+      });
       if (incoming.userId === currentUserId) {
-        setMyState((prev) => mergeSessions(prev, incoming));
+        setMyState((prev) => {
+          const isNew = !prev.some((s) => s.sessionId === incoming.sessionId);
+          if (isNew) setMyTotal((t) => t + 1);
+          return mergeSessions(prev, incoming);
+        });
       }
     },
     [currentUserId],
@@ -57,7 +75,39 @@ export function LiveSessionList({ mySessions, teamSessions, currentUserId }: Liv
 
   useEventSource(fetchSessionsStreamUrl, onSession, true);
 
+  const loadMore = useCallback(async () => {
+    if (loading) return;
+    const cursor = activeTab === "yours" ? myNextCursor : teamNextCursor;
+    if (!cursor) return;
+
+    setLoading(true);
+    try {
+      if (activeTab === "yours") {
+        const result = await listMySessions(cursor);
+        setMyState((prev) => [...prev, ...result.sessions]);
+        setMyNextCursor(result.nextCursor);
+      } else {
+        const result = await listSessions(cursor);
+        setTeamState((prev) => [...prev, ...result.sessions]);
+        setTeamNextCursor(result.nextCursor);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab, myNextCursor, teamNextCursor, loading]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) loadMore();
+    });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadMore]);
+
   const sessions = activeTab === "yours" ? myState : teamState;
+  const hasMore = activeTab === "yours" ? !!myNextCursor : !!teamNextCursor;
 
   return (
     <>
@@ -68,7 +118,7 @@ export function LiveSessionList({ mySessions, teamSessions, currentUserId }: Liv
           onClick={() => setActiveTab("yours")}
         >
           Yours
-          <span className="ml-1.5 text-canon-text-secondary">{myState.length}</span>
+          <span className="ml-1.5 text-canon-text-secondary">{myTotal}</span>
         </button>
         <button
           type="button"
@@ -76,7 +126,7 @@ export function LiveSessionList({ mySessions, teamSessions, currentUserId }: Liv
           onClick={() => setActiveTab("team")}
         >
           Team
-          <span className="ml-1.5 text-canon-text-secondary">{teamState.length}</span>
+          <span className="ml-1.5 text-canon-text-secondary">{teamTotal}</span>
         </button>
       </div>
 
@@ -95,6 +145,14 @@ export function LiveSessionList({ mySessions, teamSessions, currentUserId }: Liv
           {sessions.map((session) => (
             <SessionRow key={session.sessionId} session={session} />
           ))}
+          {hasMore && <div ref={sentinelRef} className="h-8" />}
+          {loading && (
+            <div className="py-4 flex justify-center">
+              <span className="font-condensed text-xs uppercase tracking-[0.08em] text-canon-text-secondary">
+                Loading...
+              </span>
+            </div>
+          )}
         </div>
       )}
     </>

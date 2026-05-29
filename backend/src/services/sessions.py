@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from datetime import datetime
 
@@ -45,17 +46,21 @@ class SessionService:
         Pass the returned nextCursor as `before` on the next call to fetch the next page.
         """
         tenant_oid = ObjectId(tenant_id)
-        criteria: list = [SessionDocument.tenant_id == tenant_oid]
+        base: list = [SessionDocument.tenant_id == tenant_oid]
         if user_id:
-            criteria.append(SessionDocument.user_id == user_id)
+            base.append(SessionDocument.user_id == user_id)
+
+        page = list(base)
         if before:
-            criteria.append({"lastRunAt": {"$lt": datetime.fromisoformat(before)}})
-        sessions = (
-            await SessionDocument.find(*criteria).sort("-lastRunAt").limit(limit).to_list()
+            page.append({"lastRunAt": {"$lt": datetime.fromisoformat(before)}})
+
+        total, sessions = await asyncio.gather(
+            SessionDocument.find(*base).count(),
+            SessionDocument.find(*page).sort("-lastRunAt").limit(limit).to_list(),
         )
         items = [SessionResponse.model_validate(s.model_dump(by_alias=True)) for s in sessions]
         next_cursor = items[-1].last_run_at if len(items) == limit else None
-        return SessionListResponse(sessions=items, nextCursor=next_cursor)
+        return SessionListResponse(sessions=items, total=total, nextCursor=next_cursor)
 
     @staticmethod
     async def list_events(tenant_id: str, session_id: str) -> list[AgentEvent]:

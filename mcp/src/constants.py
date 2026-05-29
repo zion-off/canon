@@ -117,6 +117,12 @@ class ResourceURI:
     ORG_STATE: Final = "canon://org/state"
 
 
+class SSEError:
+    """Error messages returned on SSE stream failures."""
+
+    TIMEOUT: Final = "Error: the agent took too long to respond. Please try again."
+
+
 class ResourcePath:
     """Backend resource path segments (used in API URLs)."""
 

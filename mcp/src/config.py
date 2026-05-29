@@ -35,6 +35,12 @@ class Settings(BaseSettings):
         self.canon_backend_url = self.canon_backend_url.rstrip("/")
         return self
 
+    # ─── SSE ──────────────────────────────────────────────────────────────
+    sse_timeout_seconds: int = Field(
+        default=300,
+        validation_alias="SSE_TIMEOUT_SECONDS",
+    )
+
     # ─── Authentication ───────────────────────────────────────────────────
     canon_api_token: str = Field(
         default="",

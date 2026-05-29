@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -16,6 +17,7 @@ from src.constants import (
     EventPayload,
     EventType,
     HttpHeader,
+    SSEError,
     SSEField,
     ToolCallStatus,
 )
@@ -52,27 +54,34 @@ async def consume_sse(
 
         data_lines: list[str] = []
 
-        async for line in response.aiter_lines():
-            if not line.strip():
-                if data_lines:
-                    result = await _handle_event(
-                        "\n".join(data_lines),
-                        fastmcp_ctx,
-                        client,
-                        auth_header,
-                    )
-                    if result is not None:
-                        final_text = result
-                    data_lines = []
-                continue
+        try:
+            async with asyncio.timeout(settings.sse_timeout_seconds):
+                async for line in response.aiter_lines():
+                    if not line.strip():
+                        if data_lines:
+                            result = await _handle_event(
+                                "\n".join(data_lines),
+                                fastmcp_ctx,
+                                client,
+                                auth_header,
+                            )
+                            if result is not None:
+                                final_text = result
+                            data_lines = []
+                        continue
 
-            match = _SSE_LINE_RE.match(line)
-            if match is None:
-                continue
+                    match = _SSE_LINE_RE.match(line)
+                    if match is None:
+                        continue
 
-            field, value = match.group(1), match.group(2)
-            if field == SSEField.DATA:
-                data_lines.append(value)
+                    field, value = match.group(1), match.group(2)
+                    if field == SSEField.DATA:
+                        data_lines.append(value)
+        except TimeoutError:
+            log.warning(
+                "SSE stream timed out after %s seconds", settings.sse_timeout_seconds
+            )
+            return SSEError.TIMEOUT
 
     return final_text or "No response was generated."
 

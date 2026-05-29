@@ -183,7 +183,7 @@ async def canonize_node(
 
     try:
         insert_result = await call_tool(
-            "insertOne",
+            "insert-one",
             {
                 "collection": Collections.MEMORY_NODES,
                 "database": Database.CANON,
@@ -248,7 +248,7 @@ async def canonize_node(
             continue
         try:
             update_result = await call_tool(
-                "updateMany",
+                "update-many",
                 {
                     "collection": Collections.MEMORY_NODES,
                     "database": Database.CANON,
@@ -275,7 +275,7 @@ async def canonize_node(
     if oid_supersedes is not None and oid_supersedes["$oid"] != inserted_id:
         try:
             supersede_result = await call_tool(
-                "updateMany",
+                "update-many",
                 {
                     "collection": Collections.MEMORY_NODES,
                     "database": Database.CANON,

@@ -1,0 +1,48 @@
+name: cd / backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - backend/**
+      - .github/workflows/backend-cd.yml
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+
+      - name: Docker auth
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      - name: Build and push
+        run: |
+          IMAGE="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/canon/backend:${{ github.sha }}"
+          docker build -t "$IMAGE" -f backend/Dockerfile.production backend
+          docker push "$IMAGE"
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v3
+        with:
+          service: canon-backend
+          image: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/canon/backend:${{ github.sha }}
+          region: us-central1
+          flags: --vpc-connector=canon-connector --vpc-egress=all-traffic --memory=2Gi --cpu=2 --cpu-boost --min-instances=1 --max-instances=1 --startup-probe=timeoutSeconds=240,periodSeconds=240,failureThreshold=5,tcpSocket.port=8080
+          env_vars: |-
+            MONGODB_URI=${{ secrets.MONGODB_URI }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
+            CANON_REASONING_MODEL=${{ vars.CANON_REASONING_MODEL }}
+            CANON_FAST_MODEL=${{ vars.CANON_FAST_MODEL }}
+            CANON_EMBEDDING_MODEL=${{ vars.CANON_EMBEDDING_MODEL }}

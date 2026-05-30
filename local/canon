@@ -65,6 +65,7 @@ $(color "$BOLD" "Usage:")
   $(color "$CYAN" "canon rebuild") [name...]            Down, build --no-cache, up -d
   $(color "$CYAN" "canon clean")                        Down and remove volumes
   $(color "$CYAN" "canon build") [name...]              Build services
+  $(color "$CYAN" "canon init")                         Set up venvs and install all dependencies
   $(color "$CYAN" "canon install")                      Symlink this script into /usr/local/bin/canon
   $(color "$CYAN" "canon help")                         Show this help
 
@@ -202,6 +203,10 @@ cmd_build() {
   color "$GREEN" "Build complete."
 }
 
+cmd_init() {
+  exec "$SCRIPT_DIR/init.sh"
+}
+
 cmd_install() {
   local target="/usr/local/bin/canon"
   local source="$SCRIPT_DIR/canon"
@@ -271,6 +276,9 @@ clean)
 build)
   shift
   cmd_build "$@"
+  ;;
+init)
+  cmd_init
   ;;
 install)
   shift

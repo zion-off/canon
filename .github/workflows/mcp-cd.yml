@@ -23,10 +23,27 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Check version
+        id: version
+        working-directory: mcp
+        run: |
+          local_ver="$(uvx --from=toml-cli toml get --toml-path=pyproject.toml project.version)"
+          echo "local=$local_ver" >> "$GITHUB_OUTPUT"
+          pypi_ver="$(curl -sf "https://pypi.org/pypi/canon-mcp-server/json" | python3 -c "import sys,json; print(json.load(sys.stdin)['info']['version'])" 2>/dev/null || echo '')"
+          echo "pypi=$pypi_ver" >> "$GITHUB_OUTPUT"
+          if [ "$local_ver" = "$pypi_ver" ] && [ -n "$pypi_ver" ]; then
+            echo "match=true" >> "$GITHUB_OUTPUT"
+            echo "Version $local_ver already published — skipping."
+          else
+            echo "match=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build
+        if: steps.version.outputs.match != 'true'
         working-directory: mcp
         run: uv build
 
       - name: Publish to PyPI
+        if: steps.version.outputs.match != 'true'
         working-directory: mcp
         run: uv publish

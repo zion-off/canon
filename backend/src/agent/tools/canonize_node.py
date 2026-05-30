@@ -131,7 +131,7 @@ async def canonize_node(
                 event=ConfirmationRequestedEvent(
                     author="canonize_node",
                     payload=ConfirmationRequestedPayload(
-                        confirmationId=confirmation_id,
+                        confirmation_id=confirmation_id,
                         message="Persist this memory?",
                         options=["Yes", "No"],
                         title=doc.name,
@@ -183,11 +183,11 @@ async def canonize_node(
 
     try:
         insert_result = await call_tool(
-            "insert-one",
+            "insert-many",
             {
                 "collection": Collections.MEMORY_NODES,
                 "database": Database.CANON,
-                "document": insert_doc,
+                "documents": [insert_doc],
             },
         )
     except Exception as exc:
@@ -198,7 +198,7 @@ async def canonize_node(
                 hint="A memory with this name already exists",
                 retry="Use different name or supersede existing. Retrieve it first.",
             )
-        log.warning("canonize_node: insertOne failed | name=%s error=%s", doc.name, exc)
+        log.warning("canonize_node: insert-many failed | name=%s error=%s", doc.name, exc)
         return CanonizeError(
             error=f"Insert failed: {exc}",
             hint="Database write failed",
@@ -208,7 +208,7 @@ async def canonize_node(
     if mcp_result_is_error(insert_result):
         error_text = extract_mcp_error_text(insert_result)
         log.warning(
-            "canonize_node: insertOne returned error | name=%s error=%s",
+            "canonize_node: insert-many returned error | name=%s error=%s",
             doc.name,
             error_text,
         )
@@ -228,7 +228,7 @@ async def canonize_node(
     inserted_id = _extract_inserted_id(insert_result)
     if not inserted_id:
         log.warning(
-            "canonize_node: insertOne succeeded but could not extract inserted ID | name=%s",
+            "canonize_node: insert-many succeeded but could not extract inserted ID | name=%s",
             doc.name,
         )
         return CanonizeError(
@@ -236,7 +236,7 @@ async def canonize_node(
             "The write may have succeeded but relationship wiring was skipped.",
             hint="MCP response format unexpected — could not find insertedId",
             retry="Use find to locate the newly inserted node by name, "
-            "then manually wire relationships with updateMany",
+            "then manually wire relationships with update-many",
         )
 
     oid_new = {"$oid": inserted_id}
@@ -316,34 +316,48 @@ async def canonize_node(
 
 
 def _extract_inserted_id(result: object) -> str | None:
-    """Extract the inserted document's _id from an MCP insertOne result.
+    """Extract the first inserted document's _id from an MCP insert-many result.
 
-    The mongodb-mcp-server returns the inserted ID in various shapes.
-    We try common patterns: direct string, $oid dict, or structured content.
+    Tries structuredContent.insertedIds[0] first (EJSON {"$oid": "..."} or
+    hex string), then falls back to regex on the text content.
     """
     import json
+    import re
 
+    # Primary: structuredContent.insertedIds[0]
+    structured = getattr(result, "structuredContent", None)
+    if isinstance(structured, dict):
+        ids = structured.get("insertedIds")
+        if isinstance(ids, list) and ids:
+            raw = ids[0]
+            if isinstance(raw, dict) and "$oid" in raw:
+                return str(raw["$oid"])
+            if isinstance(raw, str) and len(raw) == 24:
+                return raw
+
+    # Fallback: scan text content for a 24-char hex ObjectId
     for item in getattr(result, "content", []):
         text = getattr(item, "text", "")
         if not text:
             continue
+        # Try JSON parse first (some shapes embed EJSON)
         try:
             doc = json.loads(text)
+            if isinstance(doc, dict):
+                ids = doc.get("insertedIds")
+                if isinstance(ids, list) and ids:
+                    raw = ids[0]
+                    if isinstance(raw, dict) and "$oid" in raw:
+                        return str(raw["$oid"])
+                    if isinstance(raw, str) and len(raw) == 24:
+                        return raw
         except json.JSONDecodeError:
-            continue
-        if isinstance(doc, dict):
-            raw = doc.get("insertedId") or doc.get("_id")
-            if isinstance(raw, dict) and "$oid" in raw:
-                return raw["$oid"]
-            if isinstance(raw, str) and len(raw) == 24:
-                return raw
-            # Sometimes the entire document is returned
-            if "_id" in doc:
-                raw = doc["_id"]
-                if isinstance(raw, dict) and "$oid" in raw:
-                    return raw["$oid"]
-                if isinstance(raw, str) and len(raw) == 24:
-                    return raw
+            pass
+        # Regex: bare hex ObjectId in text (e.g. "Inserted IDs: abc123...")
+        match = re.search(r'\b([0-9a-f]{24})\b', text)
+        if match:
+            return match.group(1)
+
     return None
 
 

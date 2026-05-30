@@ -34,7 +34,12 @@ export function useEventStream(
       return fetchStreamUrl(`/api/stream/${sessionId}?after=${after}`);
     },
     (data) => {
-      const event = AgentEventSchema.parse(data);
+      const parsed = AgentEventSchema.safeParse(data);
+      if (!parsed.success) {
+        console.warn("[useEventStream] Skipping unparseable event:", parsed.error.message);
+        return;
+      }
+      const event = parsed.data;
       if (
         event.sequence !== null &&
         (lastSequenceRef.current === null || event.sequence > lastSequenceRef.current)

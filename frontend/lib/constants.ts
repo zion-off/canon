@@ -47,6 +47,8 @@ export const EVENT_TYPE = {
   TOOL_CALL_COMPLETED: "tool_call_completed",
   REASONING_CHECKPOINT: "reasoning_checkpoint",
   FINAL_RESPONSE: "final_response",
+  CONFIRMATION_REQUESTED: "confirmation_requested",
+  CONFIRMATION_RECEIVED: "confirmation_received",
 } as const;
 
 export const DISPLAY_KIND = {

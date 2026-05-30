@@ -113,7 +113,7 @@ class SessionProvider:
         before retrying once.
 
         Args:
-            name: MCP tool name (e.g. "aggregate", "find", "insert-one", "update-many").
+            name: MCP tool name (e.g. "aggregate", "find", "insert-many", "update-many").
             arguments: Tool arguments dict.
 
         Returns:

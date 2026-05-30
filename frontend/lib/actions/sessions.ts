@@ -26,5 +26,13 @@ export async function getSession(sessionId: string): Promise<SessionResponse> {
 }
 
 export async function getSessionEvents(sessionId: string): Promise<AgentEvent[]> {
-  return apiFetch(`${API_V1_SESSIONS}/${sessionId}/events`, z.array(AgentEventSchema));
+  const raw = await apiFetch(`${API_V1_SESSIONS}/${sessionId}/events`, z.array(z.unknown()));
+  const events: AgentEvent[] = [];
+  for (const item of raw) {
+    const parsed = AgentEventSchema.safeParse(item);
+    if (parsed.success) {
+      events.push(parsed.data);
+    }
+  }
+  return events;
 }

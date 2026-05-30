@@ -62,15 +62,15 @@ class ToolName:
     """MongoDB MCP server tool names.
 
     READ_ONLY is the set of tools intercepted by AmbientContextPlugin for
-    tenant/database injection. insertOne/updateMany are only used by
+    tenant/database injection. insert-many/update-many are only used by
     FunctionTools through session_provider and are never exposed to the LLM.
     """
 
     FIND: Final = "find"
     COUNT: Final = "count"
     AGGREGATE: Final = "aggregate"
-    INSERT_ONE: Final = "insertOne"
-    UPDATE_MANY: Final = "updateMany"
+    INSERT_MANY: Final = "insert-many"
+    UPDATE_MANY: Final = "update-many"
     EMIT_CHECKPOINT: Final = "emit_checkpoint"
 
     READ_ONLY: Final[frozenset[str]] = frozenset({FIND, AGGREGATE, COUNT})

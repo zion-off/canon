@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 from src.agent.constants import EventType
 from src.models.schemas._base import MongoModel
@@ -49,7 +49,11 @@ class ToolCallCompletedPayload(BaseModel):
 
 
 class ConfirmationRequestedPayload(BaseModel):
-    confirmation_id: str = Field(alias="confirmationId")
+    # Accepts "confirmationId" (SSE wire) and "confirmation_id" (MongoDB stored)
+    confirmation_id: str = Field(
+        validation_alias=AliasChoices("confirmationId", "confirmation_id"),
+        serialization_alias="confirmationId",
+    )
     message: str
     options: list[str]
     title: str | None = None

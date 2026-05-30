@@ -57,6 +57,19 @@ export const ToolCallCompletedPayloadSchema = z.object({
   agent_invocation_id: z.string().nullable(),
 });
 
+export const ConfirmationRequestedPayloadSchema = z.object({
+  confirmationId: z.string(),
+  message: z.string().optional(),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  options: z.array(z.string()).optional(),
+});
+
+export const ConfirmationReceivedPayloadSchema = z.object({
+  accepted: z.boolean(),
+  response: z.string().optional(),
+});
+
 // ── Per-event schemas ─────────────────────────────────────────────────────────
 
 export const RunStartedEventSchema = z.object({
@@ -101,6 +114,18 @@ export const ToolCallCompletedEventSchema = z.object({
   ...baseEventFields,
 });
 
+export const ConfirmationRequestedEventSchema = z.object({
+  type: z.literal("confirmation_requested"),
+  payload: ConfirmationRequestedPayloadSchema,
+  ...baseEventFields,
+});
+
+export const ConfirmationReceivedEventSchema = z.object({
+  type: z.literal("confirmation_received"),
+  payload: ConfirmationReceivedPayloadSchema,
+  ...baseEventFields,
+});
+
 // ── Discriminated union ───────────────────────────────────────────────────────
 
 export const AgentEventSchema = z.discriminatedUnion("type", [
@@ -111,6 +136,8 @@ export const AgentEventSchema = z.discriminatedUnion("type", [
   SubagentInvokedEventSchema,
   ToolCallStartedEventSchema,
   ToolCallCompletedEventSchema,
+  ConfirmationRequestedEventSchema,
+  ConfirmationReceivedEventSchema,
 ]);
 
 // ── Display-layer schemas ─────────────────────────────────────────────────────
@@ -137,6 +164,7 @@ export const SubagentGroupSchema = z.object({
   agentName: z.string(),
   timestamp: z.string().nullable(),
   toolPairs: z.array(ToolCallPairSchema),
+  checkpoints: z.array(ReasoningCheckpointEventSchema.extend(identifiedEventFields)).default([]),
 });
 
 // z.union instead of z.discriminatedUnion because IdentifiedEventSchema is an
@@ -166,6 +194,8 @@ export type FinalResponseEvent = z.infer<typeof FinalResponseEventSchema>;
 export type SubagentInvokedEvent = z.infer<typeof SubagentInvokedEventSchema>;
 export type ToolCallStartedEvent = z.infer<typeof ToolCallStartedEventSchema>;
 export type ToolCallCompletedEvent = z.infer<typeof ToolCallCompletedEventSchema>;
+export type ConfirmationRequestedEvent = z.infer<typeof ConfirmationRequestedEventSchema>;
+export type ConfirmationReceivedEvent = z.infer<typeof ConfirmationReceivedEventSchema>;
 export type IdentifiedEvent = z.infer<typeof IdentifiedEventSchema>;
 export type ToolCallPair = z.infer<typeof ToolCallPairSchema>;
 export type SubagentGroup = z.infer<typeof SubagentGroupSchema>;

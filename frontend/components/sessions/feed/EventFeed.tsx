@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import type { AgentEvent, IdentifiedEvent } from "@/lib/schemas/sessions";
 import { useEventStream } from "@/hooks/useEventStream";
-import { RunGroup } from "./RunGroup";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { EVENT_TYPE, DISPLAY_KIND } from "@/lib/constants";
+import { RunGroup } from "./RunGroup";
 
 interface EventFeedProps {
   sessionId: string;
@@ -14,15 +16,15 @@ interface EventFeedProps {
 
 interface RunBucket {
   runId: string;
-  runIndex: number;
   events: IdentifiedEvent[];
-  timestamp: string | null;
-  invocationArgs: { request: string; context: string } | null;
+}
+
+function toIdentifiedEvent(event: AgentEvent, stableId: number): IdentifiedEvent {
+  return { ...event, kind: DISPLAY_KIND.EVENT, stableId } as IdentifiedEvent;
 }
 
 function groupEventsIntoRuns(events: IdentifiedEvent[]): RunBucket[] {
   const buckets = new Map<string, IdentifiedEvent[]>();
-
   for (const event of events) {
     const key = event.runId;
     const existing = buckets.get(key);
@@ -32,31 +34,16 @@ function groupEventsIntoRuns(events: IdentifiedEvent[]): RunBucket[] {
       buckets.set(key, [event]);
     }
   }
-
-  return Array.from(buckets.entries()).map(([runId, runEvents], index) => {
-    const runStarted = runEvents.find((e) => e.type === EVENT_TYPE.RUN_STARTED);
-    return {
-      runId,
-      runIndex: index + 1,
-      events: runEvents,
-      timestamp: runStarted?.timestamp ?? runEvents[0]?.timestamp ?? null,
-      invocationArgs:
-        runStarted?.type === EVENT_TYPE.RUN_STARTED
-          ? { request: runStarted.payload.request, context: runStarted.payload.context }
-          : null,
-    };
-  });
-}
-
-function toIdentifiedEvent(event: AgentEvent, stableId: number): IdentifiedEvent {
-  return { ...event, kind: DISPLAY_KIND.EVENT, stableId };
+  return Array.from(buckets.entries()).map(([runId, runEvents]) => ({ runId, events: runEvents }));
 }
 
 export function EventFeed({ sessionId, initialEvents, isLive }: EventFeedProps) {
+  const reducedMotion = useReducedMotion();
   const stableIdRef = useRef(initialEvents.length);
-  const assignId = useCallback((event: AgentEvent): IdentifiedEvent => {
-    return toIdentifiedEvent(event, stableIdRef.current++);
-  }, []);
+  const assignId = useCallback(
+    (event: AgentEvent): IdentifiedEvent => toIdentifiedEvent(event, stableIdRef.current++),
+    [],
+  );
 
   const [events, setEvents] = useState<IdentifiedEvent[]>(() =>
     initialEvents.map((e, i) => toIdentifiedEvent(e, i)),
@@ -67,19 +54,16 @@ export function EventFeed({ sessionId, initialEvents, isLive }: EventFeedProps) 
   const handleNewEvent = useCallback(
     (event: AgentEvent) => {
       setEvents((prev) => [...prev, assignId(event)]);
-      if (event.type === EVENT_TYPE.RUN_STARTED) {
-        setLive(true);
-      }
-      if (event.type === EVENT_TYPE.RUN_COMPLETED) {
-        setLive(false);
-      }
+      if (event.type === EVENT_TYPE.RUN_STARTED) setLive(true);
+      if (event.type === EVENT_TYPE.RUN_COMPLETED) setLive(false);
     },
     [assignId],
   );
 
   const initialMaxSeq = useMemo(
     () => Math.max(0, ...initialEvents.map((e) => e.sequence ?? 0)),
-    [initialEvents],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
   );
 
   useEventStream(sessionId, handleNewEvent, true, initialMaxSeq);
@@ -88,7 +72,7 @@ export function EventFeed({ sessionId, initialEvents, isLive }: EventFeedProps) 
     feedEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [events]);
 
-  const runs = groupEventsIntoRuns(events);
+  const runs = useMemo(() => groupEventsIntoRuns(events), [events]);
 
   if (events.length === 0) {
     return (
@@ -101,27 +85,25 @@ export function EventFeed({ sessionId, initialEvents, isLive }: EventFeedProps) 
   }
 
   return (
-    <div className="space-y-2">
-      {live && (
-        <div className="flex items-center gap-2 pb-2">
-          <span className="inline-block h-2 w-2 bg-canon-success" />
-          <span className="font-condensed font-bold text-xs uppercase tracking-wider text-canon-success">
-            Live
-          </span>
-        </div>
-      )}
-
-      {runs.map((run) => (
-        <RunGroup
-          key={run.runId}
-          runIndex={run.runIndex}
-          events={run.events}
-          timestamp={run.timestamp}
-          invocationArgs={run.invocationArgs}
-        />
-      ))}
-
-      <div ref={feedEndRef} />
-    </div>
+    <MotionConfig reducedMotion={reducedMotion ? "always" : "never"}>
+      <div className="space-y-2">
+        <AnimatePresence mode="sync">
+          {runs.map((run) => {
+            const runCompleted = run.events.some((e) => e.type === EVENT_TYPE.RUN_COMPLETED);
+            return (
+              <motion.div
+                key={run.runId}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <RunGroup events={run.events} isLive={live && !runCompleted} />
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+        <div ref={feedEndRef} />
+      </div>
+    </MotionConfig>
   );
 }

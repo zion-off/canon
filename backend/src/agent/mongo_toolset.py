@@ -24,7 +24,7 @@ def get_mongo_toolset() -> McpToolset:
     """Return the shared write-capable MongoDB McpToolset singleton.
 
     Filtered to `find` and `count` — the LLM-level surface. All other
-    operations (aggregate, insertOne, updateMany) are owned by FunctionTools
+    operations (aggregate, insert-many, update-many) are owned by FunctionTools
     through session_provider.
     """
     global _mongo_toolset

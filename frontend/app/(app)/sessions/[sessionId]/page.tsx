@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getSession, getSessionEvents } from "@/lib/actions/sessions";
-import { EventFeed } from "@/components/sessions/EventFeed";
+import { EventFeed } from "@/components/sessions/feed";
 import { ROUTE_DASHBOARD, EVENT_TYPE } from "@/lib/constants";
 
 interface SessionDetailPageProps {

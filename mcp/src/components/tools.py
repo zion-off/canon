@@ -32,18 +32,24 @@ log = logging.getLogger(__name__)
         openWorldHint=True,
     ),
     description=(
-        "Check organizational memory before planning or implementing code changes. "
-        "Call this BEFORE writing or modifying any code. It queries your team's "
-        "organizational knowledge graph for deprecated patterns, active migrations, "
-        "architecture decisions, prior failures, and relevant context — and returns "
-        "actionable guidance that should reshape your implementation plan."
+        "Consult your team's organizational memory before planning or implementing "
+        "a change. Call this BEFORE recommending an approach, choosing a library or "
+        "pattern, or modifying code or infrastructure. Canon queries the org's "
+        "knowledge graph for whatever bears on what you're about to do — decisions, "
+        "conventions, work in flight, constraints, and prior outcomes — and returns "
+        "guidance that should reshape your plan, not just background reading."
     ),
 )
 async def canon(
     request: Annotated[
         str,
         Field(
-            description="Natural-language summary of what you intend to implement and why."
+            description=(
+                "What you intend to do and why, in natural language. Be specific and "
+                "domain-rich, and name the technologies, services, and patterns "
+                "involved — Canon cannot see your repo. E.g. 'add JWT validation "
+                "middleware to the billing-api gateway'."
+            )
         ),
     ],
     context: Annotated[
@@ -53,7 +59,8 @@ async def canon(
             description=(
                 "What you have observed about the codebase — technology choices, "
                 "existing patterns, relevant libraries, architectural decisions "
-                "visible in the code."
+                "visible in the code. Helps Canon interpret results; not used as "
+                "the search query."
             ),
         ),
     ] = "",

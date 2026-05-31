@@ -22,7 +22,10 @@ from src.models.schemas.agent import (
     AgentConfirmResponse,
     AgentRunRequest,
 )
-from src.models.schemas.events import ConfirmationReceivedEvent, ConfirmationReceivedPayload
+from src.models.schemas.events import (
+    ConfirmationReceivedEvent,
+    ConfirmationReceivedPayload,
+)
 from src.services.event_feed import AgentEventFeed
 from src.services.tenant_resolver import TenantContext
 

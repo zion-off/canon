@@ -24,12 +24,12 @@ export function ConfirmationCard({ event, resolution, index }: ConfirmationCardP
           ? accepted
             ? "border-canon-success/40 bg-canon-success-bg/20"
             : "border-canon-error/40 bg-canon-error-bg/20"
-          : "border-canon-highlight/30 bg-canon-surface"
+          : "border-canon-warning/30 bg-canon-surface"
       }`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <span className="font-condensed font-bold text-xs uppercase tracking-wider text-canon-highlight">
+          <span className="font-condensed font-bold text-xs uppercase tracking-wider text-canon-warning">
             Confirmation Required
           </span>
           {title && <h4 className="mt-1 text-sm font-medium text-canon-text">{title}</h4>}

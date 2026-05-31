@@ -18,10 +18,14 @@ export function McpConfigDisplay({
 }: McpConfigDisplayProps) {
   const config = JSON.stringify(
     {
-      mcpServers: {
+      servers: {
         canon: {
-          url: `${PUBLIC_API_URL}/mcp/`,
-          headers: { Authorization: `Bearer ${token}` },
+          command: "uvx",
+          args: ["canon-mcp-server"],
+          env: {
+            CANON_API_TOKEN: token,
+            CANON_BACKEND_URL: PUBLIC_API_URL,
+          },
         },
       },
     },

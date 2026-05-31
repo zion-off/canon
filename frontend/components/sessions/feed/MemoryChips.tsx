@@ -50,7 +50,7 @@ export function MemoryChips({ results }: MemoryChipsProps) {
   const isPanelOpen = selectedNode !== null && graphData !== null;
 
   return (
-    <>
+    <motion.div layout transition={MORPH_TRANSITION}>
       <motion.div layout className="flex flex-wrap gap-1.5">
         <AnimatePresence mode="popLayout">
           {results.slice(0, 8).map((item, i) => {
@@ -129,6 +129,6 @@ export function MemoryChips({ results }: MemoryChipsProps) {
       {loading && (
         <p className="mt-2 text-xs text-canon-text-secondary italic">Loading node details…</p>
       )}
-    </>
+    </motion.div>
   );
 }

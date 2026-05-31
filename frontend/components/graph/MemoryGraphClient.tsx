@@ -331,16 +331,18 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
   const linkDirectionalParticleColor = useCallback(() => GraphStyle.LINK.COLOR_SUPERSEDES, []);
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden">
-      <GraphFilters
-        tagFilter={tagFilter}
-        onTagChange={setTagFilter}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        allTags={allTags}
-        nodeCount={filteredData.nodes.length}
-        linkCount={filteredData.links.length}
-      />
+    <div className="flex flex-1 flex-col">
+      <div className="sticky top-10 bg-canon-bg z-40 -mx-5 px-5">
+        <GraphFilters
+          tagFilter={tagFilter}
+          onTagChange={setTagFilter}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          allTags={allTags}
+          nodeCount={filteredData.nodes.length}
+          linkCount={filteredData.links.length}
+        />
+      </div>
 
       <div className="flex min-h-0 flex-1">
         <div

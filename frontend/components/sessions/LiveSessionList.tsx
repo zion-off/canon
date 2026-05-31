@@ -111,7 +111,7 @@ export function LiveSessionList({ mySessions, teamSessions, currentUserId }: Liv
 
   return (
     <>
-      <div className="flex items-center gap-4 border-b border-canon-border -mx-5 px-5">
+      <div className="flex items-center gap-4 border-b border-canon-border -mx-5 px-5 pt-3 sticky top-10 bg-canon-bg z-40">
         <button
           type="button"
           className={`${tabBase} ${activeTab === "yours" ? tabActive : tabInactive}`}

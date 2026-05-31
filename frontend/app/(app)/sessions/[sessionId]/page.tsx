@@ -31,7 +31,7 @@ export default async function SessionDetailPage({ params }: SessionDetailPagePro
 
   return (
     <div>
-      <div className="h-10 flex items-center gap-3 border-b border-canon-border -mx-5 px-5">
+      <div className="h-10 flex items-center gap-3 border-b border-canon-border -mx-5 px-5 sticky top-10 bg-canon-bg z-40">
         <Link
           href={ROUTE_DASHBOARD}
           className={`${labelClass} text-canon-text-secondary hover:text-canon-text transition-colors`}

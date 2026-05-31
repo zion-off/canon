@@ -6,15 +6,15 @@ const colHeader =
 
 export default function AppLoading() {
   return (
-    <div className="pt-10">
-      <div className="flex items-center gap-4 border-b border-canon-border -mx-5 px-5">
+    <>
+      <div className="flex items-center gap-4 border-b border-canon-border -mx-5 px-5 pt-3 sticky top-10 bg-canon-bg z-40">
         <span className={`${tabBase} ${tabActive}`}>
           Yours
-          <span className="ml-1.5 text-canon-text-secondary">0</span>
+          <span className="ml-1.5 inline-block h-3 w-3 animate-pulse bg-canon-border align-middle" />
         </span>
         <span className={`${tabBase} ${tabInactive}`}>
           Team
-          <span className="ml-1.5 text-canon-text-secondary">0</span>
+          <span className="ml-1.5 inline-block h-3 w-3 animate-pulse bg-canon-border align-middle" />
         </span>
       </div>
 
@@ -36,6 +36,6 @@ export default function AppLoading() {
           </div>
         ))}
       </div>
-    </div>
+    </>
   );
 }

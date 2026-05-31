@@ -10,7 +10,7 @@ interface AppHeaderProps {
 
 export function AppHeader({ userRole }: AppHeaderProps) {
   return (
-    <header className="shrink-0 bg-canon-bg z-50">
+    <header className="shrink-0 bg-canon-bg z-50 sticky top-0">
       <div className="h-10 flex items-center justify-between px-5 border-b border-canon-border">
         <Link
           href={ROUTE_DASHBOARD}

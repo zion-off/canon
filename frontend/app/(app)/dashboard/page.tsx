@@ -7,12 +7,10 @@ export default async function DashboardPage() {
   const [mySessions, teamSessions] = await Promise.all([listMySessions(), listSessions()]);
 
   return (
-    <div className="pt-10 pb-16">
-      <LiveSessionList
-        mySessions={mySessions}
-        teamSessions={teamSessions}
-        currentUserId={user?.userId ?? ""}
-      />
-    </div>
+    <LiveSessionList
+      mySessions={mySessions}
+      teamSessions={teamSessions}
+      currentUserId={user?.userId ?? ""}
+    />
   );
 }

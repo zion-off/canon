@@ -19,7 +19,7 @@ export function SettingsClient({ initialTokens }: SettingsClientProps) {
 
   return (
     <div>
-      <div className="h-10 flex items-center border-b border-canon-border -mx-5 px-5">
+      <div className="h-10 flex items-center border-b border-canon-border -mx-5 px-5 sticky top-10 bg-canon-bg z-40">
         <span className={`${labelClass} text-canon-text`}>Settings</span>
       </div>
 

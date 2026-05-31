@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import dynamic from "next/dynamic";
 import type { NodeObject, LinkObject } from "react-force-graph-2d";
 import { GraphStyle, tagColor } from "@/lib/graph-style";
@@ -37,6 +37,28 @@ interface MemoryBornGraphProps {
   index: number;
 }
 
+const GRID_STYLE = {
+  backgroundImage: `radial-gradient(circle, ${GraphStyle.GRID.DOT_COLOR} ${GraphStyle.GRID.DOT_RADIUS}px, transparent ${GraphStyle.GRID.DOT_RADIUS}px)`,
+  backgroundSize: `${GraphStyle.GRID.SPACING}px ${GraphStyle.GRID.SPACING}px`,
+} as const;
+
+function SkeletonOrb({ color }: { color: string }) {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center">
+      <div
+        className="rounded-full"
+        style={{
+          width: 16,
+          height: 16,
+          backgroundColor: color,
+          animation: "memory-born-pulse 1.8s ease-in-out infinite",
+          boxShadow: `0 0 14px ${color}66, 0 0 28px ${color}33`,
+        }}
+      />
+    </div>
+  );
+}
+
 export function MemoryBornGraph({ args, result, index }: MemoryBornGraphProps) {
   const [graphNodes, setGraphNodes] = useState<GraphNode[]>([]);
   const [animPhase, setAnimPhase] = useState<"loading" | "neighbors" | "node" | "edges" | "done">(
@@ -45,6 +67,7 @@ export function MemoryBornGraph({ args, result, index }: MemoryBornGraphProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(400);
   const animTimeRef = useRef(0);
+  const [forceMounted, setForceMounted] = useState(false);
 
   const newNodeId = result.node_id ?? "new-node";
   const newNodeName = result.name ?? "New Memory";
@@ -56,6 +79,11 @@ export function MemoryBornGraph({ args, result, index }: MemoryBornGraphProps) {
     [relatedIds, reverseLinkIds, supersedesId],
   );
   const relationshipsFormed = result.relationships_formed ?? allNeighborIds.length;
+
+  const newNodeColor = useMemo(() => {
+    const nameTag = newNodeName.toLowerCase().replace(/[^a-z0-9]/g, "-");
+    return tagColor(nameTag);
+  }, [newNodeName]);
 
   useEffect(() => {
     let cancelled = false;
@@ -104,6 +132,15 @@ export function MemoryBornGraph({ args, result, index }: MemoryBornGraphProps) {
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
+  }, []);
+
+  // Detect when ForceGraph2D renders its first frame
+  const mountedRef = useRef(false);
+  const handleFirstFrame = useCallback(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      setForceMounted(true);
+    }
   }, []);
 
   // Build graph data for force-graph
@@ -247,15 +284,22 @@ export function MemoryBornGraph({ args, result, index }: MemoryBornGraphProps) {
       transition={{ duration: 0.4, delay: index * 0.05 }}
       className="my-3 w-fit rounded-md border border-canon-border bg-canon-bg overflow-hidden"
     >
-      <div
-        className="h-50 w-full"
-        style={{
-          backgroundImage: `
-            radial-gradient(circle, ${GraphStyle.GRID.DOT_COLOR} ${GraphStyle.GRID.DOT_RADIUS}px, transparent ${GraphStyle.GRID.DOT_RADIUS}px)
-          `,
-          backgroundSize: `${GraphStyle.GRID.SPACING}px ${GraphStyle.GRID.SPACING}px`,
-        }}
-      >
+      <div className="h-50 w-full relative" style={GRID_STYLE}>
+        <AnimatePresence mode="wait">
+          {!forceMounted && (
+            <motion.div
+              key="skeleton"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="absolute inset-0"
+            >
+              <SkeletonOrb color={newNodeColor} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <ForceGraph2D
           width={containerWidth}
           height={200}
@@ -273,6 +317,7 @@ export function MemoryBornGraph({ args, result, index }: MemoryBornGraphProps) {
           cooldownTicks={Number.MAX_SAFE_INTEGER}
           d3AlphaDecay={0}
           backgroundColor="rgba(0,0,0,0)"
+          onRenderFramePost={handleFirstFrame}
         />
       </div>
       <div className="px-4 py-2.5 border-t border-canon-border">

@@ -68,7 +68,7 @@ export function SubagentGroupCard({ group, index, isActive }: SubagentGroupCardP
             className="overflow-hidden"
           >
             {/* Spine + content using w-px div, same technique as original TimelineSlot */}
-            <div className="mt-1 ml-3.5 flex gap-3">
+            <div className="mt-1 flex gap-3">
               <div
                 className={`w-0.5 self-stretch min-h-3 ${isActive ? SHIMMER_SPINE : STATIC_SPINE}`}
               />

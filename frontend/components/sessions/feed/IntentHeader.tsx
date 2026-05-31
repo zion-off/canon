@@ -17,7 +17,7 @@ export function IntentHeader({ request, context, isLive }: IntentHeaderProps) {
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
-      className="rounded-md border border-canon-border bg-canon-surface p-5 mb-5"
+      className="rounded-md border border-canon-border bg-canon-surface p-4 mb-5"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">

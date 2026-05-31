@@ -14,7 +14,10 @@ interface MemoryChipsProps {
 
 export function MemoryChips({ results }: MemoryChipsProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [graphData, setGraphData] = useState<{ nodes: GraphNode[]; links: { source: string; target: string; type: string }[] } | null>(null);
+  const [graphData, setGraphData] = useState<{
+    nodes: GraphNode[];
+    links: { source: string; target: string; type: string }[];
+  } | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleChipClick = async (nodeId: string) => {
@@ -61,7 +64,7 @@ export function MemoryChips({ results }: MemoryChipsProps) {
                 bg-canon-surface-raised hover:bg-canon-border/50 transition-colors cursor-pointer
                 ${isDeprecated || isSuperseded ? "opacity-40" : ""}`}
             >
-              <span className="text-xs text-canon-text truncate max-w-[160px]">{name}</span>
+              <span className="text-xs text-canon-text truncate max-w-40">{name}</span>
               <Badge variant={status as BadgeVariant}>{status}</Badge>
               {tags.slice(0, 2).map((tag) => (
                 <span key={tag} className="text-[10px] text-canon-text-disabled font-mono">
@@ -83,7 +86,7 @@ export function MemoryChips({ results }: MemoryChipsProps) {
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mt-3 border border-canon-border rounded-md bg-canon-surface p-4 max-h-[400px] overflow-y-auto"
+          className="mt-3 w-fit border border-canon-border rounded-md bg-canon-surface max-h-100 overflow-y-auto"
         >
           <NodeDetailPanel
             node={selectedNode}

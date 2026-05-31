@@ -62,11 +62,6 @@ export const TOOL_CALL_STATUS = {
   ERROR: "error",
 } as const;
 
-export const STATUS_DISPLAY: Record<string, string> = {
-  [TOOL_CALL_STATUS.OK]: "Done",
-  [TOOL_CALL_STATUS.ERROR]: "Failed",
-} as const;
-
 export const TOOL_NAME = {
   EMIT_CHECKPOINT: "emit_checkpoint",
   HYBRID_SEARCH: "hybrid_search",
@@ -81,16 +76,6 @@ export const AGENT_NAME = {
   SEMANTIC_RETRIEVER: "semantic_retriever",
   GRAPH_EXPLORER: "graph_explorer",
 } as const;
-
-export const TOOL_DISPLAY_NAMES: Record<string, string> = {
-  [TOOL_NAME.HYBRID_SEARCH]: "Searching memory",
-  [TOOL_NAME.FIND]: "Querying graph",
-  [TOOL_NAME.AGGREGATE]: "Traversing relationships",
-  [TOOL_NAME.COUNT]: "Counting records",
-  [TOOL_NAME.CANONIZE_NODE]: "Forming memory",
-  [AGENT_NAME.SEMANTIC_RETRIEVER]: "Memory search",
-  [AGENT_NAME.GRAPH_EXPLORER]: "Graph exploration",
-};
 
 // Tool names used by AgentTool wrapper calls — filtered out of the feed since
 // they duplicate the SubagentGroup that the subagent_invoked event creates.

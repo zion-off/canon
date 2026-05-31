@@ -7,8 +7,8 @@ import type {
   ConfirmationRequestedEvent,
   ConfirmationReceivedEvent,
 } from "@/lib/schemas/sessions";
-import { EVENT_TYPE } from "@/lib/constants";
-import { PHASE_LABELS } from "./types";
+import { EVENT_TYPE, TOOL_CALL_STATUS } from "@/lib/constants";
+import { PHASE_LABELS, PHASE_ITEM_KIND } from "./types";
 import type { CognitivePhase } from "./types";
 import { buildPhaseGroups } from "./phase-utils";
 import { IntentHeader } from "./IntentHeader";
@@ -86,7 +86,7 @@ export function RunGroup({ events, isLive }: RunGroupProps) {
                 {group.items.map((item) => {
                   const idx = itemIndex++;
                   switch (item.kind) {
-                    case "thought":
+                    case PHASE_ITEM_KIND.THOUGHT:
                       return (
                         <ThoughtCard
                           key={item.event.stableId}
@@ -94,7 +94,7 @@ export function RunGroup({ events, isLive }: RunGroupProps) {
                           index={idx}
                         />
                       );
-                    case "tool-pair":
+                    case PHASE_ITEM_KIND.TOOL_PAIR:
                       return (
                         <ToolCallSentenceCard
                           key={item.pair.stableId}
@@ -102,7 +102,7 @@ export function RunGroup({ events, isLive }: RunGroupProps) {
                           index={idx}
                         />
                       );
-                    case "subagent-group": {
+                    case PHASE_ITEM_KIND.SUBAGENT_GROUP: {
                       const subagentActive =
                         isActiveGroup && !item.group.toolPairs.every((p) => p.completed !== null);
                       return (
@@ -114,7 +114,7 @@ export function RunGroup({ events, isLive }: RunGroupProps) {
                         />
                       );
                     }
-                    case "final-response":
+                    case PHASE_ITEM_KIND.FINAL_RESPONSE:
                       return (
                         <FinalResponseCard
                           key={item.event.stableId}
@@ -122,7 +122,7 @@ export function RunGroup({ events, isLive }: RunGroupProps) {
                           index={idx}
                         />
                       );
-                    case "confirmation-requested": {
+                    case PHASE_ITEM_KIND.CONFIRMATION_REQUESTED: {
                       const resolution = confirmationResolutions.get(
                         item.event.payload.confirmationId,
                       );
@@ -135,14 +135,14 @@ export function RunGroup({ events, isLive }: RunGroupProps) {
                         />
                       );
                     }
-                    case "confirmation-received":
+                    case PHASE_ITEM_KIND.CONFIRMATION_RECEIVED:
                       return null;
-                    case "canonize-pair": {
+                    case PHASE_ITEM_KIND.CANONIZE_PAIR: {
                       const args = item.pair.started.payload.args as CanonizeNodeArgs;
                       const result = item.pair.completed?.payload.result as
                         | CanonizeNodeResult
                         | undefined;
-                      if (item.pair.completed?.payload.status === "ok" && result) {
+                      if (item.pair.completed?.payload.status === TOOL_CALL_STATUS.OK && result) {
                         return (
                           <MemoryBornGraph
                             key={item.pair.stableId}

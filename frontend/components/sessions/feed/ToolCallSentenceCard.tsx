@@ -6,7 +6,7 @@ import type { ToolCallPair } from "@/lib/schemas/sessions";
 import { HighlightedCode } from "../HighlightedCode";
 import { toolCallSentence, computeLatencyMs, formatLatency } from "./phase-utils";
 import { MemoryChips } from "./MemoryChips";
-import { TOOL_NAME } from "@/lib/constants";
+import { TOOL_NAME, TOOL_CALL_STATUS } from "@/lib/constants";
 
 interface ToolCallSentenceCardProps {
   pair: ToolCallPair;
@@ -16,8 +16,8 @@ interface ToolCallSentenceCardProps {
 export function ToolCallSentenceCard({ pair, index }: ToolCallSentenceCardProps) {
   const [showDetails, setShowDetails] = useState(false);
   const isPending = pair.completed === null;
-  const isSuccess = pair.completed?.payload.status === "ok";
-  const isError = pair.completed?.payload.status === "error";
+  const isSuccess = pair.completed?.payload.status === TOOL_CALL_STATUS.OK;
+  const isError = pair.completed?.payload.status === TOOL_CALL_STATUS.ERROR;
   const latencyMs = computeLatencyMs(pair);
   const sentence = toolCallSentence(pair);
 

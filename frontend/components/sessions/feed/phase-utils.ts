@@ -1,6 +1,7 @@
 import type { IdentifiedEvent, ToolCallPair, DisplayItem } from "@/lib/schemas/sessions";
 import { EVENT_TYPE, DISPLAY_KIND, TOOL_NAME, AGENT_NAME } from "@/lib/constants";
 import type { PhaseGroup, PhaseItem, CognitivePhase } from "./types";
+import { COGNITIVE_PHASE, PHASE_ITEM_KIND } from "./types";
 import { pairToolCallEvents } from "./pairToolCallEvents";
 
 /**
@@ -8,24 +9,24 @@ import { pairToolCallEvents } from "./pairToolCallEvents";
  */
 function inferPhase(item: PhaseItem): CognitivePhase {
   switch (item.kind) {
-    case "thought":
-      return "reasoning";
-    case "final-response":
-      return "reshaping";
-    case "confirmation-requested":
-    case "confirmation-received":
-    case "canonize-pair":
-      return "remembering";
-    case "subagent-group": {
-      if (item.group.agentName === AGENT_NAME.GRAPH_EXPLORER) return "tracing";
-      return "perceiving";
+    case PHASE_ITEM_KIND.THOUGHT:
+      return COGNITIVE_PHASE.REASONING;
+    case PHASE_ITEM_KIND.FINAL_RESPONSE:
+      return COGNITIVE_PHASE.RESHAPING;
+    case PHASE_ITEM_KIND.CONFIRMATION_REQUESTED:
+    case PHASE_ITEM_KIND.CONFIRMATION_RECEIVED:
+    case PHASE_ITEM_KIND.CANONIZE_PAIR:
+      return COGNITIVE_PHASE.REMEMBERING;
+    case PHASE_ITEM_KIND.SUBAGENT_GROUP: {
+      if (item.group.agentName === AGENT_NAME.GRAPH_EXPLORER) return COGNITIVE_PHASE.TRACING;
+      return COGNITIVE_PHASE.PERCEIVING;
     }
-    case "tool-pair": {
+    case PHASE_ITEM_KIND.TOOL_PAIR: {
       const toolName = item.pair.started.payload.tool_name;
-      if (toolName === TOOL_NAME.CANONIZE_NODE) return "remembering";
-      if (toolName === TOOL_NAME.HYBRID_SEARCH) return "perceiving";
-      if (item.pair.started.author === AGENT_NAME.GRAPH_EXPLORER) return "tracing";
-      return "perceiving";
+      if (toolName === TOOL_NAME.CANONIZE_NODE) return COGNITIVE_PHASE.REMEMBERING;
+      if (toolName === TOOL_NAME.HYBRID_SEARCH) return COGNITIVE_PHASE.PERCEIVING;
+      if (item.pair.started.author === AGENT_NAME.GRAPH_EXPLORER) return COGNITIVE_PHASE.TRACING;
+      return COGNITIVE_PHASE.PERCEIVING;
     }
   }
 }
@@ -39,21 +40,21 @@ function toPhaseItems(displayItems: DisplayItem[]): PhaseItem[] {
   for (const di of displayItems) {
     if (di.kind === DISPLAY_KIND.TOOL_CALL_PAIR) {
       if (di.started.payload.tool_name === TOOL_NAME.CANONIZE_NODE) {
-        items.push({ kind: "canonize-pair", pair: di });
+        items.push({ kind: PHASE_ITEM_KIND.CANONIZE_PAIR, pair: di });
       } else {
-        items.push({ kind: "tool-pair", pair: di });
+        items.push({ kind: PHASE_ITEM_KIND.TOOL_PAIR, pair: di });
       }
     } else if (di.kind === DISPLAY_KIND.SUBAGENT_GROUP) {
-      items.push({ kind: "subagent-group", group: di });
+      items.push({ kind: PHASE_ITEM_KIND.SUBAGENT_GROUP, group: di });
     } else if ("type" in di) {
       if (di.type === EVENT_TYPE.REASONING_CHECKPOINT) {
-        items.push({ kind: "thought", event: di as IdentifiedEvent & { type: "reasoning_checkpoint" } });
+        items.push({ kind: PHASE_ITEM_KIND.THOUGHT, event: di as IdentifiedEvent & { type: typeof EVENT_TYPE.REASONING_CHECKPOINT } });
       } else if (di.type === EVENT_TYPE.FINAL_RESPONSE) {
-        items.push({ kind: "final-response", event: di as IdentifiedEvent & { type: "final_response" } });
+        items.push({ kind: PHASE_ITEM_KIND.FINAL_RESPONSE, event: di as IdentifiedEvent & { type: typeof EVENT_TYPE.FINAL_RESPONSE } });
       } else if (di.type === EVENT_TYPE.CONFIRMATION_REQUESTED) {
-        items.push({ kind: "confirmation-requested", event: di as IdentifiedEvent & { type: "confirmation_requested" } });
+        items.push({ kind: PHASE_ITEM_KIND.CONFIRMATION_REQUESTED, event: di as IdentifiedEvent & { type: typeof EVENT_TYPE.CONFIRMATION_REQUESTED } });
       } else if (di.type === EVENT_TYPE.CONFIRMATION_RECEIVED) {
-        items.push({ kind: "confirmation-received", event: di as IdentifiedEvent & { type: "confirmation_received" } });
+        items.push({ kind: PHASE_ITEM_KIND.CONFIRMATION_RECEIVED, event: di as IdentifiedEvent & { type: typeof EVENT_TYPE.CONFIRMATION_RECEIVED } });
       }
     }
   }

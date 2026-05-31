@@ -3,45 +3,61 @@ import type {
   ToolCallPair,
   SubagentGroup,
 } from "@/lib/schemas/sessions";
+import { EVENT_TYPE } from "@/lib/constants";
 
 // Cognitive phases inferred from the event stream
-export type CognitivePhase =
-  | "perceiving"
-  | "reasoning"
-  | "tracing"
-  | "reshaping"
-  | "remembering";
+export const COGNITIVE_PHASE = {
+  PERCEIVING: "perceiving",
+  REASONING: "reasoning",
+  TRACING: "tracing",
+  RESHAPING: "reshaping",
+  REMEMBERING: "remembering",
+} as const;
+
+export type CognitivePhase = typeof COGNITIVE_PHASE[keyof typeof COGNITIVE_PHASE];
 
 export const PHASE_LABELS: Record<CognitivePhase, string> = {
-  perceiving: "Perceiving",
-  reasoning: "Reasoning",
-  tracing: "Tracing",
-  reshaping: "Reshaping",
-  remembering: "Remembering",
+  [COGNITIVE_PHASE.PERCEIVING]: "Perceiving",
+  [COGNITIVE_PHASE.REASONING]: "Reasoning",
+  [COGNITIVE_PHASE.TRACING]: "Tracing",
+  [COGNITIVE_PHASE.RESHAPING]: "Reshaping",
+  [COGNITIVE_PHASE.REMEMBERING]: "Remembering",
 };
 
 export const PHASE_DESCRIPTIONS: Record<CognitivePhase, string> = {
-  perceiving: "Consulting organizational memory",
-  reasoning: "Processing and evaluating",
-  tracing: "Exploring relationships",
-  reshaping: "Formulating response",
-  remembering: "Forming new memory",
+  [COGNITIVE_PHASE.PERCEIVING]: "Consulting organizational memory",
+  [COGNITIVE_PHASE.REASONING]: "Processing and evaluating",
+  [COGNITIVE_PHASE.TRACING]: "Exploring relationships",
+  [COGNITIVE_PHASE.RESHAPING]: "Formulating response",
+  [COGNITIVE_PHASE.REMEMBERING]: "Forming new memory",
 };
 
 // A phased group of display items
+export const PHASE_ITEM_KIND = {
+  THOUGHT: "thought",
+  TOOL_PAIR: "tool-pair",
+  SUBAGENT_GROUP: "subagent-group",
+  FINAL_RESPONSE: "final-response",
+  CONFIRMATION_REQUESTED: "confirmation-requested",
+  CONFIRMATION_RECEIVED: "confirmation-received",
+  CANONIZE_PAIR: "canonize-pair",
+} as const;
+
+export type PhaseItemKind = typeof PHASE_ITEM_KIND[keyof typeof PHASE_ITEM_KIND];
+
 export interface PhaseGroup {
   phase: CognitivePhase;
   items: PhaseItem[];
 }
 
 export type PhaseItem =
-  | { kind: "thought"; event: IdentifiedEvent & { type: "reasoning_checkpoint" } }
-  | { kind: "tool-pair"; pair: ToolCallPair }
-  | { kind: "subagent-group"; group: SubagentGroup }
-  | { kind: "final-response"; event: IdentifiedEvent & { type: "final_response" } }
-  | { kind: "confirmation-requested"; event: IdentifiedEvent & { type: "confirmation_requested" } }
-  | { kind: "confirmation-received"; event: IdentifiedEvent & { type: "confirmation_received" } }
-  | { kind: "canonize-pair"; pair: ToolCallPair };
+  | { kind: typeof PHASE_ITEM_KIND.THOUGHT; event: IdentifiedEvent & { type: typeof EVENT_TYPE.REASONING_CHECKPOINT } }
+  | { kind: typeof PHASE_ITEM_KIND.TOOL_PAIR; pair: ToolCallPair }
+  | { kind: typeof PHASE_ITEM_KIND.SUBAGENT_GROUP; group: SubagentGroup }
+  | { kind: typeof PHASE_ITEM_KIND.FINAL_RESPONSE; event: IdentifiedEvent & { type: typeof EVENT_TYPE.FINAL_RESPONSE } }
+  | { kind: typeof PHASE_ITEM_KIND.CONFIRMATION_REQUESTED; event: IdentifiedEvent & { type: typeof EVENT_TYPE.CONFIRMATION_REQUESTED } }
+  | { kind: typeof PHASE_ITEM_KIND.CONFIRMATION_RECEIVED; event: IdentifiedEvent & { type: typeof EVENT_TYPE.CONFIRMATION_RECEIVED } }
+  | { kind: typeof PHASE_ITEM_KIND.CANONIZE_PAIR; pair: ToolCallPair };
 
 // Confirmation state tracker
 export interface ConfirmationState {

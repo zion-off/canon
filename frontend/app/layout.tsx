@@ -13,6 +13,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full">
+      <head>
+        <meta name="apple-mobile-web-app-title" content="canon" />
+      </head>
       <body className="h-full bg-canon-bg text-canon-text antialiased">{children}</body>
     </html>
   );

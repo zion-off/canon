@@ -19,7 +19,7 @@ export function ConfirmationCard({ event, resolution, index }: ConfirmationCardP
       initial={{ opacity: 0, y: 8, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.3, delay: index * 0.05 }}
-      className={`rounded-md border p-4 ${
+      className={`rounded-md border p-4 w-fit ${
         isResolved
           ? accepted
             ? "border-canon-success/40 bg-canon-success-bg/20"
@@ -32,9 +32,7 @@ export function ConfirmationCard({ event, resolution, index }: ConfirmationCardP
           <span className="font-condensed font-bold text-xs uppercase tracking-wider text-canon-highlight">
             Confirmation Required
           </span>
-          {title && (
-            <h4 className="mt-1 text-sm font-medium text-canon-text">{title}</h4>
-          )}
+          {title && <h4 className="mt-1 text-sm font-medium text-canon-text">{title}</h4>}
           {(description || message) && (
             <p className="mt-1 text-sm text-canon-text-secondary leading-relaxed">
               {description || message}

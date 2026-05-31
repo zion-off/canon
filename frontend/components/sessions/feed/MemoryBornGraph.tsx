@@ -36,7 +36,9 @@ interface MemoryBornGraphProps {
 
 export function MemoryBornGraph({ args, result, index }: MemoryBornGraphProps) {
   const [graphNodes, setGraphNodes] = useState<GraphNode[]>([]);
-  const [animPhase, setAnimPhase] = useState<"loading" | "neighbors" | "node" | "edges" | "done">("loading");
+  const [animPhase, setAnimPhase] = useState<"loading" | "neighbors" | "node" | "edges" | "done">(
+    "loading",
+  );
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(400);
 
@@ -62,7 +64,9 @@ export function MemoryBornGraph({ args, result, index }: MemoryBornGraphProps) {
       }
     }
     loadGraph();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Track container width for full-bleed graph
@@ -144,7 +148,16 @@ export function MemoryBornGraph({ args, result, index }: MemoryBornGraphProps) {
     }
 
     return { nodes, links };
-  }, [animPhase, allNeighborIds, graphNodes, newNodeId, newNodeName, relatedIds, reverseLinkIds, supersedesId]);
+  }, [
+    animPhase,
+    allNeighborIds,
+    graphNodes,
+    newNodeId,
+    newNodeName,
+    relatedIds,
+    reverseLinkIds,
+    supersedesId,
+  ]);
 
   const nodeCanvasObject = useCallback((node: NodeObject, ctx: CanvasRenderingContext2D) => {
     const n = node as MiniGraphNode;
@@ -191,12 +204,10 @@ export function MemoryBornGraph({ args, result, index }: MemoryBornGraphProps) {
     ctx.beginPath();
     ctx.moveTo(l.source.x, l.source.y ?? 0);
     ctx.lineTo(l.target.x, l.target.y ?? 0);
-    ctx.strokeStyle = l.type === "supersedes"
-      ? GraphStyle.LINK.COLOR_SUPERSEDES
-      : GraphStyle.LINK.COLOR_RELATED;
-    ctx.lineWidth = l.type === "supersedes"
-      ? GraphStyle.LINK.WIDTH_SUPERSEDES
-      : GraphStyle.LINK.WIDTH_RELATED;
+    ctx.strokeStyle =
+      l.type === "supersedes" ? GraphStyle.LINK.COLOR_SUPERSEDES : GraphStyle.LINK.COLOR_RELATED;
+    ctx.lineWidth =
+      l.type === "supersedes" ? GraphStyle.LINK.WIDTH_SUPERSEDES : GraphStyle.LINK.WIDTH_RELATED;
     ctx.stroke();
     ctx.restore();
   }, []);
@@ -207,9 +218,9 @@ export function MemoryBornGraph({ args, result, index }: MemoryBornGraphProps) {
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.4, delay: index * 0.05 }}
-      className="my-3 rounded-md border border-canon-border bg-canon-bg overflow-hidden"
+      className="my-3 w-fit rounded-md border border-canon-border bg-canon-bg overflow-hidden"
     >
-      <div className="h-[200px] w-full">
+      <div className="h-50 w-full">
         <ForceGraph2D
           width={containerWidth}
           height={200}
@@ -227,9 +238,11 @@ export function MemoryBornGraph({ args, result, index }: MemoryBornGraphProps) {
       </div>
       <div className="px-4 py-2.5 border-t border-canon-border">
         <p className="text-xs text-canon-text-secondary">
-          Canon remembered: <span className="text-canon-text font-medium">&ldquo;{newNodeName}&rdquo;</span>
+          Canon remembered:{" "}
+          <span className="text-canon-text font-medium">&ldquo;{newNodeName}&rdquo;</span>
           {" — "}
-          <span className="font-mono text-canon-text-disabled">{relationshipsFormed}</span> relationship{relationshipsFormed !== 1 ? "s" : ""} formed.
+          <span className="font-mono text-canon-text-disabled">{relationshipsFormed}</span>{" "}
+          relationship{relationshipsFormed !== 1 ? "s" : ""} formed.
         </p>
       </div>
     </motion.div>

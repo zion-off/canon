@@ -17,14 +17,14 @@ export function IntentHeader({ request, context, isLive }: IntentHeaderProps) {
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
-      className="rounded-md border border-canon-border bg-canon-surface p-5"
+      className="rounded-md border border-canon-border bg-canon-surface p-5 mb-5"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <span className="font-condensed font-bold text-xs uppercase tracking-wider text-canon-accent">
             Intent
           </span>
-          <p className="mt-1.5 text-base leading-relaxed text-canon-text">{request}</p>
+          <p className="mt-1.5 text-sm leading-relaxed text-canon-text">{request}</p>
         </div>
         {isLive && (
           <div className="flex items-center gap-1.5 shrink-0 pt-0.5">

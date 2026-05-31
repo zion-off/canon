@@ -2,7 +2,11 @@
 
 import { useMemo } from "react";
 import { motion } from "motion/react";
-import type { IdentifiedEvent, ConfirmationRequestedEvent, ConfirmationReceivedEvent } from "@/lib/schemas/sessions";
+import type {
+  IdentifiedEvent,
+  ConfirmationRequestedEvent,
+  ConfirmationReceivedEvent,
+} from "@/lib/schemas/sessions";
 import { EVENT_TYPE } from "@/lib/constants";
 import { PHASE_LABELS } from "./types";
 import type { CognitivePhase } from "./types";
@@ -64,18 +68,15 @@ export function RunGroup({ events, isLive }: RunGroupProps) {
 
         return (
           <div key={`${group.phase}-${gi}`} className="flex gap-3">
-            {/* Left column: spacer matching pt-5 of phase label, then dot, then spine */}
             <div className="flex flex-col items-center w-3 shrink-0">
-              <div className="h-5 shrink-0 mt-5 flex items-center justify-center">
+              <div className="h-5 shrink-0 flex items-center justify-center">
                 <span
                   className={`h-1.5 w-1.5 rounded-full ${
                     isActiveGroup ? "bg-canon-accent animate-pulse" : "bg-canon-text-disabled"
                   }`}
                 />
               </div>
-              {hasSpineBelow && (
-                <div className={`w-px flex-1 min-h-[8px] mt-1 ${STATIC_SPINE}`} />
-              )}
+              {hasSpineBelow && <div className={`w-px flex-1 min-h-2 ${STATIC_SPINE}`} />}
             </div>
 
             {/* Right column: phase header + items */}
@@ -103,8 +104,7 @@ export function RunGroup({ events, isLive }: RunGroupProps) {
                       );
                     case "subagent-group": {
                       const subagentActive =
-                        isActiveGroup &&
-                        !item.group.toolPairs.every((p) => p.completed !== null);
+                        isActiveGroup && !item.group.toolPairs.every((p) => p.completed !== null);
                       return (
                         <SubagentGroupCard
                           key={item.group.stableId}
@@ -139,8 +139,9 @@ export function RunGroup({ events, isLive }: RunGroupProps) {
                       return null;
                     case "canonize-pair": {
                       const args = item.pair.started.payload.args as CanonizeNodeArgs;
-                      const result = item.pair.completed?.payload
-                        .result as CanonizeNodeResult | undefined;
+                      const result = item.pair.completed?.payload.result as
+                        | CanonizeNodeResult
+                        | undefined;
                       if (item.pair.completed?.payload.status === "ok" && result) {
                         return (
                           <MemoryBornGraph
@@ -183,23 +184,14 @@ export function RunGroup({ events, isLive }: RunGroupProps) {
   );
 }
 
-const PHASE_ICONS: Record<CognitivePhase, string> = {
-  perceiving: "◉",
-  reasoning: "◈",
-  tracing: "◇",
-  reshaping: "▣",
-  remembering: "✦",
-};
-
 function PhaseLabel({ phase, index }: { phase: CognitivePhase; index: number }) {
   return (
     <motion.div
       initial={{ opacity: 0, x: -4 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.2, delay: index * 0.05 }}
-      className="flex items-center gap-2 pt-5 pb-2"
+      className="flex items-center gap-2 pt-1 pb-2"
     >
-      <span className="text-canon-text-secondary text-xs">{PHASE_ICONS[phase]}</span>
       <span className="font-condensed font-bold text-xs uppercase tracking-wider text-canon-text-secondary">
         {PHASE_LABELS[phase]}
       </span>

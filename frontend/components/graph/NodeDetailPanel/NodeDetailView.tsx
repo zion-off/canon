@@ -1,23 +1,6 @@
 import type { GraphNode } from "@/lib/schemas/graph";
-import { z } from "zod";
 import { Badge } from "@/components/ui/Badge";
-import type { BadgeVariant } from "@/components/ui/Badge";
 import { formatShortDate } from "@/lib/date-utils";
-import { STATUS } from "@/lib/constants";
-
-const badgeVariantSchema = z.enum([
-  STATUS.ACTIVE,
-  STATUS.IN_PROGRESS,
-  STATUS.DEPRECATED,
-  STATUS.RESOLVED,
-  STATUS.COMPLETED,
-  "default",
-]);
-
-function toBadgeVariant(status: string): BadgeVariant {
-  const parseResult = badgeVariantSchema.safeParse(status);
-  return parseResult.success ? parseResult.data : "default";
-}
 
 interface NodeDetailViewProps {
   node: GraphNode;
@@ -61,7 +44,7 @@ export function NodeDetailView({
         <div className="min-w-0 flex-1">
           <h2 className="truncate font-condensed text-lg font-bold text-canon-text">{node.name}</h2>
           <div className="mt-1.5 flex items-center gap-2">
-            <Badge variant={toBadgeVariant(node.status)}>{node.status.replace("_", " ")}</Badge>
+            <Badge variant={node.status}>{node.status.replace("_", " ")}</Badge>
           </div>
         </div>
         <div className="ml-2 flex shrink-0 items-center gap-1">

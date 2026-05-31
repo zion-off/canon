@@ -6,7 +6,7 @@ import type { NodeObject, LinkObject } from "react-force-graph-2d";
 import type { GraphNode, GraphLink } from "@/lib/schemas/graph";
 import { GraphStyle } from "@/lib/graph-style";
 import { drawNodeOrb, drawNodeLabel, pulseValue } from "@/lib/graph-renderer";
-import { STATUS } from "@/lib/constants";
+import { KNOWN_STATUS } from "@/lib/constants";
 import { GraphFilters } from "./GraphFilters";
 import { NodeDetailPanel } from "./NodeDetailPanel";
 
@@ -42,8 +42,8 @@ function renderNode(
   const y = node.y ?? 0;
 
   const isSuperseded = !!node.supersededBy;
-  const isDeprecated = node.status === STATUS.DEPRECATED && !node.supersededBy;
-  const isInProgress = node.status === STATUS.IN_PROGRESS && !node.supersededBy;
+  const isDeprecated = node.status === KNOWN_STATUS.DEPRECATED && !node.supersededBy;
+  const isInProgress = node.status === KNOWN_STATUS.IN_PROGRESS && !node.supersededBy;
   const isRecent =
     !isSuperseded &&
     !isDeprecated &&

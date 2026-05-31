@@ -29,12 +29,12 @@ export function routeToSession(sessionId: string): string {
   return `/sessions/${sessionId}`;
 }
 
-export const STATUS = {
-  ACTIVE: "active",
-  IN_PROGRESS: "in_progress",
+// Node statuses the frontend gives special rendering treatment.
+// Status is free-form (LLM-assigned); these are the only values checked
+// against by visual logic (dimming, pulsing, etc.).
+export const KNOWN_STATUS = {
   DEPRECATED: "deprecated",
-  RESOLVED: "resolved",
-  COMPLETED: "completed",
+  IN_PROGRESS: "in_progress",
 } as const;
 
 export const ROLE_OWNER = "owner" as const;

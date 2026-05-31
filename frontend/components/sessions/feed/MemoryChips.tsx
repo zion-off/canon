@@ -4,11 +4,9 @@ import { useId, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { z } from "zod";
 import { Badge } from "@/components/ui/Badge";
-import type { BadgeVariant } from "@/components/ui/Badge";
 import type { GraphNode } from "@/lib/schemas/graph";
 import { NodeDetailPanel } from "@/components/graph/NodeDetailPanel";
 import { getGraph } from "@/lib/actions/graph";
-import { STATUS } from "@/lib/constants";
 
 interface MemoryChipsProps {
   results: Record<string, unknown>[];
@@ -22,20 +20,6 @@ const searchResultSchema = z.object({
   tags: z.array(z.string()).optional(),
   supersededBy: z.unknown().optional(),
 });
-
-const badgeVariantSchema = z.enum([
-  STATUS.ACTIVE,
-  STATUS.IN_PROGRESS,
-  STATUS.DEPRECATED,
-  STATUS.RESOLVED,
-  STATUS.COMPLETED,
-  "default",
-]);
-
-function toBadgeVariant(s: string): BadgeVariant {
-  const parsed = badgeVariantSchema.safeParse(s);
-  return parsed.success ? parsed.data : "default";
-}
 
 interface ParsedSearchResult {
   id: string;
@@ -122,7 +106,7 @@ export function MemoryChips({ results }: MemoryChipsProps) {
                   ${isDeprecated || isSuperseded ? "opacity-40" : ""}`}
               >
                 <span className="text-xs text-canon-text truncate max-w-40">{name}</span>
-                <Badge variant={toBadgeVariant(status)}>{status}</Badge>
+                <Badge variant={status}>{status}</Badge>
                 {tags.slice(0, 2).map((tag) => (
                   <span key={tag} className="text-[10px] text-canon-text-disabled font-mono">
                     #{tag}

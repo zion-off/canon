@@ -8,7 +8,7 @@ import { GraphStyle, tagColor } from "@/lib/graph-style";
 import { drawNodeOrb, drawNodeLabel, pulseValue } from "@/lib/graph-renderer";
 import { getGraph } from "@/lib/actions/graph";
 import type { GraphNode } from "@/lib/schemas/graph";
-import { STATUS } from "@/lib/constants";
+import { KNOWN_STATUS } from "@/lib/constants";
 import type { CanonizeNodeArgs, CanonizeNodeResult } from "./types";
 
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false });
@@ -251,7 +251,7 @@ export function MemoryBornGraph({ args, result, index }: MemoryBornGraphProps) {
       const x = n.x ?? 0;
       const y = n.y ?? 0;
 
-      const isDeprecated = n.status === STATUS.DEPRECATED && !n.isSuperseded;
+      const isDeprecated = n.status === KNOWN_STATUS.DEPRECATED && !n.isSuperseded;
 
       drawNodeOrb(ctx, x, y, radius, {
         id: n.id,

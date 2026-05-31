@@ -69,7 +69,9 @@ export function SubagentGroupCard({ group, index, isActive }: SubagentGroupCardP
           >
             {/* Spine + content using w-px div, same technique as original TimelineSlot */}
             <div className="mt-1 ml-3.5 flex gap-3">
-              <div className={`w-px self-stretch min-h-[12px] ${isActive ? SHIMMER_SPINE : STATIC_SPINE}`} />
+              <div
+                className={`w-0.5 self-stretch min-h-3 ${isActive ? SHIMMER_SPINE : STATIC_SPINE}`}
+              />
               <div className="flex-1 min-w-0 space-y-0.5 pb-1">
                 {[
                   ...group.checkpoints.map((c) => ({
@@ -95,9 +97,7 @@ export function SubagentGroupCard({ group, index, isActive }: SubagentGroupCardP
                         </p>
                       );
                     }
-                    return (
-                      <ToolCallSentenceCard key={item.stableId} pair={item.data} index={i} />
-                    );
+                    return <ToolCallSentenceCard key={item.stableId} pair={item.data} index={i} />;
                   })}
               </div>
             </div>

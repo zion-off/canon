@@ -76,7 +76,7 @@ export function RunGroup({ events, isLive }: RunGroupProps) {
                   }`}
                 />
               </div>
-              {hasSpineBelow && <div className={`w-px flex-1 min-h-2 ${STATIC_SPINE}`} />}
+              {hasSpineBelow && <div className={`w-0.5 flex-1 min-h-2 ${STATIC_SPINE}`} />}
             </div>
 
             {/* Right column: phase header + items */}

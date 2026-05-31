@@ -13,6 +13,23 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "TSAsExpression:not([typeAnnotation.typeName.name='const'])",
+          message:
+            "Type casting with `as` is not allowed. Use explicit types instead.",
+        },
+        {
+          selector: "TSSatisfiesExpression",
+          message: "`satisfies` is not allowed. Use explicit types instead.",
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

@@ -59,6 +59,16 @@ function SkeletonOrb({ color }: { color: string }) {
   );
 }
 
+function nodeIdFromEndpoint(endpoint: unknown): string {
+  if (typeof endpoint === "object" && endpoint !== null) {
+    if ("id" in endpoint) {
+      return String(endpoint.id ?? endpoint);
+    }
+    return String(endpoint);
+  }
+  return String(endpoint ?? "");
+}
+
 export function MemoryBornGraph({ args, result, index }: MemoryBornGraphProps) {
   const [graphNodes, setGraphNodes] = useState<GraphNode[]>([]);
   const [animPhase, setAnimPhase] = useState<"loading" | "neighbors" | "node" | "edges" | "done">(
@@ -214,9 +224,29 @@ export function MemoryBornGraph({ args, result, index }: MemoryBornGraphProps) {
     supersedesId,
   ]);
 
+  // Build lookup map for nodes so callbacks don't need type assertions
+  const nodeById = useMemo(() => {
+    const map = new Map<string, MiniGraphNode>();
+    nodes.forEach((n) => map.set(n.id, n));
+    return map;
+  }, [nodes]);
+
+  // Build supersedes link set for link callbacks
+  const supersedesKeySet = useMemo(() => {
+    const set = new Set<string>();
+    links.forEach((link) => {
+      if (link.type === "supersedes") {
+        set.add(`${link.source}|||${link.target}`);
+      }
+    });
+    return set;
+  }, [links]);
+
   const nodeCanvasObject = useCallback(
     (node: NodeObject, ctx: CanvasRenderingContext2D) => {
-      const n = node as MiniGraphNode;
+      const id = nodeIdFromEndpoint(typeof node === "object" && node !== null && "id" in node ? node.id : undefined);
+      const n = nodeById.get(id);
+      if (!n) return;
       const radius = GraphStyle.nodeRadius(n.connections);
       const x = n.x ?? 0;
       const y = n.y ?? 0;
@@ -253,27 +283,29 @@ export function MemoryBornGraph({ args, result, index }: MemoryBornGraphProps) {
 
       drawNodeLabel(ctx, x, y, radius, n.name, n.isSuperseded, 20, 1);
     },
-    [],
+    [nodeById],
   );
 
   const linkColor = useCallback(
     (link: LinkObject) => {
-      const l = link as MiniGraphLink;
-      return l.type === "supersedes"
+      const src = nodeIdFromEndpoint(link.source);
+      const tgt = nodeIdFromEndpoint(link.target);
+      return supersedesKeySet.has(`${src}|||${tgt}`)
         ? GraphStyle.LINK.COLOR_SUPERSEDES
         : GraphStyle.LINK.COLOR_RELATED;
     },
-    [],
+    [supersedesKeySet],
   );
 
   const linkWidth = useCallback(
     (link: LinkObject) => {
-      const l = link as MiniGraphLink;
-      return l.type === "supersedes"
+      const src = nodeIdFromEndpoint(link.source);
+      const tgt = nodeIdFromEndpoint(link.target);
+      return supersedesKeySet.has(`${src}|||${tgt}`)
         ? GraphStyle.LINK.WIDTH_SUPERSEDES
         : GraphStyle.LINK.WIDTH_RELATED;
     },
-    [],
+    [supersedesKeySet],
   );
 
   return (

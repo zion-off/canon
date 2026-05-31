@@ -2,14 +2,60 @@
 
 import { useId, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { z } from "zod";
 import { Badge } from "@/components/ui/Badge";
 import type { BadgeVariant } from "@/components/ui/Badge";
 import type { GraphNode } from "@/lib/schemas/graph";
 import { NodeDetailPanel } from "@/components/graph/NodeDetailPanel";
 import { getGraph } from "@/lib/actions/graph";
+import { STATUS } from "@/lib/constants";
 
 interface MemoryChipsProps {
   results: Record<string, unknown>[];
+}
+
+const searchResultSchema = z.object({
+  _id: z.string().optional(),
+  id: z.string().optional(),
+  name: z.string().optional(),
+  status: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  supersededBy: z.unknown().optional(),
+});
+
+const badgeVariantSchema = z.enum([
+  STATUS.ACTIVE,
+  STATUS.IN_PROGRESS,
+  STATUS.DEPRECATED,
+  STATUS.RESOLVED,
+  STATUS.COMPLETED,
+  "default",
+]);
+
+function toBadgeVariant(s: string): BadgeVariant {
+  const parsed = badgeVariantSchema.safeParse(s);
+  return parsed.success ? parsed.data : "default";
+}
+
+interface ParsedSearchResult {
+  id: string;
+  name: string;
+  status: string;
+  tags: string[];
+  supersededBy: unknown;
+}
+
+function parseSearchResult(item: Record<string, unknown>, index: number): ParsedSearchResult {
+  const parsed = searchResultSchema.safeParse(item);
+  if (!parsed.success) return { id: `result-${index}`, name: "Unnamed", status: "active", tags: [], supersededBy: undefined };
+  const d = parsed.data;
+  return {
+    id: d._id ?? d.id ?? `result-${index}`,
+    name: d.name ?? "Unnamed",
+    status: d.status ?? "active",
+    tags: d.tags ?? [],
+    supersededBy: d.supersededBy,
+  };
 }
 
 const MORPH_TRANSITION = {
@@ -55,12 +101,9 @@ export function MemoryChips({ results }: MemoryChipsProps) {
       <motion.div layout className="flex flex-wrap gap-1.5">
         <AnimatePresence mode="popLayout">
           {results.slice(0, 8).map((item, i) => {
-            const id = (item._id as string) ?? (item.id as string) ?? `result-${i}`;
-            const name = (item.name as string) ?? "Unnamed";
-            const status = (item.status as string) ?? "active";
-            const tags = (item.tags as string[]) ?? [];
+            const { id, name, status, tags, supersededBy } = parseSearchResult(item, i);
             const isDeprecated = status === "deprecated";
-            const isSuperseded = !!item.supersededBy;
+            const isSuperseded = !!supersededBy;
             const isSelected = id === selectedNodeId && isPanelOpen;
 
             if (isSelected) return null;
@@ -79,7 +122,7 @@ export function MemoryChips({ results }: MemoryChipsProps) {
                   ${isDeprecated || isSuperseded ? "opacity-40" : ""}`}
               >
                 <span className="text-xs text-canon-text truncate max-w-40">{name}</span>
-                <Badge variant={status as BadgeVariant}>{status}</Badge>
+                <Badge variant={toBadgeVariant(status)}>{status}</Badge>
                 {tags.slice(0, 2).map((tag) => (
                   <span key={tag} className="text-[10px] text-canon-text-disabled font-mono">
                     #{tag}

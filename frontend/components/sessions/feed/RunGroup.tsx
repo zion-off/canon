@@ -2,14 +2,17 @@
 
 import { useMemo } from "react";
 import { motion } from "motion/react";
-import type {
-  IdentifiedEvent,
-  ConfirmationRequestedEvent,
-  ConfirmationReceivedEvent,
+import { z } from "zod";
+import type { IdentifiedEvent, ConfirmationReceivedEvent } from "@/lib/schemas/sessions";
+import {
+  ConfirmationReceivedEventSchema,
+  ReasoningCheckpointPayloadSchema,
+  FinalResponsePayloadSchema,
+  ConfirmationRequestedPayloadSchema,
 } from "@/lib/schemas/sessions";
 import { EVENT_TYPE, TOOL_CALL_STATUS } from "@/lib/constants";
 import { PHASE_LABELS, PHASE_ITEM_KIND } from "./types";
-import type { CognitivePhase } from "./types";
+import type { CognitivePhase, CanonizeNodeResult } from "./types";
 import { buildPhaseGroups } from "./phase-utils";
 import { IntentHeader } from "./IntentHeader";
 import { ThoughtCard } from "./ThoughtCard";
@@ -18,7 +21,22 @@ import { SubagentGroupCard } from "./SubagentGroupCard";
 import { FinalResponseCard } from "./FinalResponseCard";
 import { ConfirmationCard } from "./ConfirmationCard";
 import { MemoryBornGraph } from "./MemoryBornGraph";
-import type { CanonizeNodeArgs, CanonizeNodeResult } from "./types";
+
+const canonizeNodeArgsSchema = z.object({
+  document: z.object({
+    relatedEntityIds: z.array(z.string()).optional(),
+    supersedes: z.string().optional(),
+  }).passthrough().optional(),
+  reverse_link_ids: z.array(z.string()).optional(),
+}).passthrough();
+
+const canonizeNodeResultSchema = z.object({
+  status: z.string(),
+  node_id: z.string().optional(),
+  name: z.string().optional(),
+  relationships_formed: z.number().optional(),
+  note: z.string().optional(),
+}).passthrough();
 
 const STATIC_SPINE = "bg-canon-border";
 
@@ -30,19 +48,29 @@ interface RunGroupProps {
 export function RunGroup({ events, isLive }: RunGroupProps) {
   const runStarted = events.find((e) => e.type === EVENT_TYPE.RUN_STARTED);
   const invocationArgs =
-    runStarted?.type === EVENT_TYPE.RUN_STARTED
+    runStarted && runStarted.type === EVENT_TYPE.RUN_STARTED
       ? { request: runStarted.payload.request, context: runStarted.payload.context }
       : null;
 
   const confirmationResolutions = useMemo(() => {
     const map = new Map<string, ConfirmationReceivedEvent>();
-    const received = events.filter((e) => e.type === EVENT_TYPE.CONFIRMATION_RECEIVED);
-    if (received.length > 0) {
-      const lastReceived = received[received.length - 1] as ConfirmationReceivedEvent;
-      const requested = events.filter((e) => e.type === EVENT_TYPE.CONFIRMATION_REQUESTED);
-      if (requested.length > 0) {
-        const lastRequested = requested[requested.length - 1] as ConfirmationRequestedEvent;
-        map.set(lastRequested.payload.confirmationId, lastReceived);
+    const resolved = new Set<string>();
+    for (let i = events.length - 1; i >= 0; i--) {
+      const e = events[i];
+      if (e.type !== EVENT_TYPE.CONFIRMATION_RECEIVED) continue;
+      const parsed = ConfirmationReceivedEventSchema.safeParse(e);
+      if (!parsed.success) continue;
+      for (let j = i - 1; j >= 0; j--) {
+        const prev = events[j];
+        if (prev.type !== EVENT_TYPE.CONFIRMATION_REQUESTED) continue;
+        const reqParsed = ConfirmationRequestedPayloadSchema.safeParse(prev.payload);
+        if (!reqParsed.success) continue;
+        const cid = reqParsed.data.confirmationId;
+        if (!resolved.has(cid)) {
+          map.set(cid, parsed.data);
+          resolved.add(cid);
+        }
+        break;
       }
     }
     return map;
@@ -79,21 +107,22 @@ export function RunGroup({ events, isLive }: RunGroupProps) {
               {hasSpineBelow && <div className={`w-0.5 flex-1 min-h-2 ${STATIC_SPINE}`} />}
             </div>
 
-            {/* Right column: phase header + items */}
             <div className="flex-1 min-w-0 pb-3">
               <PhaseLabel phase={group.phase} index={gi} />
               <div className="space-y-0.5">
                 {group.items.map((item) => {
                   const idx = itemIndex++;
                   switch (item.kind) {
-                    case PHASE_ITEM_KIND.THOUGHT:
+                    case PHASE_ITEM_KIND.THOUGHT: {
+                      const parsed = ReasoningCheckpointPayloadSchema.safeParse(item.event.payload);
                       return (
                         <ThoughtCard
                           key={item.event.stableId}
-                          message={item.event.payload.message}
+                          message={parsed.success ? parsed.data.message : ""}
                           index={idx}
                         />
                       );
+                    }
                     case PHASE_ITEM_KIND.TOOL_PAIR:
                       return (
                         <ToolCallSentenceCard
@@ -114,18 +143,21 @@ export function RunGroup({ events, isLive }: RunGroupProps) {
                         />
                       );
                     }
-                    case PHASE_ITEM_KIND.FINAL_RESPONSE:
+                    case PHASE_ITEM_KIND.FINAL_RESPONSE: {
+                      const parsed = FinalResponsePayloadSchema.safeParse(item.event.payload);
                       return (
                         <FinalResponseCard
                           key={item.event.stableId}
-                          text={item.event.payload.text}
+                          text={parsed.success ? parsed.data.text : ""}
                           index={idx}
                         />
                       );
+                    }
                     case PHASE_ITEM_KIND.CONFIRMATION_REQUESTED: {
-                      const resolution = confirmationResolutions.get(
-                        item.event.payload.confirmationId,
-                      );
+                      const reqParsed = ConfirmationRequestedPayloadSchema.safeParse(item.event.payload);
+                      const resolution = reqParsed.success
+                        ? confirmationResolutions.get(reqParsed.data.confirmationId)
+                        : undefined;
                       return (
                         <ConfirmationCard
                           key={item.event.stableId}
@@ -138,27 +170,25 @@ export function RunGroup({ events, isLive }: RunGroupProps) {
                     case PHASE_ITEM_KIND.CONFIRMATION_RECEIVED:
                       return null;
                     case PHASE_ITEM_KIND.CANONIZE_PAIR: {
-                      const args = item.pair.started.payload.args as CanonizeNodeArgs;
-                      const result = item.pair.completed?.payload.result as
-                        | CanonizeNodeResult
-                        | undefined;
-                      if (item.pair.completed?.payload.status === TOOL_CALL_STATUS.OK && result) {
-                        return (
-                          <MemoryBornGraph
-                            key={item.pair.stableId}
-                            args={args}
-                            result={result}
-                            index={idx}
-                          />
-                        );
+                      const argsParseResult = canonizeNodeArgsSchema.safeParse(item.pair.started.payload.args);
+                      if (!argsParseResult.success) {
+                        return <ToolCallSentenceCard key={item.pair.stableId} pair={item.pair} index={idx} />;
                       }
-                      return (
-                        <ToolCallSentenceCard
-                          key={item.pair.stableId}
-                          pair={item.pair}
-                          index={idx}
-                        />
-                      );
+                      const args = argsParseResult.data;
+                      let result: CanonizeNodeResult | undefined;
+                      if (item.pair.completed !== null) {
+                        const completed = item.pair.completed;
+                        if (completed.payload.status === TOOL_CALL_STATUS.OK) {
+                          const resultParseResult = canonizeNodeResultSchema.safeParse(completed.payload.result);
+                          if (resultParseResult.success) {
+                            result = resultParseResult.data;
+                          }
+                        }
+                      }
+                      if (result) {
+                        return <MemoryBornGraph key={item.pair.stableId} args={args} result={result} index={idx} />;
+                      }
+                      return <ToolCallSentenceCard key={item.pair.stableId} pair={item.pair} index={idx} />;
                     }
                     default:
                       return null;

@@ -15,7 +15,6 @@ const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
 });
 
 type GraphNodeFG = GraphNode & NodeObject & { x?: number; y?: number };
-type GraphLinkFG = GraphLink & LinkObject;
 
 interface GraphData {
   nodes: GraphNode[];
@@ -185,11 +184,7 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
 
     const nodeIds = new Set(nodes.map((n) => n.id));
     const links = localGraph.links.filter((l) => {
-      const src =
-        typeof l.source === "object" ? (l.source as GraphNodeFG).id : (l.source as string);
-      const tgt =
-        typeof l.target === "object" ? (l.target as GraphNodeFG).id : (l.target as string);
-      return nodeIds.has(src) && nodeIds.has(tgt);
+      return nodeIds.has(l.source) && nodeIds.has(l.target);
     });
 
     return { nodes, links };
@@ -216,27 +211,43 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
     if (!selectedNodeId) return [];
     const ids = new Set<string>();
     localGraph.links.forEach((link) => {
-      const src = typeof link.source === "object" ? (link.source as GraphNodeFG).id : link.source;
-      const tgt = typeof link.target === "object" ? (link.target as GraphNodeFG).id : link.target;
-      if (src === selectedNodeId) ids.add(tgt);
-      if (tgt === selectedNodeId) ids.add(src);
+      if (link.source === selectedNodeId) ids.add(link.target);
+      if (link.target === selectedNodeId) ids.add(link.source);
     });
     return Array.from(ids);
   }, [selectedNodeId, localGraph.links]);
 
+  // ---- Node lookup map for force-graph callbacks ----
+  const nodeMap = useMemo(() => {
+    const map = new Map<string, GraphNodeFG>();
+    filteredData.nodes.forEach((n) => {
+      map.set(n.id, n);
+    });
+    return map;
+  }, [filteredData.nodes]);
+
   const selectedNode = useMemo(
-    () => localGraph.nodes.find((n) => n.id === selectedNodeId) ?? null,
-    [localGraph.nodes, selectedNodeId],
+    () => (selectedNodeId ? nodeMap.get(selectedNodeId) ?? null : null),
+    [nodeMap, selectedNodeId],
   );
 
   // ---- Handlers ----
   const handleNodeClick = useCallback((node: NodeObject) => {
-    setSelectedNodeId((node as GraphNodeFG).id);
+    const id = typeof node.id === "string" ? node.id : String(node.id ?? "");
+    setSelectedNodeId(id);
   }, []);
 
-  const handleNodeHover = useCallback((node: NodeObject | null) => {
-    setHoveredNode(node as GraphNodeFG | null);
-  }, []);
+  const handleNodeHover = useCallback(
+    (node: NodeObject | null) => {
+      if (!node) {
+        setHoveredNode(null);
+        return;
+      }
+      const id = typeof node.id === "string" ? node.id : String(node.id ?? "");
+      setHoveredNode(nodeMap.get(id) ?? null);
+    },
+    [nodeMap],
+  );
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
@@ -251,44 +262,70 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
   // ---- Canvas node rendering ----
   const nodeCanvasObject = useCallback(
     (node: NodeObject, ctx: CanvasRenderingContext2D, globalScale: number) => {
-      const gNode = node as GraphNodeFG;
+      const id = typeof node.id === "string" ? node.id : String(node.id ?? "");
+      const gNode = nodeMap.get(id);
+      if (!gNode) return;
       const isSelected = gNode.id === selectedNodeId;
       const isHovered = gNode.id === hoveredNode?.id;
       const isSearch = searchHighlightIds.size > 0 && searchHighlightIds.has(gNode.id);
       const isHighlighted = isSelected || isHovered;
       renderNode(gNode, ctx, globalScale, isHighlighted, isSearch, animTimeRef.current);
     },
-    [selectedNodeId, hoveredNode, searchHighlightIds],
+    [nodeMap, selectedNodeId, hoveredNode, searchHighlightIds],
   );
 
+  // ---- Helpers for link endpoint IDs ----
+  const supersedesLinkPairs = useMemo(() => {
+    const set = new Set<string>();
+    filteredData.links.forEach((link) => {
+      if (link.type === "supersedes") {
+        set.add(`${link.source}|||${link.target}`);
+      }
+    });
+    return set;
+  }, [filteredData.links]);
+
+  function linkEndpointId(endpoint: string | number | NodeObject | undefined): string {
+    if (typeof endpoint === "object" && endpoint !== null && "id" in endpoint) {
+      return String(endpoint.id ?? "");
+    }
+    return String(endpoint ?? "");
+  }
+
   // ---- Canvas link rendering ----
-  const isSupersedes = (link: LinkObject) => (link as GraphLinkFG).type === "supersedes";
+  const isSupersedes = useCallback(
+    (link: LinkObject) => {
+      const key = `${linkEndpointId(link.source)}|||${linkEndpointId(link.target)}`;
+      return supersedesLinkPairs.has(key);
+    },
+    [supersedesLinkPairs],
+  );
 
   const linkColor = useCallback(
     (link: LinkObject) =>
       isSupersedes(link) ? GraphStyle.LINK.COLOR_SUPERSEDES : GraphStyle.LINK.COLOR_RELATED,
-    [],
+    [isSupersedes],
   );
 
   const linkWidth = useCallback(
     (link: LinkObject) =>
       isSupersedes(link) ? GraphStyle.LINK.WIDTH_SUPERSEDES : GraphStyle.LINK.WIDTH_RELATED,
-    [],
+    [isSupersedes],
   );
 
   const linkDirectionalParticles = useCallback(
     (link: LinkObject) => (isSupersedes(link) ? GraphStyle.LINK.SUPERSEDES_PARTICLE_COUNT : 0),
-    [],
+    [isSupersedes],
   );
 
   const linkDirectionalParticleSpeed = useCallback(
     (link: LinkObject) => (isSupersedes(link) ? GraphStyle.LINK.SUPERSEDES_PARTICLE_SPEED : 0),
-    [],
+    [isSupersedes],
   );
 
   const linkDirectionalParticleWidth = useCallback(
     (link: LinkObject) => (isSupersedes(link) ? GraphStyle.LINK.SUPERSEDES_PARTICLE_WIDTH : 0),
-    [],
+    [isSupersedes],
   );
 
   const linkDirectionalParticleColor = useCallback(() => GraphStyle.LINK.COLOR_SUPERSEDES, []);

@@ -2,8 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { z } from "zod";
 import { createTeam } from "@/lib/actions/teams";
 import { ROUTE_ONBOARDING_SETUP } from "@/lib/constants";
+
+const formSchema = z.object({
+  "team-name": z.string().min(1, "Team name is required."),
+});
 
 const fieldClass =
   "w-full bg-transparent border-b border-canon-border py-2 text-sm text-canon-text placeholder:text-canon-text-secondary focus:outline-none focus:border-canon-accent transition-colors";
@@ -17,11 +22,12 @@ export function CreateTeamForm() {
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
-    const name = (new FormData(e.currentTarget).get("team-name") as string)?.trim();
-    if (!name) {
-      setError("Team name is required.");
+    const parsed = formSchema.safeParse(Object.fromEntries(new FormData(e.currentTarget)));
+    if (!parsed.success) {
+      setError(parsed.error.errors[0].message);
       return;
     }
+    const { "team-name": name } = parsed.data;
 
     setIsPending(true);
     setError(null);

@@ -29,7 +29,7 @@ export function NodeDetailPanel({
 
   const connectedNodes = connectedNodeIds
     .map((id) => allNodes.find((n) => n.id === id))
-    .filter(Boolean) as GraphNode[];
+    .filter((n): n is GraphNode => n != null);
 
   const supersededByNode = node.supersededBy
     ? (allNodes.find((n) => n.id === node.supersededBy) ?? null)

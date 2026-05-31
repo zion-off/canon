@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import type { AgentEvent, IdentifiedEvent } from "@/lib/schemas/sessions";
+import { IdentifiedEventSchema } from "@/lib/schemas/sessions";
 import { useEventStream } from "@/hooks/useEventStream";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { EVENT_TYPE, DISPLAY_KIND } from "@/lib/constants";
@@ -19,8 +20,12 @@ interface RunBucket {
   events: IdentifiedEvent[];
 }
 
+const EVENT_KIND = DISPLAY_KIND.EVENT;
+
 function toIdentifiedEvent(event: AgentEvent, stableId: number): IdentifiedEvent {
-  return { ...event, kind: DISPLAY_KIND.EVENT, stableId } as IdentifiedEvent;
+  const result = IdentifiedEventSchema.safeParse({ ...event, kind: EVENT_KIND, stableId });
+  if (!result.success) throw new Error(`Invalid identified event: ${result.error.message}`);
+  return result.data;
 }
 
 function groupEventsIntoRuns(events: IdentifiedEvent[]): RunBucket[] {

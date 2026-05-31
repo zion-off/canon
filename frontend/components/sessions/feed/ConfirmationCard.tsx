@@ -1,16 +1,18 @@
 "use client";
 
 import { motion } from "motion/react";
-import type { ConfirmationRequestedEvent, ConfirmationReceivedEvent } from "@/lib/schemas/sessions";
+import type { IdentifiedEvent, ConfirmationReceivedEvent } from "@/lib/schemas/sessions";
+import { ConfirmationRequestedPayloadSchema } from "@/lib/schemas/sessions";
 
 interface ConfirmationCardProps {
-  event: ConfirmationRequestedEvent;
+  event: IdentifiedEvent;
   resolution?: ConfirmationReceivedEvent;
   index: number;
 }
 
 export function ConfirmationCard({ event, resolution, index }: ConfirmationCardProps) {
-  const { title, description, message } = event.payload;
+  const parsed = ConfirmationRequestedPayloadSchema.safeParse(event.payload);
+  const payload = parsed.success ? parsed.data : { confirmationId: undefined, title: undefined, description: undefined, message: undefined };
   const isResolved = !!resolution;
   const accepted = resolution?.payload.accepted;
 
@@ -32,10 +34,10 @@ export function ConfirmationCard({ event, resolution, index }: ConfirmationCardP
           <span className="font-condensed font-bold text-xs uppercase tracking-wider text-canon-warning">
             Confirmation Required
           </span>
-          {title && <h4 className="mt-1 text-sm font-medium text-canon-text">{title}</h4>}
-          {(description || message) && (
+          {payload.title && <h4 className="mt-1 text-sm font-medium text-canon-text">{payload.title}</h4>}
+          {(payload.description || payload.message) && (
             <p className="mt-1 text-sm text-canon-text-secondary leading-relaxed">
-              {description || message}
+              {payload.description || payload.message}
             </p>
           )}
         </div>

@@ -10,6 +10,9 @@ type PairLocation =
   | { kind: "top-level"; idx: number }
   | { kind: "in-group"; groupIdx: number; pairIdx: number };
 
+const SUBAGENT_NAMES: Set<string> = new Set([AGENT_NAME.SEMANTIC_RETRIEVER, AGENT_NAME.GRAPH_EXPLORER]);
+
+
 // Builds the display item list from a flat sequence of identified events:
 // - subagent_invoked events become SubagentGroup containers
 // - tool_call_started/completed pairs for subagent tools nest inside their group
@@ -23,8 +26,6 @@ export function pairToolCallEvents(events: IdentifiedEvent[]): DisplayItem[] {
   // Track the most recently opened group per agentName for checkpoint routing
   const activeGroupByAgentName = new Map<string, number>(); // agentName → result idx
   const pendingPairs = new Map<string, PairLocation>(); // invocationId → location
-
-  const SUBAGENT_NAMES: Set<string> = new Set([AGENT_NAME.SEMANTIC_RETRIEVER, AGENT_NAME.GRAPH_EXPLORER]);
 
   for (const event of events) {
     if (event.type === EVENT_TYPE.SUBAGENT_INVOKED) {
@@ -42,17 +43,17 @@ export function pairToolCallEvents(events: IdentifiedEvent[]): DisplayItem[] {
       activeGroupByAgentName.set(event.payload.agent_name, idx);
       result.push(group);
     } else if (event.type === EVENT_TYPE.REASONING_CHECKPOINT) {
-      // Route checkpoints from known subagents into their active group
       const author = event.author;
       if (author && SUBAGENT_NAMES.has(author)) {
         const groupIdx = activeGroupByAgentName.get(author);
         if (groupIdx !== undefined) {
-          const group = result[groupIdx] as SubagentGroup;
-          group.checkpoints = [...group.checkpoints, event as SubagentGroup["checkpoints"][number]];
-          continue;
+          const item = result[groupIdx];
+          if (item !== undefined && item.kind === DISPLAY_KIND.SUBAGENT_GROUP) {
+            item.checkpoints = [...item.checkpoints, event];
+            continue;
+          }
         }
       }
-      // Top-level orchestrator checkpoint — pass through
       result.push(event);
     } else if (event.type === EVENT_TYPE.TOOL_CALL_STARTED) {
       if (
@@ -73,10 +74,12 @@ export function pairToolCallEvents(events: IdentifiedEvent[]): DisplayItem[] {
       const groupIdx = agentInvId != null ? pendingGroups.get(agentInvId) : undefined;
 
       if (groupIdx !== undefined) {
-        const group = result[groupIdx] as SubagentGroup;
-        const pairIdx = group.toolPairs.length;
-        group.toolPairs.push(pair);
-        pendingPairs.set(event.payload.invocation_id, { kind: "in-group", groupIdx, pairIdx });
+        const item = result[groupIdx];
+        if (item !== undefined && item.kind === DISPLAY_KIND.SUBAGENT_GROUP) {
+          const pairIdx = item.toolPairs.length;
+          item.toolPairs.push(pair);
+          pendingPairs.set(event.payload.invocation_id, { kind: "in-group", groupIdx, pairIdx });
+        }
       } else {
         pendingPairs.set(event.payload.invocation_id, { kind: "top-level", idx: result.length });
         result.push(pair);
@@ -92,14 +95,18 @@ export function pairToolCallEvents(events: IdentifiedEvent[]): DisplayItem[] {
       if (location === undefined) continue;
 
       if (location.kind === "top-level") {
-        const existing = result[location.idx] as ToolCallPair;
-        result[location.idx] = { ...existing, completed: event };
+        const item = result[location.idx];
+        if (item !== undefined && item.kind === DISPLAY_KIND.TOOL_CALL_PAIR) {
+          result[location.idx] = { ...item, completed: event };
+        }
       } else {
-        const group = result[location.groupIdx] as SubagentGroup;
-        group.toolPairs[location.pairIdx] = {
-          ...group.toolPairs[location.pairIdx],
-          completed: event,
-        };
+        const item = result[location.groupIdx];
+        if (item !== undefined && item.kind === DISPLAY_KIND.SUBAGENT_GROUP) {
+          item.toolPairs[location.pairIdx] = {
+            ...item.toolPairs[location.pairIdx],
+            completed: event,
+          };
+        }
       }
       pendingPairs.delete(event.payload.invocation_id);
     } else {

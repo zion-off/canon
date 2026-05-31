@@ -19,8 +19,11 @@ function getErrors(data: EditFormData): FormErrors {
   const result = editFormSchema.safeParse(data);
   if (result.success) return {};
   const fieldErrors: FormErrors = {};
+  const keyValidator = editFormSchema.keyof();
   for (const issue of result.error.issues) {
-    const key = issue.path[0] as keyof EditFormData;
+    const keyParse = keyValidator.safeParse(issue.path[0]);
+    if (!keyParse.success) continue;
+    const key = keyParse.data;
     if (!fieldErrors[key]) fieldErrors[key] = issue.message;
   }
   return fieldErrors;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { z } from "zod";
 import { createToken } from "@/lib/actions/teams";
 import { CopyButton } from "@/components/ui/CopyButton";
 import type { ApiToken } from "@/lib/schemas/teams";
@@ -15,7 +16,9 @@ const initialState: TokenState = { error: null, token: null, label: null };
 
 async function tokenAction(_prevState: TokenState, formData: FormData): Promise<TokenState> {
   void _prevState;
-  const label = (formData.get("token-label") as string)?.trim() || "API token";
+  const rawLabel = formData.get("token-label");
+  const parseResult = z.string().min(1).safeParse(rawLabel);
+  const label = parseResult.success ? parseResult.data : "API token";
   try {
     const result = await createToken(label);
     return { error: null, token: result.token, label: result.label };

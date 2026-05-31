@@ -3,8 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { z } from "zod";
 import { register } from "@/lib/actions/auth";
 import { ROUTE_LOGIN, ROUTE_ONBOARDING } from "@/lib/constants";
+
+const formSchema = z.object({
+  email: z.string().min(1, "Email is required."),
+  name: z.string().min(1, "Name is required."),
+  password: z.string().min(8, "Password must be at least 8 characters."),
+});
 
 const fieldClass =
   "w-full bg-transparent border-b border-canon-border py-2 text-sm text-canon-text placeholder:text-canon-text-secondary focus:outline-none focus:border-canon-accent transition-colors";
@@ -18,15 +25,12 @@ export default function RegisterPage() {
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
-    const data = new FormData(e.currentTarget);
-    const name = data.get("name") as string;
-    const email = data.get("email") as string;
-    const password = data.get("password") as string;
-
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+    const parsed = formSchema.safeParse(Object.fromEntries(new FormData(e.currentTarget)));
+    if (!parsed.success) {
+      setError(parsed.error.errors[0].message);
       return;
     }
+    const { name, email, password } = parsed.data;
 
     setIsPending(true);
     setError(null);

@@ -25,28 +25,28 @@ const baseEventFields = {
 
 // ── Payload schemas ───────────────────────────────────────────────────────────
 
-export const RunStartedPayloadSchema = z.object({ request: z.string(), context: z.string() });
-export const RunCompletedPayloadSchema = z.object({});
+export const RunStartedPayloadSchema = z.object({ request: z.string(), context: z.string() }).passthrough();
+export const RunCompletedPayloadSchema = z.object({}).passthrough();
 
 export const ReasoningCheckpointPayloadSchema = z.object({
   message: z.string(),
-});
+}).passthrough();
 
 export const FinalResponsePayloadSchema = z.object({
   text: z.string(),
-});
+}).passthrough();
 
 export const SubagentInvokedPayloadSchema = z.object({
   agent_name: z.string(),
   agent_invocation_id: z.string(),
-});
+}).passthrough();
 
 export const ToolCallStartedPayloadSchema = z.object({
   tool_name: z.string(),
   args: z.record(z.unknown()),
   invocation_id: z.string(),
   agent_invocation_id: z.string().nullable(),
-});
+}).passthrough();
 
 export const ToolCallCompletedPayloadSchema = z.object({
   tool_name: z.string(),
@@ -55,7 +55,7 @@ export const ToolCallCompletedPayloadSchema = z.object({
   status: z.string(),
   invocation_id: z.string(),
   agent_invocation_id: z.string().nullable(),
-});
+}).passthrough();
 
 export const ConfirmationRequestedPayloadSchema = z.object({
   confirmationId: z.string(),
@@ -63,12 +63,12 @@ export const ConfirmationRequestedPayloadSchema = z.object({
   title: z.string().optional(),
   description: z.string().optional(),
   options: z.array(z.string()).optional(),
-});
+}).passthrough();
 
 export const ConfirmationReceivedPayloadSchema = z.object({
   accepted: z.boolean(),
   response: z.string().optional(),
-});
+}).passthrough();
 
 // ── Per-event schemas ─────────────────────────────────────────────────────────
 

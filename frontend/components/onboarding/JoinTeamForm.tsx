@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { z } from "zod";
 import { joinTeam } from "@/lib/actions/teams";
 import { ROUTE_DASHBOARD } from "@/lib/constants";
 
@@ -16,9 +17,11 @@ async function joinTeamAction(
   _prevState: JoinTeamState,
   formData: FormData,
 ): Promise<JoinTeamState> {
-  const code = (formData.get("invite-code") as string)?.trim().toUpperCase();
-  if (!code || code.length !== 8)
-    return { error: "Invite code must be 8 characters.", teamName: null };
+  const inviteCodeSchema = z.string().length(8, "Invite code must be 8 characters.");
+  const rawCode = formData.get("invite-code");
+  const parsed = inviteCodeSchema.safeParse(typeof rawCode === "string" ? rawCode.toUpperCase() : rawCode);
+  if (!parsed.success) return { error: parsed.error.errors[0].message, teamName: null };
+  const code = parsed.data;
   try {
     const result = await joinTeam(code);
     return { error: null, teamName: result.team.name };

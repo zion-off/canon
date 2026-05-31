@@ -3,7 +3,6 @@ import type {
   ToolCallPair,
   SubagentGroup,
 } from "@/lib/schemas/sessions";
-import { EVENT_TYPE } from "@/lib/constants";
 
 // Cognitive phases inferred from the event stream
 export const COGNITIVE_PHASE = {
@@ -51,12 +50,12 @@ export interface PhaseGroup {
 }
 
 export type PhaseItem =
-  | { kind: typeof PHASE_ITEM_KIND.THOUGHT; event: IdentifiedEvent & { type: typeof EVENT_TYPE.REASONING_CHECKPOINT } }
+  | { kind: typeof PHASE_ITEM_KIND.THOUGHT; event: IdentifiedEvent }
   | { kind: typeof PHASE_ITEM_KIND.TOOL_PAIR; pair: ToolCallPair }
   | { kind: typeof PHASE_ITEM_KIND.SUBAGENT_GROUP; group: SubagentGroup }
-  | { kind: typeof PHASE_ITEM_KIND.FINAL_RESPONSE; event: IdentifiedEvent & { type: typeof EVENT_TYPE.FINAL_RESPONSE } }
-  | { kind: typeof PHASE_ITEM_KIND.CONFIRMATION_REQUESTED; event: IdentifiedEvent & { type: typeof EVENT_TYPE.CONFIRMATION_REQUESTED } }
-  | { kind: typeof PHASE_ITEM_KIND.CONFIRMATION_RECEIVED; event: IdentifiedEvent & { type: typeof EVENT_TYPE.CONFIRMATION_RECEIVED } }
+  | { kind: typeof PHASE_ITEM_KIND.FINAL_RESPONSE; event: IdentifiedEvent }
+  | { kind: typeof PHASE_ITEM_KIND.CONFIRMATION_REQUESTED; event: IdentifiedEvent }
+  | { kind: typeof PHASE_ITEM_KIND.CONFIRMATION_RECEIVED; event: IdentifiedEvent }
   | { kind: typeof PHASE_ITEM_KIND.CANONIZE_PAIR; pair: ToolCallPair };
 
 // Confirmation state tracker

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { z } from "zod";
 import type { ToolCallPair } from "@/lib/schemas/sessions";
 import { HighlightedCode } from "../HighlightedCode";
 import { toolCallSentence, computeLatencyMs, formatLatency } from "./phase-utils";
@@ -22,19 +23,23 @@ export function ToolCallSentenceCard({ pair, index }: ToolCallSentenceCardProps)
   const sentence = toolCallSentence(pair);
 
   const isHybridSearch = pair.started.payload.tool_name === TOOL_NAME.HYBRID_SEARCH;
-  const searchResults: Record<string, unknown>[] | null =
-    isHybridSearch && pair.completed?.payload.result
-      ? ((pair.completed.payload.result as { results?: Record<string, unknown>[] })?.results ?? null)
-      : null;
+  const searchResults: Record<string, unknown>[] | null = (() => {
+    if (!isHybridSearch || pair.completed?.payload.result == null) return null;
+    const resultSchema = z.object({ results: z.array(z.record(z.unknown())).optional() });
+    const parseResult = resultSchema.safeParse(pair.completed.payload.result);
+    return parseResult.success ? (parseResult.data.results ?? null) : null;
+  })();
   const hasSearchResults = searchResults !== null && searchResults.length > 0;
 
   const errorMessage: string | null = (() => {
     if (!isError || pair.completed?.payload.result == null) return null;
     const r = pair.completed.payload.result;
-    if (typeof r === "string") return r;
-    if (typeof r === "object" && r !== null && "error" in (r as object)) {
-      return String((r as Record<string, unknown>).error);
-    }
+    const errSchema = z.object({ error: z.string() });
+    const stringSchema = z.string();
+    const errParse = errSchema.safeParse(r);
+    if (errParse.success) return errParse.data.error;
+    const stringParse = stringSchema.safeParse(r);
+    if (stringParse.success) return stringParse.data;
     return "Error";
   })();
 

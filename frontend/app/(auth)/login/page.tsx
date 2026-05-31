@@ -3,8 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { z } from "zod";
 import { login } from "@/lib/actions/auth";
 import { ROUTE_DASHBOARD, ROUTE_REGISTER } from "@/lib/constants";
+
+const formSchema = z.object({
+  email: z.string().min(1, "Email is required."),
+  password: z.string().min(1, "Password is required."),
+});
 
 const fieldClass =
   "w-full bg-transparent border-b border-canon-border py-2 text-sm text-canon-text placeholder:text-canon-text-secondary focus:outline-none focus:border-canon-accent transition-colors";
@@ -18,9 +24,12 @@ export default function LoginPage() {
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
-    const data = new FormData(e.currentTarget);
-    const email = data.get("email") as string;
-    const password = data.get("password") as string;
+    const parsed = formSchema.safeParse(Object.fromEntries(new FormData(e.currentTarget)));
+    if (!parsed.success) {
+      setError(parsed.error.errors[0].message);
+      return;
+    }
+    const { email, password } = parsed.data;
 
     setIsPending(true);
     setError(null);

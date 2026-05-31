@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { IdentifiedEvent, ToolCallPair, DisplayItem } from "@/lib/schemas/sessions";
 import { EVENT_TYPE, DISPLAY_KIND, TOOL_NAME, AGENT_NAME } from "@/lib/constants";
 import type { PhaseGroup, PhaseItem, CognitivePhase } from "./types";
@@ -46,15 +47,15 @@ function toPhaseItems(displayItems: DisplayItem[]): PhaseItem[] {
       }
     } else if (di.kind === DISPLAY_KIND.SUBAGENT_GROUP) {
       items.push({ kind: PHASE_ITEM_KIND.SUBAGENT_GROUP, group: di });
-    } else if ("type" in di) {
+    } else if (di.kind === DISPLAY_KIND.EVENT) {
       if (di.type === EVENT_TYPE.REASONING_CHECKPOINT) {
-        items.push({ kind: PHASE_ITEM_KIND.THOUGHT, event: di as IdentifiedEvent & { type: typeof EVENT_TYPE.REASONING_CHECKPOINT } });
+        items.push({ kind: PHASE_ITEM_KIND.THOUGHT, event: di });
       } else if (di.type === EVENT_TYPE.FINAL_RESPONSE) {
-        items.push({ kind: PHASE_ITEM_KIND.FINAL_RESPONSE, event: di as IdentifiedEvent & { type: typeof EVENT_TYPE.FINAL_RESPONSE } });
+        items.push({ kind: PHASE_ITEM_KIND.FINAL_RESPONSE, event: di });
       } else if (di.type === EVENT_TYPE.CONFIRMATION_REQUESTED) {
-        items.push({ kind: PHASE_ITEM_KIND.CONFIRMATION_REQUESTED, event: di as IdentifiedEvent & { type: typeof EVENT_TYPE.CONFIRMATION_REQUESTED } });
+        items.push({ kind: PHASE_ITEM_KIND.CONFIRMATION_REQUESTED, event: di });
       } else if (di.type === EVENT_TYPE.CONFIRMATION_RECEIVED) {
-        items.push({ kind: PHASE_ITEM_KIND.CONFIRMATION_RECEIVED, event: di as IdentifiedEvent & { type: typeof EVENT_TYPE.CONFIRMATION_RECEIVED } });
+        items.push({ kind: PHASE_ITEM_KIND.CONFIRMATION_RECEIVED, event: di });
       }
     }
   }
@@ -115,40 +116,77 @@ export function formatLatency(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
+// ── Zod schemas for tool call args parsing ────────────────────────────────────
+
+const hybridSearchResultSchema = z.object({
+  count: z.number().int().optional(),
+  results: z.array(z.record(z.unknown())).optional(),
+}).passthrough();
+
+const docWithNameSchema = z.object({ name: z.string().optional() }).passthrough();
+
+const traceGraphResultSchema = z.object({
+  count: z.number().int().optional(),
+  nodes: z.array(z.unknown()).optional(),
+}).passthrough();
+
+const argsWithQuerySchema = z.object({ query: z.string().optional(), text: z.string().optional() }).passthrough();
+const argsWithCollectionSchema = z.object({ collection: z.string().optional() }).passthrough();
+const argsWithDocumentSchema = z.object({ document: z.record(z.unknown()).optional() }).passthrough();
+
 /**
  * Generate a human-readable sentence for a tool call.
  */
 export function toolCallSentence(pair: ToolCallPair): string {
   const toolName = pair.started.payload.tool_name;
   const args = pair.started.payload.args;
-  const result = pair.completed?.payload.result as Record<string, unknown> | undefined;
+  const rawResult = pair.completed?.payload.result;
 
   switch (toolName) {
     case TOOL_NAME.HYBRID_SEARCH: {
-      const query = (args.query as string) ?? (args.text as string) ?? "memory";
-      const count = (result?.count as number) ?? (result?.results as unknown[] | undefined)?.length;
-      const countStr = count != null ? `${count} match${count === 1 ? "" : "es"}` : "";
-      return `Searched organizational memory for "${truncate(query, 60)}"${countStr ? ` — ${countStr}` : ""}`;
+      const argsParsed = argsWithQuerySchema.safeParse(args);
+      const query = argsParsed.success ? (argsParsed.data.query ?? argsParsed.data.text ?? "memory") : "memory";
+      let countStr = "";
+      if (rawResult != null) {
+        const resultParsed = hybridSearchResultSchema.safeParse(rawResult);
+        if (resultParsed.success) {
+          const count = resultParsed.data.count ?? resultParsed.data.results?.length;
+          countStr = count != null ? ` — ${count} match${count === 1 ? "" : "es"}` : "";
+        }
+      }
+      return `Searched organizational memory for "${truncate(query, 60)}"${countStr}`;
     }
     case TOOL_NAME.FIND: {
-      const collection = (args.collection as string) ?? "nodes";
+      const argsParsed = argsWithCollectionSchema.safeParse(args);
+      const collection = argsParsed.success ? (argsParsed.data.collection ?? "nodes") : "nodes";
       return `Queried ${collection}`;
     }
     case TOOL_NAME.AGGREGATE: {
       return `Traversed relationships`;
     }
     case TOOL_NAME.COUNT: {
-      const collection = (args.collection as string) ?? "nodes";
+      const argsParsed = argsWithCollectionSchema.safeParse(args);
+      const collection = argsParsed.success ? (argsParsed.data.collection ?? "nodes") : "nodes";
       return `Counted ${collection} records`;
     }
     case TOOL_NAME.CANONIZE_NODE: {
-      const name = (args.document as Record<string, unknown>)?.name as string | undefined;
+      const argsParsed = argsWithDocumentSchema.safeParse(args);
+      let name: string | undefined;
+      if (argsParsed.success && argsParsed.data.document) {
+        const docParsed = docWithNameSchema.safeParse(argsParsed.data.document);
+        name = docParsed.success ? docParsed.data.name : undefined;
+      }
       return name ? `Forming memory: "${truncate(name, 50)}"` : "Forming new memory node";
     }
     default: {
-      // trace_graph or unknown
       if (toolName === "trace_graph") {
-        const count = (result?.count as number) ?? (result?.nodes as unknown[] | undefined)?.length;
+        let count: number | undefined;
+        if (rawResult != null) {
+          const resultParsed = traceGraphResultSchema.safeParse(rawResult);
+          if (resultParsed.success) {
+            count = resultParsed.data.count ?? resultParsed.data.nodes?.length;
+          }
+        }
         return `Traced relationships${count ? ` — impact across ${count} nodes` : ""}`;
       }
       return toolName.replace(/_/g, " ");

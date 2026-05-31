@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Badge } from "@/components/ui/Badge";
 import type { BadgeVariant } from "@/components/ui/Badge";
@@ -18,6 +18,7 @@ const MORPH_TRANSITION = {
 };
 
 export function MemoryChips({ results }: MemoryChipsProps) {
+  const scope = useId();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [graphData, setGraphData] = useState<{
     nodes: GraphNode[];
@@ -67,7 +68,7 @@ export function MemoryChips({ results }: MemoryChipsProps) {
             return (
               <motion.button
                 key={id}
-                layoutId={id}
+                layoutId={`${scope}-${id}`}
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: isDeprecated || isSuperseded ? 0.4 : 1, scale: 1 }}
                 exit={{ opacity: 0, filter: "blur(6px)", scale: 1.05 }}
@@ -98,8 +99,8 @@ export function MemoryChips({ results }: MemoryChipsProps) {
       <AnimatePresence mode="wait">
         {isPanelOpen && selectedNodeId && (
           <motion.div
-            key={`panel-${selectedNodeId}`}
-            layoutId={selectedNodeId}
+            key={`panel-${scope}-${selectedNodeId}`}
+            layoutId={`${scope}-${selectedNodeId}`}
             initial={{ opacity: 0, filter: "blur(6px)" }}
             animate={{ opacity: 1, filter: "blur(0px)" }}
             exit={{ opacity: 0, filter: "blur(6px)", scale: 0.98 }}

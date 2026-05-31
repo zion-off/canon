@@ -22,6 +22,7 @@ from src.models.schemas.agent import (
     AgentConfirmResponse,
     AgentRunRequest,
 )
+from src.models.schemas.events import ConfirmationReceivedEvent, ConfirmationReceivedPayload
 from src.services.event_feed import AgentEventFeed
 from src.services.tenant_resolver import TenantContext
 
@@ -62,7 +63,6 @@ async def agent_run(
             user_id=ctx.user_id,
             session_id=body.session_id,
             run_id=run_id,
-            title=body.title or body.request[:80],
             request=body.request,
             context=body.context,
             event_feed=event_feed,
@@ -98,6 +98,23 @@ async def agent_confirm(
             status_code=404,
             detail="Confirmation not found or already resolved",
         )
+
+    if pending.session_id:
+        await event_feed.broadcast(
+            tenant_id=_ctx.tenant_id,
+            user_id=_ctx.user_id,
+            session_id=pending.session_id,
+            run_id=pending.run_id,
+            event=ConfirmationReceivedEvent(
+                author="agent_confirm",
+                payload=ConfirmationReceivedPayload(
+                    confirmation_id=confirmation_id,
+                    accepted=body.accepted,
+                    response=body.response,
+                ),
+            ),
+        )
+
     return AgentConfirmResponse(resolved=True)
 
 
@@ -117,7 +134,6 @@ async def _execute_agent(
     user_id: str,
     session_id: str,
     run_id: str,
-    title: str,
     request: str,
     context: str,
     event_feed: AgentEventFeed,
@@ -129,7 +145,6 @@ async def _execute_agent(
             user_id=user_id,
             session_id=session_id,
             run_id=run_id,
-            title=title,
             request=request,
             context=context,
             event_feed=event_feed,

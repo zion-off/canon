@@ -41,7 +41,6 @@ async def run_agent(
     user_id: str,
     session_id: str,
     run_id: str,
-    title: str,
     request: str,
     event_feed: AgentEventFeed,
     context: str = "",
@@ -78,6 +77,7 @@ async def run_agent(
     now = datetime.now(UTC)
     session = await SessionDocument.find_one(SessionDocument.session_id == session_id)
     if session is None:
+        title = await _generate_title(request) or request[:80]
         session = SessionDocument.model_construct(
             session_id=session_id,
             tenant_id=tenant_oid,
@@ -282,6 +282,20 @@ def _build_message(request: str, context: str, session_summary: str | None) -> s
     if session_summary:
         message = f"[Prior session context: {session_summary}]\n\n{message}"
     return message
+
+
+async def _generate_title(request: str) -> str:
+    """Generate a short title for a session from the user's request."""
+    prompt = (
+        f"Generate a concise title (8 words max) summarizing this request. "
+        f"Output only the title — no quotes, no preamble:\n\n{request[:500]}"
+    )
+    try:
+        title = await CanonModel.generate_text(settings.fast_model, prompt)
+        return title.strip() if title else ""
+    except Exception:
+        logging.getLogger(__name__).exception("Session title generation failed")
+        return ""
 
 
 async def _generate_session_summary(

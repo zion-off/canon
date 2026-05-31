@@ -4,9 +4,11 @@ import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { motion } from "motion/react";
 import dynamic from "next/dynamic";
 import type { NodeObject, LinkObject } from "react-force-graph-2d";
-import { GraphStyle } from "@/lib/graph-style";
+import { GraphStyle, tagColor } from "@/lib/graph-style";
+import { drawNodeOrb, drawNodeLabel, pulseValue } from "@/lib/graph-renderer";
 import { getGraph } from "@/lib/actions/graph";
 import type { GraphNode } from "@/lib/schemas/graph";
+import { STATUS } from "@/lib/constants";
 import type { CanonizeNodeArgs, CanonizeNodeResult } from "./types";
 
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false });
@@ -18,6 +20,7 @@ interface MiniGraphNode extends NodeObject {
   isSuperseded: boolean;
   status: string;
   tags: string[];
+  connections: number;
   fx?: number;
   fy?: number;
 }
@@ -41,6 +44,7 @@ export function MemoryBornGraph({ args, result, index }: MemoryBornGraphProps) {
   );
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(400);
+  const animTimeRef = useRef(0);
 
   const newNodeId = result.node_id ?? "new-node";
   const newNodeName = result.name ?? "New Memory";
@@ -91,6 +95,17 @@ export function MemoryBornGraph({ args, result, index }: MemoryBornGraphProps) {
     return () => timers.forEach(clearTimeout);
   }, []);
 
+  // Animation time tracking
+  useEffect(() => {
+    let raf: number;
+    const loop = () => {
+      animTimeRef.current = performance.now();
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
   // Build graph data for force-graph
   const { nodes, links } = useMemo(() => {
     const nodes: MiniGraphNode[] = [];
@@ -113,20 +128,23 @@ export function MemoryBornGraph({ args, result, index }: MemoryBornGraphProps) {
         isSuperseded: id === supersedesId,
         status: id === supersedesId ? "deprecated" : (resolved?.status ?? "active"),
         tags: resolved?.tags ?? [],
+        connections: resolved?.connections ?? 0,
         fx: Math.cos(angle) * radius,
         fy: Math.sin(angle) * radius,
       });
     });
 
-    // Add new node in center
+    // Add new node in center — derive hue from name so it isn't white
     if (animPhase !== "neighbors") {
+      const nameTag = newNodeName.toLowerCase().replace(/[^a-z0-9]/g, "-");
       nodes.push({
         id: newNodeId,
         name: newNodeName,
         isNew: true,
         isSuperseded: false,
         status: "active",
-        tags: [],
+        tags: [nameTag],
+        connections: 0,
         fx: 0,
         fy: 0,
       });
@@ -159,58 +177,67 @@ export function MemoryBornGraph({ args, result, index }: MemoryBornGraphProps) {
     supersedesId,
   ]);
 
-  const nodeCanvasObject = useCallback((node: NodeObject, ctx: CanvasRenderingContext2D) => {
-    const n = node as MiniGraphNode;
-    const x = n.x ?? 0;
-    const y = n.y ?? 0;
-    const baseRadius = n.isNew ? 8 : 5;
-    const color = n.isNew ? "#ffffff" : GraphStyle.nodeBaseColor({ tags: n.tags });
-    const alpha = n.isSuperseded ? GraphStyle.SUPERSEDED_ALPHA : 1;
+  const nodeCanvasObject = useCallback(
+    (node: NodeObject, ctx: CanvasRenderingContext2D) => {
+      const n = node as MiniGraphNode;
+      const radius = GraphStyle.nodeRadius(n.connections);
+      const x = n.x ?? 0;
+      const y = n.y ?? 0;
 
-    ctx.save();
-    ctx.globalAlpha = alpha;
+      const isDeprecated = n.status === STATUS.DEPRECATED && !n.isSuperseded;
 
-    // Node circle
-    ctx.beginPath();
-    ctx.arc(x, y, baseRadius, 0, 2 * Math.PI);
-    ctx.fillStyle = color;
-    ctx.fill();
+      drawNodeOrb(ctx, x, y, radius, {
+        id: n.id,
+        name: n.name,
+        tags: n.tags,
+        connections: n.connections,
+        superseded: n.isSuperseded,
+        deprecated: isDeprecated,
+        pulse: n.isNew,
+      }, animTimeRef.current);
 
-    // Accent ring for new node
-    if (n.isNew) {
-      ctx.beginPath();
-      ctx.arc(x, y, baseRadius + 3, 0, 2 * Math.PI);
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-    }
+      // Breathing glow ring for new node
+      if (n.isNew) {
+        const { ALPHA_MIN, ALPHA_MAX, PERIOD_MS } = GraphStyle.IN_PROGRESS;
+        const p = pulseValue(animTimeRef.current, ALPHA_MIN, ALPHA_MAX, PERIOD_MS);
+        const tagHex = tagColor(n.tags[0] ?? "");
+        const r = parseInt(tagHex.slice(1, 3), 16);
+        const g = parseInt(tagHex.slice(3, 5), 16);
+        const b = parseInt(tagHex.slice(5, 7), 16);
+        const ringOuter = radius + 6;
+        const ringGrad = ctx.createRadialGradient(x, y, radius, x, y, ringOuter);
+        ringGrad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${p})`);
+        ringGrad.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.beginPath();
+        ctx.arc(x, y, ringOuter, 0, 2 * Math.PI);
+        ctx.fillStyle = ringGrad;
+        ctx.fill();
+      }
 
-    // Label
-    ctx.font = "9px JetBrains Mono, monospace";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    ctx.fillStyle = n.isSuperseded ? "rgba(212,212,212,0.3)" : "rgba(212,212,212,0.85)";
-    const label = n.name.length > 20 ? n.name.slice(0, 19) + "…" : n.name;
-    ctx.fillText(label, x, y + baseRadius + 4);
+      drawNodeLabel(ctx, x, y, radius, n.name, n.isSuperseded, 20, 1);
+    },
+    [],
+  );
 
-    ctx.restore();
-  }, []);
+  const linkColor = useCallback(
+    (link: LinkObject) => {
+      const l = link as MiniGraphLink;
+      return l.type === "supersedes"
+        ? GraphStyle.LINK.COLOR_SUPERSEDES
+        : GraphStyle.LINK.COLOR_RELATED;
+    },
+    [],
+  );
 
-  const linkCanvasObject = useCallback((link: LinkObject, ctx: CanvasRenderingContext2D) => {
-    const l = link as MiniGraphLink & { source: MiniGraphNode; target: MiniGraphNode };
-    if (!l.source?.x || !l.target?.x) return;
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(l.source.x, l.source.y ?? 0);
-    ctx.lineTo(l.target.x, l.target.y ?? 0);
-    ctx.strokeStyle =
-      l.type === "supersedes" ? GraphStyle.LINK.COLOR_SUPERSEDES : GraphStyle.LINK.COLOR_RELATED;
-    ctx.lineWidth =
-      l.type === "supersedes" ? GraphStyle.LINK.WIDTH_SUPERSEDES : GraphStyle.LINK.WIDTH_RELATED;
-    ctx.stroke();
-    ctx.restore();
-  }, []);
+  const linkWidth = useCallback(
+    (link: LinkObject) => {
+      const l = link as MiniGraphLink;
+      return l.type === "supersedes"
+        ? GraphStyle.LINK.WIDTH_SUPERSEDES
+        : GraphStyle.LINK.WIDTH_RELATED;
+    },
+    [],
+  );
 
   return (
     <motion.div
@@ -220,20 +247,32 @@ export function MemoryBornGraph({ args, result, index }: MemoryBornGraphProps) {
       transition={{ duration: 0.4, delay: index * 0.05 }}
       className="my-3 w-fit rounded-md border border-canon-border bg-canon-bg overflow-hidden"
     >
-      <div className="h-50 w-full">
+      <div
+        className="h-50 w-full"
+        style={{
+          backgroundImage: `
+            radial-gradient(circle, ${GraphStyle.GRID.DOT_COLOR} ${GraphStyle.GRID.DOT_RADIUS}px, transparent ${GraphStyle.GRID.DOT_RADIUS}px)
+          `,
+          backgroundSize: `${GraphStyle.GRID.SPACING}px ${GraphStyle.GRID.SPACING}px`,
+        }}
+      >
         <ForceGraph2D
           width={containerWidth}
           height={200}
           graphData={{ nodes, links }}
           nodeCanvasObject={nodeCanvasObject}
-          linkCanvasObject={linkCanvasObject}
+          nodeCanvasObjectMode={() => "replace"}
+          nodeRelSize={4}
+          linkColor={linkColor}
+          linkWidth={linkWidth}
+          linkDirectionalParticleSpeed={() => 0}
+          nodeLabel=""
           enableZoomInteraction={false}
           enablePanInteraction={false}
           enableNodeDrag={false}
-          cooldownTime={0}
-          d3AlphaDecay={1}
-          d3VelocityDecay={1}
-          backgroundColor="transparent"
+          cooldownTicks={Number.MAX_SAFE_INTEGER}
+          d3AlphaDecay={0}
+          backgroundColor="rgba(0,0,0,0)"
         />
       </div>
       <div className="px-4 py-2.5 border-t border-canon-border">

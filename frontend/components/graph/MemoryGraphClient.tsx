@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import type { NodeObject, LinkObject } from "react-force-graph-2d";
 import type { GraphNode, GraphLink } from "@/lib/schemas/graph";
 import { GraphStyle } from "@/lib/graph-style";
+import { drawNodeOrb, drawNodeLabel, pulseValue } from "@/lib/graph-renderer";
 import { STATUS } from "@/lib/constants";
 import { GraphFilters } from "./GraphFilters";
 import { NodeDetailPanel } from "./NodeDetailPanel";
@@ -26,7 +27,7 @@ interface MemoryGraphClientProps {
 }
 
 // ---------------------------------------------------------------------------
-// Animated node renderer
+// Animated node renderer — delegates to shared graph-renderer
 // ---------------------------------------------------------------------------
 
 function renderNode(
@@ -49,77 +50,27 @@ function renderNode(
     !isDeprecated &&
     Date.now() - new Date(node.updatedAt).getTime() < GraphStyle.RECENT.WINDOW_MS;
 
-  const tagColor = GraphStyle.nodeBaseColor(node);
-  const r = parseInt(tagColor.slice(1, 3), 16);
-  const g = parseInt(tagColor.slice(3, 5), 16);
-  const b = parseInt(tagColor.slice(5, 7), 16);
+  drawNodeOrb(ctx, x, y, radius, {
+    id: node.id,
+    name: node.name,
+    tags: node.tags,
+    connections: node.connections ?? 0,
+    superseded: isSuperseded,
+    deprecated: isDeprecated,
+    pulse: isInProgress,
+  }, time);
 
-  // Dim factor for deprecated / superseded
-  const dimAlpha = isSuperseded
-    ? GraphStyle.SUPERSEDED_ALPHA
-    : isDeprecated
-      ? GraphStyle.DEPRECATED_ALPHA
-      : 1;
-
-  // ---- Orb fill with radial gradient ----
-  // Subtle highlight at centre, darker rim for depth
-  const highlightMix = 0.25;
-  const hlR = Math.round(r + (255 - r) * highlightMix);
-  const hlG = Math.round(g + (255 - g) * highlightMix);
-  const hlB = Math.round(b + (255 - b) * highlightMix);
-  const rimR = Math.round(r * 0.55);
-  const rimG = Math.round(g * 0.55);
-  const rimB = Math.round(b * 0.55);
-
-  const grad = ctx.createRadialGradient(
-    x - radius * GraphStyle.SPECULAR_OFFSET_RATIO,
-    y - radius * GraphStyle.SPECULAR_OFFSET_RATIO,
-    0,
-    x,
-    y,
-    radius,
-  );
-
-  if (isInProgress) {
-    const { ALPHA_MIN, ALPHA_MAX, PERIOD_MS } = GraphStyle.IN_PROGRESS;
-    const t = (time % PERIOD_MS) / PERIOD_MS;
-    const ease = 0.5 - 0.5 * Math.cos(2 * Math.PI * t);
-    const pulse = (ALPHA_MIN + ease * (ALPHA_MAX - ALPHA_MIN)) * dimAlpha;
-    grad.addColorStop(0, `rgba(${hlR}, ${hlG}, ${hlB}, ${pulse})`);
-    grad.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${pulse})`);
-    grad.addColorStop(1, `rgba(${rimR}, ${rimG}, ${rimB}, ${pulse})`);
-  } else {
-    grad.addColorStop(0, `rgba(${hlR}, ${hlG}, ${hlB}, ${dimAlpha})`);
-    grad.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${dimAlpha})`);
-    grad.addColorStop(1, `rgba(${rimR}, ${rimG}, ${rimB}, ${dimAlpha})`);
-  }
-
-  ctx.beginPath();
-  ctx.arc(x, y, radius, 0, 2 * Math.PI);
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  // ---- Specular highlight dot ----
-  const specR = radius * GraphStyle.SPECULAR_DOT_RATIO;
-  if (specR > 1) {
-    const sx = x - radius * GraphStyle.SPECULAR_OFFSET_RATIO;
-    const sy = y - radius * GraphStyle.SPECULAR_OFFSET_RATIO;
-    ctx.beginPath();
-    ctx.arc(sx, sy, specR, 0, 2 * Math.PI);
-    ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
-    ctx.fill();
-  }
-
-  // ---- Recent update ring pulse ----
+  // Recent update ring
   if (isRecent) {
     const { ALPHA_MAX, PERIOD_MS } = GraphStyle.RECENT;
-    const t = (time % PERIOD_MS) / PERIOD_MS;
-    const ease = 0.5 - 0.5 * Math.cos(2 * Math.PI * t);
-    const alpha = ease * ALPHA_MAX;
+    const p = pulseValue(time, 0, ALPHA_MAX, PERIOD_MS);
+    const tagColor = GraphStyle.nodeBaseColor(node);
+    const r = parseInt(tagColor.slice(1, 3), 16);
+    const g = parseInt(tagColor.slice(3, 5), 16);
+    const b = parseInt(tagColor.slice(5, 7), 16);
     const ringOuter = radius + 6;
-
     const ringGrad = ctx.createRadialGradient(x, y, radius, x, y, ringOuter);
-    ringGrad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${alpha})`);
+    ringGrad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${p})`);
     ringGrad.addColorStop(1, "rgba(0,0,0,0)");
     ctx.beginPath();
     ctx.arc(x, y, ringOuter, 0, 2 * Math.PI);
@@ -127,16 +78,17 @@ function renderNode(
     ctx.fill();
   }
 
-  // ---- Search-match breathing ring ----
+  // Search-match breathing ring
   if (isSearchMatch) {
     const { ALPHA_MIN, ALPHA_MAX, PERIOD_MS } = GraphStyle.SEARCH;
-    const t = (time % PERIOD_MS) / PERIOD_MS;
-    const ease = 0.5 - 0.5 * Math.cos(2 * Math.PI * t);
-    const alpha = ALPHA_MIN + ease * (ALPHA_MAX - ALPHA_MIN);
+    const p = pulseValue(time, ALPHA_MIN, ALPHA_MAX, PERIOD_MS);
+    const tagColor = GraphStyle.nodeBaseColor(node);
+    const r = parseInt(tagColor.slice(1, 3), 16);
+    const g = parseInt(tagColor.slice(3, 5), 16);
+    const b = parseInt(tagColor.slice(5, 7), 16);
     const ringOuter = radius + 6;
-
     const ringGrad = ctx.createRadialGradient(x, y, radius, x, y, ringOuter);
-    ringGrad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${alpha})`);
+    ringGrad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${p})`);
     ringGrad.addColorStop(1, "rgba(0,0,0,0)");
     ctx.beginPath();
     ctx.arc(x, y, ringOuter, 0, 2 * Math.PI);
@@ -144,7 +96,7 @@ function renderNode(
     ctx.fill();
   }
 
-  // ---- Highlight ring (selected / hovered) ----
+  // Highlight ring (selected / hovered)
   if (isHighlighted && !isSearchMatch) {
     ctx.beginPath();
     ctx.arc(x, y, radius + 4, 0, 2 * Math.PI);
@@ -153,14 +105,9 @@ function renderNode(
     ctx.stroke();
   }
 
-  // ---- Label ----
+  // Label
   if (globalScale > GraphStyle.LABEL.SCALE_THRESHOLD) {
-    const label = node.name.slice(0, GraphStyle.LABEL.MAX_CHARS);
-    ctx.font = `${11 / globalScale}px sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    ctx.fillStyle = GraphStyle.LABEL.COLOR;
-    ctx.fillText(label, x, y + radius + 2 / globalScale);
+    drawNodeLabel(ctx, x, y, radius, node.name, isSuperseded, GraphStyle.LABEL.MAX_CHARS, globalScale);
   }
 }
 

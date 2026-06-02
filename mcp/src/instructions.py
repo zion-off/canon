@@ -34,6 +34,15 @@ Only for:
 
 When in doubt, call it.
 
+## When to save
+
+If you just learned something your team doesn't know yet — a decision made, a \
+constraint discovered, a pattern established, a failure and its resolution — \
+save it to Canon. Your team's knowledge only grows when agents contribute back.
+
+Call `canon` with a request describing what was learned, why it matters, and \
+what it relates to. Canon will determine how to structure and link the memory.
+
 ## How to call it
 
 - `request`: what you intend to do and why, in natural language. Make it

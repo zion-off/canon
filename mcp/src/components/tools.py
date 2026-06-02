@@ -36,7 +36,8 @@ log = logging.getLogger(__name__)
         "this to learn those conventions before implementing. Applies to: retry "
         "logic, error handling, naming, testing, logging, validation, and any "
         "other pattern your team likely has standards for. Only skip for pure typo "
-        "or whitespace fixes."
+        "or whitespace fixes. Also call this to capture decisions, discoveries, "
+        "or patterns your team should know about going forward."
     ),
 )
 async def canon(

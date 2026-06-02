@@ -21,7 +21,7 @@ async def _fetch_prompt(name: str) -> str:
 
 @prompt(PromptName.BEFORE_IMPLEMENTING)
 async def before_implementing_prompt() -> str:
-    """Before I implement something — check org memory for conflicts and constraints."""
+    """Before implementing any non-trivial change — check org memory for conventions, patterns, and constraints that may affect your approach."""
     return await _fetch_prompt(PromptName.BEFORE_IMPLEMENTING)
 
 

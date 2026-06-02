@@ -9,21 +9,30 @@ already learned.
 
 ## When to call the `canon` tool
 
-Call `canon` on your own initiative — before, not after — whenever you are about \
-to commit the engineer to a technical direction:
+Call `canon` for any code change. Only skip when fixing a typo or adjusting \
+whitespace — nothing else.
 
-- before recommending or writing an implementation for any non-trivial change
-- before choosing a library, pattern, protocol, or architecture
-- before modifying infrastructure, auth, data models, or anything other teams
-  depend on
+Your team has accumulated knowledge about how they build software, and you do \
+not have this knowledge unless you call Canon. Retry strategies, error handling, \
+naming, testing, logging, configuration, validation, caching, concurrency, \
+library choices, API design — your team likely has decisions, conventions, or \
+lessons about all of these. If you skip Canon, you are guessing at conventions \
+your team has already established.
 
 Do not wait to be asked. A recommendation can be technically correct yet \
-organizationally wrong — cutting against how the team has agreed to work, or \
-stepping on something another team is in the middle of. Canon is how you find \
-out before the engineer does.
+organizationally wrong — cutting against how the team has agreed to work, \
+repeating a mistake the team has already learned from, or stepping on something \
+another team is in the middle of. Canon is how you find out before the engineer \
+does.
 
-You do not need to call `canon` for trivial edits, formatting, or pure \
-questions about the local code. Keep the calls sparse and high-signal.
+## When not to call
+
+Only for:
+
+- Pure typo or whitespace fixes
+- Questions about what the code currently does (reading comprehension)
+
+When in doubt, call it.
 
 ## How to call it
 

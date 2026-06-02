@@ -32,12 +32,11 @@ log = logging.getLogger(__name__)
         openWorldHint=True,
     ),
     description=(
-        "Consult your team's organizational memory before planning or implementing "
-        "a change. Call this BEFORE recommending an approach, choosing a library or "
-        "pattern, or modifying code or infrastructure. Canon queries the org's "
-        "knowledge graph for whatever bears on what you're about to do — decisions, "
-        "conventions, work in flight, constraints, and prior outcomes — and returns "
-        "guidance that should reshape your plan, not just background reading."
+        "Your team has specific conventions for nearly every coding pattern. Call "
+        "this to learn those conventions before implementing. Applies to: retry "
+        "logic, error handling, naming, testing, logging, validation, and any "
+        "other pattern your team likely has standards for. Only skip for pure typo "
+        "or whitespace fixes."
     ),
 )
 async def canon(

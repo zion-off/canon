@@ -18,13 +18,13 @@ async def get_before_implementing(
     _: TenantContext = Depends(api_token_auth),
 ) -> str:
     return (
-        "Consult Canon before you commit the engineer to a technical direction — "
-        "recommending an implementation, making an architectural choice, selecting a "
-        "technology or library, or touching infrastructure others depend on. Canon holds "
-        "organizational memory the codebase cannot tell you: the org's decisions and the "
-        "reasoning behind them, its conventions, the work in flight, and the lessons it "
-        "has already learned. Your recommendation may be technically correct yet "
-        "organizationally wrong without it.\n\n"
+        "Consult Canon before you commit the engineer to a technical direction. "
+        "Canon holds your team's accumulated knowledge about how they build software — "
+        "conventions, patterns, error handling approaches, retry strategies, testing "
+        "practices, naming, library choices, architectural decisions, and the reasoning "
+        "behind existing code. Any non-trivial coding decision may have organizational "
+        "context you should know about. Your recommendation may be technically correct "
+        "yet organizationally wrong without it.\n\n"
         "Set `request` to what you intend to do and why — specific and domain-rich, "
         "naming the technologies, services, and patterns involved (Canon cannot see your "
         "repo). Set `context` to what you have already observed: the stack, existing "

@@ -183,8 +183,10 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
     }
 
     const nodeIds = new Set(nodes.map((n) => n.id));
+    const getId = (ref: string | { id: string }) =>
+      typeof ref === "string" ? ref : ref.id;
     const links = localGraph.links.filter((l) => {
-      return nodeIds.has(l.source) && nodeIds.has(l.target);
+      return nodeIds.has(getId(l.source)) && nodeIds.has(getId(l.target));
     });
 
     return { nodes, links };
@@ -209,10 +211,12 @@ export function MemoryGraphClient({ graphData }: MemoryGraphClientProps) {
   // ---- Connected nodes ----
   const connectedNodeIds = useMemo(() => {
     if (!selectedNodeId) return [];
+    const getId = (ref: string | { id: string }) =>
+      typeof ref === "string" ? ref : ref.id;
     const ids = new Set<string>();
     localGraph.links.forEach((link) => {
-      if (link.source === selectedNodeId) ids.add(link.target);
-      if (link.target === selectedNodeId) ids.add(link.source);
+      if (getId(link.source) === selectedNodeId) ids.add(getId(link.target));
+      if (getId(link.target) === selectedNodeId) ids.add(getId(link.source));
     });
     return Array.from(ids);
   }, [selectedNodeId, localGraph.links]);

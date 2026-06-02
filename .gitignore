@@ -1,6 +1,6 @@
 .DS_Store
 docs/internal/
 AGENTS.md
-.commandcode
+.commandcode/taste/
 .env
 .vscode

@@ -18,6 +18,8 @@ from src.models.schemas import AgentEvent, AgentEventBase, SessionResponse
 @dataclass
 class PendingConfirmation:
     confirmation_id: str
+    session_id: str
+    run_id: str
     accepted: bool | None = None
     response: str | None = None
     resolved: Event = field(default_factory=Event)
@@ -187,16 +189,24 @@ class AgentEventFeed:
                     len(self._subscribers[key]),
                 )
 
-    async def request_confirmation(self, confirmation_id: str) -> PendingConfirmation:
+    async def request_confirmation(
+        self, confirmation_id: str, session_id: str, run_id: str
+    ) -> PendingConfirmation:
         """Register a pending confirmation and return an awaitable handle.
 
         The caller broadcasts the confirmation_requested event separately
         with the full details (message, options, title, description), then
         awaits ``pending.resolved`` which is set when
-        POST /agent/confirm/{confirmation_id} resolves it.
+        POST /agent/confirm/{confirmation_id} resolves it. The session_id and
+        run_id are retained so the resolving endpoint can broadcast the
+        confirmation_received event back to the originating run.
         """
         async with self._confirm_lock:
-            pending = PendingConfirmation(confirmation_id=confirmation_id)
+            pending = PendingConfirmation(
+                confirmation_id=confirmation_id,
+                session_id=session_id,
+                run_id=run_id,
+            )
             self._pending_confirmations[confirmation_id] = pending
         return pending
 
@@ -208,7 +218,7 @@ class AgentEventFeed:
         Returns the resolved PendingConfirmation or None if not found / already resolved.
         """
         async with self._confirm_lock:
-            pending = self._pending_confirmations.get(confirmation_id)
+            pending = self._pending_confirmations.pop(confirmation_id, None)
             if not pending or pending.resolved.is_set():
                 return None
 

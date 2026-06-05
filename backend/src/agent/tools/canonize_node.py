@@ -122,6 +122,8 @@ async def canonize_node(
             confirmation_id = f"{tool_context.state.get(SessionState.SESSION_ID)}:{tool_context.state.get(SessionState.RUN_ID)}:canonize"
             pending = await feed.request_confirmation(
                 confirmation_id=confirmation_id,
+                session_id=tool_context.state.get(SessionState.SESSION_ID) or "",
+                run_id=tool_context.state.get(SessionState.RUN_ID) or "",
             )
             await feed.broadcast(
                 tenant_id=tenant_id_str,

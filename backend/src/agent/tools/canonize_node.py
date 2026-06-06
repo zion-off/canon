@@ -200,7 +200,9 @@ async def canonize_node(
                 hint="A memory with this name already exists",
                 retry="Use different name or supersede existing. Retrieve it first.",
             )
-        log.warning("canonize_node: insert-many failed | name=%s error=%s", doc.name, exc)
+        log.warning(
+            "canonize_node: insert-many failed | name=%s error=%s", doc.name, exc
+        )
         return CanonizeError(
             error=f"Insert failed: {exc}",
             hint="Database write failed",
@@ -356,7 +358,7 @@ def _extract_inserted_id(result: object) -> str | None:
         except json.JSONDecodeError:
             pass
         # Regex: bare hex ObjectId in text (e.g. "Inserted IDs: abc123...")
-        match = re.search(r'\b([0-9a-f]{24})\b', text)
+        match = re.search(r"\b([0-9a-f]{24})\b", text)
         if match:
             return match.group(1)
 

@@ -160,7 +160,6 @@ NODES = [
         "createdAt": "2024-08-20T13:00:00+00:00",
         "updatedAt": "2025-01-25T11:30:00+00:00",
     },
-    
     # === INCIDENTS (3) ===
     {
         "_id": CASCADE_FAILURE,
@@ -230,7 +229,6 @@ NODES = [
         "createdAt": "2024-12-03T08:45:00+00:00",
         "updatedAt": "2024-12-05T14:20:00+00:00",
     },
-    
     # === CONVENTIONS (3) ===
     {
         "_id": EXPONENTIAL_BACKOFF,
@@ -285,7 +283,6 @@ NODES = [
         "createdAt": "2024-11-20T11:00:00+00:00",
         "updatedAt": "2024-11-20T11:00:00+00:00",
     },
-    
     # === DECISIONS (6) ===
     {
         "_id": EVENT_SOURCING,
@@ -403,7 +400,6 @@ NODES = [
         "createdAt": "2024-09-18T10:00:00+00:00",
         "updatedAt": "2024-09-18T10:00:00+00:00",
     },
-    
     # === TEAMS (2) ===
     {
         "_id": PLATFORM_TEAM,
@@ -445,7 +441,6 @@ NODES = [
         "createdAt": "2024-08-01T09:00:00+00:00",
         "updatedAt": "2025-01-20T09:00:00+00:00",
     },
-    
     # === KNOWLEDGE (3) ===
     {
         "_id": DEPLOYMENT_ARCH,
@@ -503,7 +498,6 @@ NODES = [
         "createdAt": "2024-08-05T11:00:00+00:00",
         "updatedAt": "2025-01-10T15:00:00+00:00",
     },
-    
     # === PROJECTS (4) ===
     {
         "_id": PAYMENTS_V2,
@@ -580,7 +574,6 @@ NODES = [
         "createdAt": "2024-11-20T09:00:00+00:00",
         "updatedAt": "2025-01-05T17:00:00+00:00",
     },
-    
     # === NEW NODES FOR BETTER CLUSTERING ===
     {
         "_id": PAYMENT_PROVIDERS,
@@ -675,9 +668,9 @@ NODES = [
 
 def build_embedding_text(node: dict) -> str:
     """Build concise, retrieval-optimized embedding text from a node.
-    
+
     Pattern: {name} [{status}]\\n{description}\\nTags: {comma-separated}
-    
+
     This concise format focuses on semantic signals that help vector search
     without diluting the embedding with procedural content like timelines.
     """

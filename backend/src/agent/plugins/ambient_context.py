@@ -24,6 +24,7 @@ from google.adk.tools.base_tool import BaseTool
 from google.adk.tools.tool_context import ToolContext
 
 from src.agent.constants import (
+    Collections,
     Database,
     SessionState,
     ToolName,
@@ -87,7 +88,7 @@ class AmbientContextPlugin(BasePlugin):
         )
         tool_args["database"] = Database.CANON
         if not tool_args.get("collection"):
-            tool_args["collection"] = "nodes"
+            tool_args["collection"] = Collections.MEMORY_NODES
         self._ejsonize(tool_args)
 
         ejson_tenant = {"$oid": tenant_id}

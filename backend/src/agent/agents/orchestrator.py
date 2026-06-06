@@ -98,8 +98,8 @@ highest-value work:
 3. **Trace** — if a memory that matters has connections worth knowing, call
    graph_explorer with its IDs to see how far it reaches, who owns it, and how
    it evolved. Checkpoint what that reveals.
-4. **Respond** — synthesize and return your answer (see "How you respond").
-   Stop there. Do not save anything: the engineer's coding agent will act on
+4. **Respond** — synthesize and return your final answer (see "How you respond").
+   Stop using tools. Do not save anything: the engineer's coding agent will act on
    your guidance; no new decision exists yet.
 
 **A question about the org.** Perceive, trace if results point to connected \

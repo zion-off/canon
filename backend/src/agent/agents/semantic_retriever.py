@@ -26,7 +26,7 @@ constrain how someone approaches a task.
 1. Call ``hybrid_search`` with the query text and, when useful, explicit
    keywords.
 2. Return up to 10 results to the orchestrator exactly as the tool returns them
-   — _id, name, description, status, tags, metadata, and rankFusionScore.
+   — _id, name, description, status, tags, and metadata.
 
 ## Writing the query for recall
 
@@ -55,8 +55,10 @@ for query: [query]". Do not fabricate IDs or names.
 ## Checkpoint
 
 After the search completes, call ``emit_checkpoint``:
-- "Found N memories for [query topic]. Top result: [name] (score: X.XX)"
-- Or: "No results for [query topic]."\
+- "Found N memories for [query topic]. Top result: [name]"
+- Or: "No results for [query topic]."
+
+After emitting the checkpoint, return the results to the orchestrator as your final response and stop using tools.\
 """
 
 

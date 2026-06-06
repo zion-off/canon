@@ -82,10 +82,10 @@ class CanonizeSuccess(BaseModel):
     node_id: str
     name: str
     relationships_formed: int
-    note: str = "Remembered with bidirectional relationship wiring"
+    note: str = "Memory has been successfully integrated into the knowledge graph."
     next_actions: list[str] = Field(
         default_factory=lambda: [
-            "Verify connectivity by tracing relationships from the new memory",
+            "Proceed with the workflow, as the memory is now persisted."
         ]
     )
 

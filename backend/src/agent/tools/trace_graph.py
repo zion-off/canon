@@ -51,13 +51,9 @@ def _enrich_trace_result(
         return TraceGraphSuccess(
             nodes=docs,
             count=len(docs),
-            note="Nodes found but none have relationships to other memories. "
-            "They are isolated in the graph — no dependencies, ownership "
-            "links, or supersession chains connect them to anything else.",
+            note="These nodes are isolated in the graph. They have no documented dependencies, ownership links, or supersession chains.",
             next_actions=[
-                "Report isolated nodes to the orchestrator with names and statuses",
-                "If the orchestrator needs graph context, try semantic_retriever "
-                "with broader terms to find connected alternatives",
+                "Treat these as standalone concepts without broader graph impact.",
             ],
         )
 
@@ -71,11 +67,10 @@ def _enrich_trace_result(
             count=len(docs),
             note=f"Found {len(docs)} nodes with {total_connected} connected "
             f"memories across up to {max_depth} hops. Supersession chains "
-            "detected — some nodes have replaced or been replaced by others.",
+            "are present, indicating historical evolution of these concepts.",
             next_actions=[
-                "Identify active supersession targets — they carry the most authority",
-                "Surface dependency direction: which node depends on which",
-                "Report ownership boundaries and impact radius to the orchestrator",
+                "Focus on the active nodes in the supersession chains as the current authoritative state.",
+                "Note any critical dependencies or ownership revealed by the connections.",
             ],
         )
 
@@ -85,9 +80,8 @@ def _enrich_trace_result(
         note=f"Found {len(docs)} nodes with {total_connected} connected "
         f"memories across up to {max_depth} hops.",
         next_actions=[
-            "Surface dependency and ownership relationships to the orchestrator",
-            "Note any patterns: clusters of related nodes, shared ownership, "
-            "or temporal ordering (created/updated sequences)",
+            "Observe how these nodes relate to broader systems or teams.",
+            "Identify if any adjacent nodes introduce constraints the engineer should know about.",
         ],
     )
 
@@ -234,10 +228,10 @@ async def trace_graph(
         return TraceGraphSuccess(
             nodes=[],
             count=0,
-            note="No nodes found for the provided entity IDs",
+            note="No nodes found for the provided entity IDs.",
             next_actions=[
-                "Verify entity IDs from search results",
-                "Try name-based lookup with find tool",
+                "Confirm the entity IDs are correct hex strings.",
+                "If the nodes do not exist, proceed accordingly.",
             ],
         )
 

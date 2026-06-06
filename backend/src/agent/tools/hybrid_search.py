@@ -32,22 +32,27 @@ def _enrich_search_result(
 ) -> HybridSearchSuccess:
     """Populate note/next_actions based on result characteristics."""
     if result.count == 0:
-        result.note = "No results — try broader terms or different keywords"
+        result.note = "No memories matched this query."
         result.next_actions = [
-            "Retry with broader query",
-            "Report no relevant context found",
+            "Consider if the organization might track this under a different phrasing or identifier.",
+            "If no alternative terms apply, proceed with the understanding that this is genuinely novel to the org.",
         ]
     elif result.count < 3:
-        result.note = "Few results — knowledge may be sparse on this topic"
+        result.note = "Found a limited number of distinct memories."
         result.next_actions = [
-            "Trace relationships from found IDs via graph_explorer",
+            "Review if these specific memories alter the intended approach.",
+            "If these nodes connect to broader systems and you lack context, a graph trace could reveal more.",
         ]
     elif result.count >= limit:
-        result.note = "Results capped at limit — most relevant are first"
-        result.next_actions = ["Focus on top results for entity IDs to trace"]
-    else:
+        result.note = f"Results capped at limit ({limit}). The most strongly related memories are included."
         result.next_actions = [
-            "Trace relationships from found IDs via graph_explorer",
+            "Evaluate if the top-ranked active memories present constraints or established patterns.",
+            "Focus on active nodes over deprecated history when judging current organizational state.",
+        ]
+    else:
+        result.note = f"Found a focused set of {result.count} related memories."
+        result.next_actions = [
+            "Evaluate if any of these memories present constraints, dependencies, or established patterns.",
         ]
     return result
 

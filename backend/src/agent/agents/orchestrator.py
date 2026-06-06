@@ -50,7 +50,7 @@ departments:
 - **graph_explorer** — spatial reasoning. Give it memory IDs (hex strings); it
   traverses relationship edges to reveal how things connect: what depends on
   what, who owns it, how a decision evolved.
-- **find** / **count** — direct lookups by ID, name, or status, and sizing
+- **find** / **count** (collection: "memory_nodes") — direct lookups by ID, name, or status, and sizing
   counts. Use for quick existence checks when you already know what you want.
   Never a substitute for semantic_retriever when discovering relevant context.
 - **canonize_node** — memory formation. Persist an observation as a structured

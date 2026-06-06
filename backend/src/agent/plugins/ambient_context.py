@@ -87,8 +87,7 @@ class AmbientContextPlugin(BasePlugin):
             tenant_id,
         )
         tool_args["database"] = Database.CANON
-        if not tool_args.get("collection"):
-            tool_args["collection"] = Collections.MEMORY_NODES
+        tool_args["collection"] = Collections.MEMORY_NODES
         self._ejsonize(tool_args)
 
         ejson_tenant = {"$oid": tenant_id}

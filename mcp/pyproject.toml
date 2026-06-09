@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "canon-mcp-server"
-version = "0.2.0"
+version = "0.2.1"
 description = "MCP server that connects AI coding assistants to your team's organizational memory in canon — active migrations, deprecated patterns, architecture decisions, prior failures, and the context behind why things are the way they are."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-canon-mcp = "src.main:main"
+canon-mcp-server = "src.main:main"
 
 [project.urls]
 Repository = "https://github.com/zion-off/canon"

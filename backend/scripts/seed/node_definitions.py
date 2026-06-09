@@ -17,6 +17,7 @@ API_GATEWAY = "aa0000000000000000000005"
 CASCADE_FAILURE = "bb0000000000000000000001"
 REDIS_SPLIT_BRAIN = "bb0000000000000000000002"
 API_GATEWAY_MEMORY_LEAK = "bb0000000000000000000003"
+JWT_INCONSISTENCY = "bb0000000000000000000004"
 
 # Conventions
 EXPONENTIAL_BACKOFF = "cc0000000000000000000001"
@@ -69,6 +70,9 @@ NODES = [
             CASCADE_FAILURE,
             PAYMENTS_TEAM,
             PAYMENTS_V2,
+            JWT_INCONSISTENCY,
+            JWT_VALIDATION,
+            API_GATEWAY,
         ],
         "metadata": {
             "criticality": "high",
@@ -150,6 +154,9 @@ NODES = [
         "related_entity_ids": [
             API_GATEWAY_UNIFIED,
             API_GATEWAY_MEMORY_LEAK,
+            JWT_VALIDATION,
+            JWT_INCONSISTENCY,
+            AUTH_SERVICE,
         ],
         "metadata": {
             "criticality": "high",
@@ -228,6 +235,33 @@ NODES = [
         },
         "createdAt": "2024-12-03T08:45:00+00:00",
         "updatedAt": "2024-12-05T14:20:00+00:00",
+    },
+    # === CONVENTIONS (3) ===
+    {
+        "_id": JWT_INCONSISTENCY,
+        "name": "JWT validation inconsistency",
+        "description": "SEV-2 incident where services independently validated JWTs with mismatched algorithms and tolerances, causing sporadic auth failures in production",
+        "content": "Multiple services implemented JWT validation independently with different libraries and configurations. Payments service accepted RS256 tokens, order service used HMAC with a shared secret, and inventory service used a cached public key that expired. During a routine key rotation, tokens valid in one service were rejected by another. Resulted in a 35-minute partial outage where some API paths worked while others returned 401. Post-mortem revealed 4 independent JWT validation implementations across 6 services with incompatible configurations. Root cause was the absence of a centralized validation standard.",
+        "status": "resolved",
+        "tags": ["incident", "outage", "authentication", "JWT"],
+        "related_entity_ids": [
+            API_GATEWAY,
+            API_GATEWAY_UNIFIED,
+            JWT_VALIDATION,
+            AUTH_SERVICE,
+            PAYMENTS_SERVICE,
+            INCIDENT_RUNBOOK,
+        ],
+        "metadata": {
+            "severity": "SEV-2",
+            "rootCause": "Multiple independent JWT validation implementations with incompatible configurations",
+            "duration": "35 minutes partial outage",
+            "date": "2024-09-22",
+            "impact": "Sporadic 401 errors across services during key rotation",
+            "resolution": "Centralized JWT validation at API gateway per ADR-041",
+        },
+        "createdAt": "2024-09-22T14:20:00+00:00",
+        "updatedAt": "2024-10-10T16:00:00+00:00",
     },
     # === CONVENTIONS (3) ===
     {
@@ -367,12 +401,15 @@ NODES = [
         "_id": API_GATEWAY_UNIFIED,
         "name": "API gateway unified entry",
         "description": "ADR-041: Consolidate all client traffic through single Kong gateway for consistent auth, rate limiting, and observability",
-        "content": "All external API traffic routes through unified Kong gateway. Provides centralized authentication, rate limiting, request transformation, and observability. Influenced by memory leak incident that highlighted need for proper connection management.",
+        "content": "All external API traffic routes through unified Kong gateway. Provides centralized JWT validation, rate limiting, request transformation, and observability. JWT validation is performed once at the gateway layer; downstream services receive validated tokens and must never re-validate. Driven by two incidents: the JWT validation inconsistency incident where mismatched implementations caused auth failures, and the memory leak incident that highlighted the need for proper connection management.",
         "status": "active",
         "tags": ["decision", "architecture", "gateway"],
         "related_entity_ids": [
             API_GATEWAY,
             API_GATEWAY_MEMORY_LEAK,
+            JWT_INCONSISTENCY,
+            JWT_VALIDATION,
+            AUTH_SERVICE,
         ],
         "metadata": {
             "adrNumber": 41,
@@ -412,6 +449,7 @@ NODES = [
             ORDER_SERVICE,
             INVENTORY_SERVICE,
             API_GATEWAY,
+            AUTH_SERVICE,
             DEPLOYMENT_ARCH,
             ONCALL_ROTATION,
             INCIDENT_RUNBOOK,
@@ -488,6 +526,7 @@ NODES = [
             CASCADE_FAILURE,
             REDIS_SPLIT_BRAIN,
             API_GATEWAY_MEMORY_LEAK,
+            JWT_INCONSISTENCY,
             PLATFORM_TEAM,
             ONCALL_ROTATION,
         ],
@@ -597,11 +636,15 @@ NODES = [
         "_id": AUTH_SERVICE,
         "name": "Authentication service",
         "description": "Centralized authentication service handling user login, token issuance, and session management",
-        "content": "Provides JWT-based authentication for all services. Handles user credentials, issues access and refresh tokens, manages sessions. Integrates with API gateway for request validation.",
+        "content": "Provides JWT-based authentication for all services. Handles user credentials, issues RS256-signed access tokens and refresh tokens, manages sessions, and exposes a JWKS endpoint for key distribution. Integrates with the API gateway which performs JWT validation — auth service does not validate tokens itself, only issues them.",
         "status": "active",
         "tags": ["service", "backend", "authentication"],
         "related_entity_ids": [
             JWT_VALIDATION,
+            API_GATEWAY,
+            API_GATEWAY_UNIFIED,
+            JWT_INCONSISTENCY,
+            PLATFORM_TEAM,
         ],
         "metadata": {
             "criticality": "high",
@@ -613,13 +656,16 @@ NODES = [
     },
     {
         "_id": JWT_VALIDATION,
-        "name": "JWT validation convention",
-        "description": "Standardized JWT validation pattern using RS256 with public key distribution via JWKS endpoint",
-        "content": "All services validate JWTs using RS256 algorithm. Public keys distributed via JWKS endpoint from auth service. Tokens include user ID, roles, and expiration. Refresh token rotation implemented for security.",
+        "name": "JWT validation at API gateway only",
+        "description": "Standardized JWT validation using RS256 with JWKS key distribution, performed at the API gateway only — downstream services must not re-validate",
+        "content": "JWT validation is performed exclusively at the API gateway using RS256 algorithm with keys from the auth service's JWKS endpoint. Downstream services receive already-validated tokens via forwarded headers and must not implement their own JWT validation. Gateway adds a signed X-JWT-Validated header to prove validation occurred. This prevents the validation inconsistency issues that caused the September 2024 incident. Services with strict latency requirements may request an exception via a new ADR for lightweight token passthrough.",
         "status": "active",
         "tags": ["convention", "architecture", "authentication"],
         "related_entity_ids": [
             AUTH_SERVICE,
+            API_GATEWAY,
+            API_GATEWAY_UNIFIED,
+            JWT_INCONSISTENCY,
         ],
         "metadata": {
             "algorithm": "RS256",

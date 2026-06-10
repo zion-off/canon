@@ -84,6 +84,15 @@ else
   missing+=("docker (https://docs.docker.com/get-docker/)")
 fi
 
+# ── gcloud credentials ─────────────────────────────────────────────
+GCLOUD_CREDS="$HOME/.config/gcloud/application_default_credentials.json"
+if [ -f "$GCLOUD_CREDS" ]; then
+  ok "gcloud ADC found at $GCLOUD_CREDS"
+else
+  err "gcloud ADC not found at $GCLOUD_CREDS"
+  missing+=("gcloud ADC (run: gcloud auth application-default login)")
+fi
+
 if [ ${#missing[@]} -gt 0 ]; then
   echo ""
   say "$BOLD$RED" "Missing prerequisites:"

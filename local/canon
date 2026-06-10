@@ -68,6 +68,7 @@ $(color "$BOLD" "Usage:")
   $(color "$CYAN" "canon init")                         Set up venvs and install all dependencies
   $(color "$CYAN" "canon install")                      Symlink this script into /usr/local/bin/canon
   $(color "$CYAN" "canon help")                         Show this help
+  $(color "$CYAN" "canon seed")                         Seed MongoDB with development data
 
 $(color "$BOLD" "Examples:")
   canon up                           Start all services in the background
@@ -203,6 +204,12 @@ cmd_build() {
   color "$GREEN" "Build complete."
 }
 
+cmd_seed() {
+  color "$CYAN" "Seeding MongoDB with development data..."
+  docker exec -it canon-backend uv run /app/scripts/seed/insert_seed.py
+  color "$GREEN" "Seed complete."
+}
+
 cmd_init() {
   exec "$SCRIPT_DIR/init.sh"
 }
@@ -279,6 +286,10 @@ build)
   ;;
 init)
   cmd_init
+  ;;
+seed)
+  shift
+  cmd_seed "$@"
   ;;
 install)
   shift

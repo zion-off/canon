@@ -96,7 +96,7 @@ async def join_team(
         raise HTTPException(status_code=409, detail="User already belongs to a team")
     now = datetime.now(UTC)
 
-    invite = await InviteDocument.find_one({"code": body.code})
+    invite = await InviteDocument.find_one({"code": body.code.lower()})
     if not invite:
         raise HTTPException(status_code=400, detail="Invalid invite code")
     if invite.expires_at < now:

@@ -99,7 +99,7 @@ async def join_team(
     invite = await InviteDocument.find_one({"code": body.code.lower()})
     if not invite:
         raise HTTPException(status_code=400, detail="Invalid invite code")
-    if invite.expires_at < now:
+    if invite.expires_at.replace(tzinfo=UTC) < now:
         raise HTTPException(status_code=400, detail="Invite code has expired")
 
     tenant_id = invite.tenant_id
@@ -149,7 +149,7 @@ async def create_invite(
 
     now = datetime.now(UTC)
     code = secrets.token_hex(4)
-    expires_at = now + timedelta(days=7)
+    expires_at = now + timedelta(days=30)
 
     await InviteDocument.model_construct(
         tenant_id=ObjectId(user.tenant_id),
